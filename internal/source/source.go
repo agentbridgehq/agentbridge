@@ -37,6 +37,22 @@ func (r Resolved) Pinned() string {
 	return pinned
 }
 
+// Identity names *what* a plugin came from, with the revision removed.
+//
+// Pinned() answers "which exact bytes"; this answers "which upstream". Upgrading
+// a plugin from v1.0.0 to v1.1.0 changes the pin and keeps the identity, which
+// is the distinction needed to tell an upgrade apart from two different plugins
+// that happen to claim the same name.
+func (r Resolved) Identity() string {
+	if r.Ref.Kind != KindGit {
+		return r.Dir
+	}
+	if r.Ref.Subdir == "" {
+		return r.Ref.URL
+	}
+	return r.Ref.URL + "#" + r.Ref.Subdir
+}
+
 // Options control resolution.
 type Options struct {
 	// Cache stores fetched packages. Required for remote references.

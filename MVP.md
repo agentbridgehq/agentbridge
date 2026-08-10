@@ -2,7 +2,39 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **Every MVP milestone implemented. Launch (M9-4) and a first release remain — both human tasks.**
+Last updated: 2026-08-10 · Overall status: **Every MVP milestone implemented and re-audited. Launch (M9-4) and a first release remain — both human tasks.**
+
+**Second full review (2026-08-10).** Docs, command surface and implementation
+re-checked. Command names, flags and every relative documentation link resolve;
+the corpus passes 18/18; upstream is unmoved. Two defects found and fixed:
+
+1. **Two plugins sharing a name silently orphaned one of them.** Configuration
+   entries are keyed by plugin name and a receipt is the only record of what to
+   remove, so installing a second plugin under an existing name overwrote the
+   first's receipt. `remove` then cleaned only the second, leaving the first's
+   entries in the client's configuration **permanently**, with nothing left that
+   knew they existed. Nothing in Agent Plugins prevents the collision — §5.5
+   constrains the name string and no authority allocates it (threat T4 in
+   [05](docs/05-security-and-trust.md)).
+
+   The fix refuses the install and says which source holds the name. Receipts now
+   record a **source identity** — the upstream with the revision removed — so an
+   upgrade from v1.0.0 to v1.1.0 is not mistaken for a second plugin. Verified
+   both ways: upgrades pass, a different repository claiming the same name is
+   refused, and removing the incumbent frees it.
+
+2. **`sync --json` printed prose on an empty workspace.** A script piping to
+   `jq` broke on the case where nothing is declared, which is exactly the case a
+   fresh checkout hits.
+
+Both are the same shape as the defects the first review found: correct-looking,
+silent, and only visible by asking what the code would do if it were wrong.
+
+**A note on method.** Three apparent failures in this review turned out to be
+faults in the throwaway shell used to probe, not in the tool — zsh not
+word-splitting an unquoted variable, and `echo` interpreting the `\n` escapes
+inside JSON output. Worth recording because the instinct on seeing eight
+commands "fail" at once should be to doubt the harness first.
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical

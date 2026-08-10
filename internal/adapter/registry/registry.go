@@ -6,6 +6,7 @@
 package registry
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -223,6 +224,45 @@ type Provenance struct {
 	// Managed names the manifest scope that declared this plugin, empty for an
 	// ad-hoc install.
 	Managed string
+	// Identity names the upstream with the revision removed.
+	Identity string
+}
+
+// ErrNameConflict is returned when a different plugin already occupies a name.
+var ErrNameConflict = errors.New("plugin name already in use by a different source")
+
+// CheckNameConflict refuses to install over a different plugin with the same
+// name.
+//
+// Exported so a caller can fail before printing a report for an install that
+// cannot proceed. ApplyInstall checks it again regardless: this is a data
+// integrity rule, not a presentation one, and every path that writes must
+// enforce it.
+//
+// Nothing in Agent Plugins assigns names: §5.5 constrains the string and no
+// authority prevents two unrelated plugins from claiming the same one (threat
+// T4 in docs/05). Because configuration keys are namespaced by plugin name,
+// installing a second plugin under an existing name overwrites the first's
+// receipt — and a receipt is the only record of what to remove. The entries the
+// first plugin wrote are then orphaned in a client's configuration with nothing
+// left that knows they exist.
+//
+// Refusing is the honest response: two different plugins claiming one name is a
+// conflict only the user can resolve.
+func CheckNameConflict(store *receipt.Store, name, identity string) error {
+	if identity == "" {
+		return nil
+	}
+	for _, e := range store.ForPlugin(name) {
+		if e.SourceIdentity == "" || e.SourceIdentity == identity {
+			continue
+		}
+		return fmt.Errorf("%w: %q is already installed from %s.\n"+
+			"Two different plugins cannot share a name, because configuration entries are keyed by it "+
+			"and removal would orphan one of them. Run `agentbridge remove %s` first if you mean to replace it",
+			ErrNameConflict, name, e.SourceIdentity, name)
+	}
+	return nil
 }
 
 // ApplyInstall executes plans and records receipts.
@@ -233,6 +273,10 @@ type Provenance struct {
 func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*adapter.Plan, prov Provenance) error {
 	digest, err := p.Digest()
 	if err != nil {
+		return err
+	}
+
+	if err := CheckNameConflict(store, p.Name, prov.Identity); err != nil {
 		return err
 	}
 
@@ -247,17 +291,18 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 			return fmt.Errorf("%s (%s): %w", plan.Installation.Client.Name, plan.Installation.Scope, err)
 		}
 		store.Put(receipt.Entry{
-			Plugin:        p.Name,
-			Client:        plan.Installation.Client.ID,
-			Scope:         string(plan.Installation.Scope),
-			Digest:        digest,
-			Source:        prov.Source,
-			TreeDigest:    prov.TreeDigest,
-			Managed:       prov.Managed,
-			ConfigPath:    plan.Installation.ConfigPath,
-			ConfigKeys:    plan.ConfigKeys,
-			BlockSections: plan.BlockSections,
-			PackageDir:    plan.PackageDir,
+			Plugin:         p.Name,
+			Client:         plan.Installation.Client.ID,
+			Scope:          string(plan.Installation.Scope),
+			Digest:         digest,
+			Source:         prov.Source,
+			TreeDigest:     prov.TreeDigest,
+			SourceIdentity: prov.Identity,
+			Managed:        prov.Managed,
+			ConfigPath:     plan.Installation.ConfigPath,
+			ConfigKeys:     plan.ConfigKeys,
+			BlockSections:  plan.BlockSections,
+			PackageDir:     plan.PackageDir,
 		})
 	}
 	return store.Save()

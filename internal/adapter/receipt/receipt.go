@@ -42,6 +42,10 @@ type Entry struct {
 	// Source it is what makes an install reproducible and a substitution
 	// detectable.
 	TreeDigest string `json:"treeDigest,omitempty"`
+	// SourceIdentity names the upstream with the revision removed, so an
+	// upgrade of one plugin can be told apart from a second, different plugin
+	// claiming the same name.
+	SourceIdentity string `json:"sourceIdentity,omitempty"`
 	// ConfigPath is the file that was edited, if any.
 	ConfigPath string `json:"configPath,omitempty"`
 	// ConfigKeys are the key paths written into ConfigPath. Each is a path

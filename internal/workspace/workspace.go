@@ -250,6 +250,7 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 	if err := adapterreg.ApplyInstall(opts.Env, store, imported.Plugin, plans, adapterreg.Provenance{
 		Source:     resolved.Pinned(),
 		TreeDigest: resolved.TreeDigest,
+		Identity:   resolved.Identity(),
 		Managed:    string(entry.DeclaredIn),
 	}); err != nil {
 		result.Err = err
