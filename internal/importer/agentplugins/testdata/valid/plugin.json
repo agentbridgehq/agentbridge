@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "acme.db-tools",
+  "version": "1.2.0",
+  "description": "Database tooling for agents",
+  "author": { "name": "Acme", "email": "dev@acme.example" },
+  "license": "Apache-2.0",
+  "keywords": ["db", "sql"],
+  "extensions": {
+    "com.example.client": { "anything": [1, 2, 3] }
+  },
+  "unknownField": "should warn, not fail"
+}

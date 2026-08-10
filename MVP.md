@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **Planning complete, implementation not started**
+Last updated: 2026-08-10 · Overall status: **M0 and M1 complete. M2 (adapters) is next.**
 
 ---
 
@@ -39,9 +39,9 @@ Priority: **P0** = MVP does not ship without it · **P1** = ships if time allows
 |---|---|---|---|
 | D-01 | Planning docs written | [docs/](docs/) | ✅ |
 | D-02 | Name + trademark availability verified (npm, GitHub org, domain, USPTO/EUIPO) | [07 D6](docs/07-open-questions.md) | ⬜ |
-| D-03 | Language confirmed: Go | [08 §1](docs/08-tech-stack.md) | ⬜ |
-| D-04 | License confirmed: Apache-2.0 core, separate commercial repo | [07 D3](docs/07-open-questions.md) | ⬜ |
-| D-05 | IR design reviewed and signed off | [03 §3](docs/03-architecture.md) | ⬜ |
+| D-03 | Language confirmed: Go | [08 §1](docs/08-tech-stack.md) | ✅ |
+| D-04 | License confirmed: Apache-2.0 core, separate commercial repo | [07 D3](docs/07-open-questions.md) | ✅ |
+| D-05 | IR design reviewed and signed off | [03 §3](docs/03-architecture.md) | ✅ |
 | D-06 | Target client list for MVP locked | §6 below | ⬜ |
 
 ---
@@ -52,26 +52,61 @@ Priority: **P0** = MVP does not ship without it · **P1** = ships if time allows
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M0-1 | Repo, module layout, Go toolchain | `go build ./...` green; `cmd/` + `internal/` split; core importable as a library | ⬜ |
-| M0-2 | CI: build, test, vet, lint, cross-compile matrix | darwin/linux/windows × amd64/arm64 all build on every PR | ⬜ |
-| M0-3 | License scanning in CI, fail on AGPL/SSPL | Build fails on a policy-violating dependency | ⬜ |
-| M0-4 | DCO enforcement on PRs | First external PR cannot merge unsigned | ⬜ |
-| M0-5 | `SECURITY.md`, threat model summary, `security.txt` | Published before first public release | ⬜ |
+| M0-1 | Repo, module layout, Go toolchain | `go build ./...` green; `cmd/` + `internal/` split; core importable as a library | ✅ |
+| M0-2 | CI: build, test, vet, lint, cross-compile matrix | darwin/linux/windows × amd64/arm64 all build on every PR | ✅ |
+| M0-3 | License scanning in CI, fail on AGPL/SSPL | Build fails on a policy-violating dependency | ✅ |
+| M0-4 | DCO enforcement on PRs | First external PR cannot merge unsigned | ✅ |
+| M0-5 | `SECURITY.md`, threat model summary, `security.txt` | Published before first public release | ✅ ¹ |
+
+¹ `SECURITY.md`, the threat model summary and `CONTRIBUTING.md` are in place.
+`security.txt` is deferred: it is served from a domain, and the domain is
+blocked on D-02.
 
 ### M1 — Internal Representation & importers · P0 · ~2 weeks
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M1-1 | IR types + canonical serialization | Stable digest for identical input; round-trip test | ⬜ |
-| M1-2 | Embedded Agent Plugins 1.0 JSON Schemas | Validation works fully offline; `$schema` never fetched at load | ⬜ |
-| M1-3 | Importer: `agent-plugins@1.0` | Closed-schema validation; unknown top-level fields reported and ignored; foreign `extensions` namespaces preserved unvalidated | ⬜ |
-| M1-4 | Importer: Claude Code plugin format | Real-world plugin imports with an enumerated, documented loss list | ⬜ |
-| M1-5 | Importer: bare `mcp.json` fragment | Common case — someone pastes a server config | ⬜ |
-| M1-6 | Skill parsing (`SKILL.md` frontmatter + body hash) | Per-skill content hash; malformed skill skipped, not fatal | ⬜ |
-| M1-7 | Path-containment enforcement | Symlink/`..`/absolute-path escape attempts rejected with a clear error; fuzz-tested | ⬜ |
-| M1-8 | Capability inference (exec / network / fs / secrets) | Derived from `mcp.json` + skill content; recorded in IR | ⬜ |
+| M1-1 | IR types + canonical serialization | Stable digest for identical input; round-trip test | ✅ |
+| M1-2 | Embedded Agent Plugins 1.0 JSON Schemas | Validation works fully offline; `$schema` never fetched at load | ✅ |
+| M1-3 | Importer: `agent-plugins@1.0` | Closed-schema validation; unknown top-level fields reported and ignored; foreign `extensions` namespaces preserved unvalidated | ✅ |
+| M1-4 | Importer: Claude Code plugin format | Real-world plugin imports with an enumerated, documented loss list | ✅ |
+| M1-5 | Importer: bare `mcp.json` fragment | Common case — someone pastes a server config | ✅ |
+| M1-6 | Skill parsing (`SKILL.md` frontmatter + body hash) | Per-skill content hash; malformed skill skipped, not fatal | ✅ |
+| M1-7 | Path-containment enforcement | Symlink/`..`/absolute-path escape attempts rejected with a clear error; fuzz-tested | ✅ |
+| M1-8 | Capability inference (exec / network / fs / secrets) | Derived from `mcp.json` + skill content; recorded in IR | ✅ |
 
-**Risk:** M1-4 is the go/no-go spike. If Claude Code ↔ Agent Plugins round-tripping is lossy in ways we can't report cleanly, the IR design needs rework before anything else is built.
+**Result of the M1-4 spike: GO.** The round trip works and the IR design holds.
+Losses are real but all enumerable and reportable, which is the bar that
+mattered. Findings:
+
+- `skills/<name>/SKILL.md` is byte-identical across both formats. This is the
+  one component that crosses with no transformation at all.
+- Claude Code expands `${CLAUDE_PLUGIN_ROOT}` inside an MCP server's `command`;
+  Agent Plugins expands placeholders only in `args`, `env` values and `cwd`.
+  A converter that merely renamed the placeholder would emit a manifest that
+  passes schema validation and fails at launch. We rewrite it to a
+  plugin-relative command and report the rewrite.
+- Claude Code MCP entries need no `type`. Transport is inferred from shape and
+  the inference is reported, since guessing wrong changes how the server
+  connects. `http` maps to `streamable-http`; `ws` has no portable equivalent
+  and is skipped with a reason.
+- `commands/*.md` flat skills have no portable layout and need restructuring
+  before export.
+- Components with no equivalent at all — agents, hooks, workflows, output
+  styles, themes, monitors, LSP servers, bundled executables, plugin settings —
+  are preserved (manifest under a reverse-domain extension namespace, on-disk
+  components in `Native`) and each produces a diagnostic.
+
+Two upstream surprises worth recording, both handled in `internal/schema`:
+
+- The canonical `name` pattern uses a negative lookahead, which Go's RE2 engine
+  cannot compile *at schema-compile time*. Left in place it takes the whole
+  loader down. The rule is enforced in code by `schema.ValidateName` instead.
+- The canonical manifest schema closes the object (`additionalProperties:
+  false`), but the conformance rules require unknown top-level fields to be
+  reported and tolerated. Both cannot be satisfied by schema validation alone,
+  so the loader uses a relaxed variant and reports unknown keys itself, while
+  strict author-facing validation keeps the closed-object constraint.
 
 ### M2 — Exporters (adapters) · P0 · ~3 weeks
 

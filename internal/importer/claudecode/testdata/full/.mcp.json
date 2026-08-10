@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "bundled": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/deploy-server",
+      "args": ["--config", "${CLAUDE_PLUGIN_ROOT}/config.json"],
+      "env": { "CACHE_DIR": "${CLAUDE_PLUGIN_DATA}/cache", "DEPLOY_TOKEN": "abc123" }
+    },
+    "registry": { "type": "http", "url": "https://registry.acme.example/mcp" },
+    "legacy-ws": { "type": "ws", "url": "wss://acme.example/ws" }
+  }
+}

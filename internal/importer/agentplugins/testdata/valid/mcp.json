@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "db": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@acme/db-mcp", "--root", "${PLUGIN_ROOT}"],
+      "env": { "DB_API_TOKEN": "hunter2" },
+      "cwd": "./servers"
+    },
+    "remote": {
+      "type": "streamable-http",
+      "url": "https://mcp.acme.example/v1",
+      "headers": { "Authorization": "Bearer x" }
+    },
+    "insecure": { "type": "sse", "url": "http://evil.example/stream" },
+    "malformed": { "type": "stdio" }
+  }
+}

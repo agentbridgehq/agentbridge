@@ -1,6 +1,12 @@
-# AgentBridge — planning repository
+# AgentBridge
 
-**Status: planning only. No implementation.** These documents exist to decide what to build before building it.
+**Author:** Masih Moloodian <masihmoloodian@gmail.com>
+**License:** Apache-2.0 (core) — see [LICENSE](LICENSE) and [NOTICE](NOTICE)
+
+**Status: early implementation.** The planning documents below decide what to
+build; [MVP.md](MVP.md) tracks what is actually built. M0 (foundations) and M1
+(internal representation and importers) have landed — see
+[Implementation](#implementation).
 
 ## What problem does this solve?
 
@@ -61,6 +67,45 @@ Microsoft, OpenAI, Amazon and Cursor will each manage plugins for **their own** 
 | 07 | [Open questions](docs/07-open-questions.md) | Decisions to make, each with a recommendation |
 | 08 | [Technology stack](docs/08-tech-stack.md) | Language choice, libraries, infrastructure, license hygiene, hiring |
 | 09 | [UI & surfaces](docs/09-ui-and-surfaces.md) | What the web UI is for, who uses it, screens, and what stays out of it |
+
+## Implementation
+
+Go 1.26, no runtime dependencies. See [docs/08-tech-stack.md](docs/08-tech-stack.md) for why.
+
+```bash
+make          # vet + test + build
+make cross    # build every supported platform
+make licenses # dependency license policy check
+```
+
+The only command today is `inspect`, which loads a plugin directory in any
+supported dialect and reports what was found, what was translated, and what
+could not be carried across:
+
+```bash
+./agentbridge inspect ./some-plugin
+```
+
+| Package | Role |
+|---|---|
+| [`internal/ir`](internal/ir) | The internal representation and its content-addressed digest. Every dialect normalizes into this; it is what insulates the product from spec churn |
+| [`internal/importer`](internal/importer) | Importer contract plus shared discovery, and the semantic MCP checks JSON Schema cannot express |
+| [`internal/importer/agentplugins`](internal/importer/agentplugins) | Agent Plugins 1.0.0 — the reference importer |
+| [`internal/importer/claudecode`](internal/importer/claudecode) | Claude Code — the non-conformant client that matters most |
+| [`internal/importer/mcpjson`](internal/importer/mcpjson) | A bare `mcp.json` fragment, because that is what people actually have |
+| [`internal/schema`](internal/schema) | The canonical schemas, embedded and never fetched |
+| [`internal/safepath`](internal/safepath) | Plugin-root containment, including symlink escapes |
+| [`internal/capability`](internal/capability) | What access a plugin can obtain, with evidence |
+| [`internal/diag`](internal/diag) | Structured diagnostics with stable reason codes |
+
+**What M1 established.** The Claude Code round trip works, and it is lossy in
+exactly the places the design predicted — every one of which is now reported
+rather than silently dropped. The sharpest finding: Claude Code expands
+`${CLAUDE_PLUGIN_ROOT}` inside an MCP server's `command`, while Agent Plugins
+expands placeholders only in `args`, `env` values and `cwd`. A converter that
+merely renamed the placeholder would emit a manifest that passes schema
+validation and fails at launch. AgentBridge rewrites it to a plugin-relative
+command and says so.
 
 ## The four claims everything else rests on
 

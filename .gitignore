@@ -1,0 +1,15 @@
+# Build output
+/dist/
+/bin/
+agentbridge
+
+# Go
+*.test
+*.out
+coverage.*
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

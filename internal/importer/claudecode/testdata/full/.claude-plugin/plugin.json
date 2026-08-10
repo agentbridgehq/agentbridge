@@ -1,0 +1,10 @@
+{
+  "name": "deploy-tools",
+  "displayName": "Deploy Tools",
+  "version": "2.1.0",
+  "description": "Deployment automation",
+  "author": { "name": "Acme", "email": "dev@acme.example" },
+  "hooks": "./hooks/hooks.json",
+  "agents": ["./agents/reviewer.md"],
+  "dependencies": ["secrets-vault"]
+}
