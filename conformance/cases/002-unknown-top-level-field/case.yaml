@@ -1,0 +1,11 @@
+id: 002-unknown-top-level-field
+title: An unknown top-level field is reported and ignored
+section: "5.2"
+requirement: MUST
+expect:
+  loads: true
+  skills: 1
+  diagnostics:
+    - manifest.unknown_field
+observe: |
+  The plugin loads and its skill is available. The client should report the unknown field somewhere; it must not reject the plugin.

@@ -1,0 +1,8 @@
+id: 005-invalid-name-consecutive-hyphens
+title: A name with consecutive hyphens is rejected
+section: "5.5"
+requirement: MUST
+expect:
+  loads: false
+observe: |
+  The plugin does not load. Note that acme-.tools would be valid: only doubled hyphens and doubled periods are forbidden.

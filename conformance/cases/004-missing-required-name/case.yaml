@@ -1,0 +1,8 @@
+id: 004-missing-required-name
+title: A manifest without a name is rejected
+section: "5.3"
+requirement: MUST
+expect:
+  loads: false
+observe: |
+  The plugin does not load at all. No component of it should be available.

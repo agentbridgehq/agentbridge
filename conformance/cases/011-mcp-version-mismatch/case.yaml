@@ -1,0 +1,10 @@
+id: 011-mcp-version-mismatch
+title: A version mismatch disables MCP but not the plugin
+section: "10.1"
+requirement: MUST
+expect:
+  loads: true
+  skills: 1
+  mcpServers: 0
+observe: |
+  The skill is available. No MCP server from this plugin is available, and the client should report the mismatch.

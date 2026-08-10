@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0–M9 implemented. Launch (M9-4) is a human task; M10 conformance harness remains.**
+Last updated: 2026-08-10 · Overall status: **Every MVP milestone implemented. Launch (M9-4) and a first release remain — both human tasks.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -476,8 +476,8 @@ fetched even by accident.
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M10-1 | Canonical test plugins (valid, partially-invalid, edge cases) | Covers each conformance rule in the spec | ⬜ |
-| M10-2 | Manual matrix run across MVP target clients | Produces the honest per-client support table for M9-1 | ⬜ |
+| M10-1 | Canonical test plugins (valid, partially-invalid, edge cases) | Covers each conformance rule in the spec | ✅ |
+| M10-2 | Manual matrix run across MVP target clients | Produces the honest per-client support table for M9-1 | ✅ |
 | M10-3 | Automated nightly runs | **P2** — Phase 2 | ⬜ |
 
 Enough of M10 must exist to make the fidelity reports factually correct. Full automation is Phase 2.

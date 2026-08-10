@@ -1,0 +1,10 @@
+id: 001-minimal-manifest
+title: A manifest with only the required fields loads
+section: "5.3"
+requirement: MUST
+expect:
+  loads: true
+  skills: 0
+  mcpServers: 0
+observe: |
+  The plugin loads. It contributes nothing, which is valid.

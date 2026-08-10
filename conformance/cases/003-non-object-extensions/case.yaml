@@ -1,0 +1,11 @@
+id: 003-non-object-extensions
+title: A non-object extensions field is reported and ignored
+section: "8.1"
+requirement: MUST
+expect:
+  loads: true
+  skills: 1
+  diagnostics:
+    - manifest.extensions_not_object
+observe: |
+  The plugin loads. This is the second of only two non-fatal schema violations, and the published schema would make it fatal — a client validating against the schema alone gets this wrong.

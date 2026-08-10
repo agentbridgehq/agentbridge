@@ -1,0 +1,11 @@
+id: 015-mcp-cwd-escapes-root
+title: A cwd escaping the plugin root is invalid
+section: "7.2.1"
+requirement: MUST
+expect:
+  loads: true
+  mcpServers: 0
+  diagnostics:
+    - mcp.cwd_not_contained
+observe: |
+  No server is available. A ${PLUGIN_ROOT}-rooted cwd must stay inside the plugin root after resolution.

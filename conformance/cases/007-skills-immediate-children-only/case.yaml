@@ -1,0 +1,9 @@
+id: 007-skills-immediate-children-only
+title: Skills are immediate children of skills/
+section: "7.1"
+requirement: MUST
+expect:
+  loads: true
+  skills: 2
+observe: |
+  Exactly two skills are available: `alpha` and `beta`. The skill nested at skills/group/deep/ must NOT appear — clients must not search deeper descendants.

@@ -280,6 +280,20 @@ func loadMCP(root *safepath.Root, manifestSchema string) ([]ir.MCPServer, diag.D
 				"server was skipped: %v", err)
 			continue
 		}
+		// Reserved environment names are checked before the schema.
+		//
+		// The schema forbids them too (propertyNames/not/enum), so the entry
+		// would be rejected either way — but the schema's message names a JSON
+		// pointer, while §9.2 has a specific thing to say: the client supplies
+		// these variables and a manifest setting them is overriding something
+		// it does not own. The outcome is identical; the diagnostic is not, and
+		// this ordering is the only reason a user ever sees the useful one.
+		if obj, ok := generic.(map[string]any); ok {
+			if !importer.CheckReservedEnv(name, envStrings(obj["env"]), &ds) {
+				continue
+			}
+		}
+
 		if err := schema.ValidateMCPServer(generic); err != nil {
 			ds.AddComponent(diag.Error, diag.CodeMCPServerInvalid, MCPPath, name,
 				"server was skipped: %v", err)
@@ -340,6 +354,25 @@ func validateServer(root *safepath.Root, srv *ir.MCPServer, ds *diag.Diagnostics
 			"server was skipped: unknown transport %q", srv.Transport)
 		return false
 	}
+}
+
+// envStrings extracts an env object's string values, tolerating any shape:
+// this runs before schema validation, so the input may be anything at all.
+func envStrings(v any) map[string]string {
+	obj, ok := v.(map[string]any)
+	if !ok {
+		return nil
+	}
+	out := make(map[string]string, len(obj))
+	for k, val := range obj {
+		if s, ok := val.(string); ok {
+			out[k] = s
+		} else {
+			// The value's type is the schema's problem; the name is ours.
+			out[k] = ""
+		}
+	}
+	return out
 }
 
 type mcpDoc struct {

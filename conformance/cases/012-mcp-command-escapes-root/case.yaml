@@ -1,0 +1,11 @@
+id: 012-mcp-command-escapes-root
+title: A command escaping the plugin root is invalid
+section: "4.1"
+requirement: MUST
+expect:
+  loads: true
+  mcpServers: 0
+  diagnostics:
+    - mcp.invalid_command
+observe: |
+  No server is available. The command ../bin/server escapes the package and must not be launched — the specification calls this example out explicitly.

@@ -1,0 +1,9 @@
+id: 017-mcp-empty-servers
+title: An empty mcpServers object is valid
+section: "7.2.1"
+requirement: MUST
+expect:
+  loads: true
+  mcpServers: 0
+observe: |
+  The plugin loads with no MCP servers and no error.

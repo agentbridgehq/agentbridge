@@ -1,0 +1,8 @@
+id: 006-unsupported-spec-version
+title: A plugin targeting an unsupported version is rejected
+section: "5.2"
+requirement: MUST
+expect:
+  loads: false
+observe: |
+  The plugin does not load, and the client should report the unsupported version.

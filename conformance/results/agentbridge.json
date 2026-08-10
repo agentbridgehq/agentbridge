@@ -1,0 +1,302 @@
+{
+  "target": "agentbridge",
+  "results": [
+    {
+      "case": {
+        "id": "001-minimal-manifest",
+        "title": "A manifest with only the required fields loads",
+        "section": "5.3",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 0
+        },
+        "observe": "The plugin loads. It contributes nothing, which is valid.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "002-unknown-top-level-field",
+        "title": "An unknown top-level field is reported and ignored",
+        "section": "5.2",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 1,
+          "mcpServers": 0,
+          "diagnostics": [
+            "manifest.unknown_field"
+          ]
+        },
+        "observe": "The plugin loads and its skill is available. The client should report the unknown field somewhere; it must not reject the plugin.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "003-non-object-extensions",
+        "title": "A non-object extensions field is reported and ignored",
+        "section": "8.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 1,
+          "mcpServers": 0,
+          "diagnostics": [
+            "manifest.extensions_not_object"
+          ]
+        },
+        "observe": "The plugin loads. This is the second of only two non-fatal schema violations, and the published schema would make it fatal — a client validating against the schema alone gets this wrong.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "004-missing-required-name",
+        "title": "A manifest without a name is rejected",
+        "section": "5.3",
+        "requirement": "MUST",
+        "expect": {
+          "loads": false,
+          "skills": 0,
+          "mcpServers": 0
+        },
+        "observe": "The plugin does not load at all. No component of it should be available.\n"
+      },
+      "outcome": "pass",
+      "detail": "rejected: plugin.json: /: missing property 'name'"
+    },
+    {
+      "case": {
+        "id": "005-invalid-name-consecutive-hyphens",
+        "title": "A name with consecutive hyphens is rejected",
+        "section": "5.5",
+        "requirement": "MUST",
+        "expect": {
+          "loads": false,
+          "skills": 0,
+          "mcpServers": 0
+        },
+        "observe": "The plugin does not load. Note that acme-.tools would be valid: only doubled hyphens and doubled periods are forbidden.\n"
+      },
+      "outcome": "pass",
+      "detail": "rejected: plugin.json: name must not contain consecutive hyphens (\"--\")"
+    },
+    {
+      "case": {
+        "id": "006-unsupported-spec-version",
+        "title": "A plugin targeting an unsupported version is rejected",
+        "section": "5.2",
+        "requirement": "MUST",
+        "expect": {
+          "loads": false,
+          "skills": 0,
+          "mcpServers": 0
+        },
+        "observe": "The plugin does not load, and the client should report the unsupported version.\n"
+      },
+      "outcome": "pass",
+      "detail": "rejected: plugin.json: unsupported Agent Plugins version: $schema is \"https://agent-plugins.org/schemas/2.0.0/plugin.schema.json\", this build supports 1.0.0 (https://agent-plugins.org/schemas/1.0.0/plugin.schema.json)"
+    },
+    {
+      "case": {
+        "id": "007-skills-immediate-children-only",
+        "title": "Skills are immediate children of skills/",
+        "section": "7.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 2,
+          "mcpServers": 0
+        },
+        "observe": "Exactly two skills are available: `alpha` and `beta`. The skill nested at skills/group/deep/ must NOT appear — clients must not search deeper descendants.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "008-skill-directory-without-skill-md",
+        "title": "A directory without SKILL.md is skipped",
+        "section": "7.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 1,
+          "mcpServers": 0,
+          "diagnostics": [
+            "skill.missing_skill_md"
+          ]
+        },
+        "observe": "One skill is available. The directory skills/notaskill/ is ignored without failing the plugin.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "009-no-components",
+        "title": "A plugin with no components is valid",
+        "section": "6.2",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 0
+        },
+        "observe": "The plugin loads. A missing component location is not an error.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "010-mcp-invalid-entry-isolated",
+        "title": "One malformed server does not affect the others",
+        "section": "7.2.2",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 1,
+          "mcpServers": 1,
+          "diagnostics": [
+            "mcp.server_invalid"
+          ]
+        },
+        "observe": "The server `good` is available and the skill loads. The server `bad` (no command) is skipped and should be reported.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "011-mcp-version-mismatch",
+        "title": "A version mismatch disables MCP but not the plugin",
+        "section": "10.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 1,
+          "mcpServers": 0
+        },
+        "observe": "The skill is available. No MCP server from this plugin is available, and the client should report the mismatch.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "012-mcp-command-escapes-root",
+        "title": "A command escaping the plugin root is invalid",
+        "section": "4.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 0,
+          "diagnostics": [
+            "mcp.invalid_command"
+          ]
+        },
+        "observe": "No server is available. The command ../bin/server escapes the package and must not be launched — the specification calls this example out explicitly.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "013-mcp-insecure-url",
+        "title": "Plain HTTP to a non-loopback host is invalid",
+        "section": "7.2.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 1,
+          "diagnostics": [
+            "mcp.insecure_url"
+          ]
+        },
+        "observe": "Only the loopback server is available. The remote plain-HTTP server must be refused; HTTP is permitted only to localhost or a loopback IP.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "014-mcp-reserved-env",
+        "title": "A reserved env name invalidates the server",
+        "section": "9.2",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 1,
+          "diagnostics": [
+            "mcp.reserved_env_name"
+          ]
+        },
+        "observe": "Only `fine` is available. A server setting PLUGIN_ROOT or PLUGIN_DATA is invalid; the client supplies both.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "015-mcp-cwd-escapes-root",
+        "title": "A cwd escaping the plugin root is invalid",
+        "section": "7.2.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 0,
+          "diagnostics": [
+            "mcp.cwd_not_contained"
+          ]
+        },
+        "observe": "No server is available. A ${PLUGIN_ROOT}-rooted cwd must stay inside the plugin root after resolution.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "016-extension-namespace-preserved",
+        "title": "A foreign extension namespace is ignored without validation",
+        "section": "8.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 1,
+          "mcpServers": 0
+        },
+        "observe": "The plugin loads and the skill is available. The client must ignore com.example.other entirely — it must not validate its contents, however malformed they look.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "017-mcp-empty-servers",
+        "title": "An empty mcpServers object is valid",
+        "section": "7.2.1",
+        "requirement": "MUST",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 0
+        },
+        "observe": "The plugin loads with no MCP servers and no error.\n"
+      },
+      "outcome": "pass"
+    },
+    {
+      "case": {
+        "id": "018-mcp-all-transports",
+        "title": "All three transports are accepted",
+        "section": "7.2.1",
+        "requirement": "SHOULD",
+        "expect": {
+          "loads": true,
+          "skills": 0,
+          "mcpServers": 3
+        },
+        "observe": "A client supporting all transports offers three servers. A client supporting only some MUST skip the others and keep the rest — record which it accepted.\n"
+      },
+      "outcome": "pass"
+    }
+  ]
+}

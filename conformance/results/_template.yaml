@@ -1,0 +1,25 @@
+# A conformance run against one client.
+#
+# Copy this file to results/<client>-<version>.yaml, fill it in, and open a
+# pull request. Leave anything you did not personally observe as `unmeasured` —
+# an unmeasured case is a useful, honest datum; a guessed one poisons the table.
+target: example-client
+version: "1.2.3"
+platform: macOS 15 / arm64
+tested_by: your-name-or-handle
+tested_on: 2026-01-01
+
+# Optional: how you installed the plugins, so someone else can reproduce it.
+method: |
+  Copied each plugin directory into ~/.example-client/plugins/ and restarted.
+
+results:
+  - id: 001-minimal-manifest
+    outcome: pass          # pass | fail | unmeasured
+    notes: ""
+
+  - id: 002-unknown-top-level-field
+    outcome: unmeasured
+    notes: "Could not tell whether the field was reported; no diagnostics surface anywhere in the UI."
+
+  # ... one entry per case. `agentbridge conformance --list --json` prints them all.

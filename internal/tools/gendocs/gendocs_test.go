@@ -10,7 +10,7 @@ import (
 // would be worse than having none — the product claim is that we tell people
 // the truth about what each client takes.
 func TestClientDocsAreCurrent(t *testing.T) {
-	want := Render()
+	want := Render("../../../conformance/cases")
 
 	got, err := os.ReadFile("../../../docs/clients.md")
 	if err != nil {

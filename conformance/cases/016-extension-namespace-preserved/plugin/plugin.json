@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "foreign-extension",
+  "extensions": {
+    "com.example.other": {
+      "anything": [
+        1,
+        2,
+        {
+          "deeply": "nested"
+        }
+      ]
+    }
+  }
+}

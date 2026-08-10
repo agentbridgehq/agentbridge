@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "good": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@example/server"
+      ]
+    },
+    "bad": {
+      "type": "stdio"
+    }
+  }
+}

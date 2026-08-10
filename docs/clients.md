@@ -120,10 +120,32 @@ Adapters implement one interface and declare what they cannot carry. See
 it has not declared, so a new failure mode has to be catalogued before it can
 reach anyone.
 
-## A caution about this page
+## Declared, not measured
 
-These are **declared** capabilities, taken from the adapters. They are not
-measured against running clients. Until the conformance harness lands, treat
-`native` as "we write what this client's documentation says it reads", not as
-"we have watched it work". Where the two differ, the documentation is wrong and
-we would like to hear about it.
+Everything above is **declared** by the adapters: it says what we write, based
+on each vendor's own documentation. It does not say what the client then does
+with it, because nobody has watched.
+
+That distinction is not pedantry. A conformant client may support neither
+component type (§11.1), several requirements cannot be expressed in JSON Schema
+so a schema-validating client accepts plugins the specification forbids, and in
+one case following the published schema literally makes a client
+*non-conformant*. Real compatibility is an empirical question.
+
+The [conformance corpus](../conformance/README.md) is how it gets answered. It
+is a set of plugin packages, each designed so a client's behaviour with it
+answers one specific question, usable by anyone with no dependency on this tool:
+
+```bash
+agentbridge conformance --list     # the corpus, as a manual checklist
+agentbridge conformance            # run it against this implementation
+```
+
+| Target | Status |
+|---|---|
+| agentbridge | 18/18 cases pass |
+| Claude Code, Cursor, VS Code, Codex, Gemini CLI | not yet measured |
+
+Results are contributed as pull requests, and a case nobody ran is recorded as
+`unmeasured` rather than inferred. A blank row invites the reader to assume
+something; a row saying nobody has checked does not.

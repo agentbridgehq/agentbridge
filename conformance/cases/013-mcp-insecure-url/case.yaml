@@ -1,0 +1,11 @@
+id: 013-mcp-insecure-url
+title: Plain HTTP to a non-loopback host is invalid
+section: "7.2.1"
+requirement: MUST
+expect:
+  loads: true
+  mcpServers: 1
+  diagnostics:
+    - mcp.insecure_url
+observe: |
+  Only the loopback server is available. The remote plain-HTTP server must be refused; HTTP is permitted only to localhost or a loopback IP.

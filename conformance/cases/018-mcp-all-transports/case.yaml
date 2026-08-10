@@ -1,0 +1,9 @@
+id: 018-mcp-all-transports
+title: All three transports are accepted
+section: "7.2.1"
+requirement: SHOULD
+expect:
+  loads: true
+  mcpServers: 3
+observe: |
+  A client supporting all transports offers three servers. A client supporting only some MUST skip the others and keep the rest — record which it accepted.

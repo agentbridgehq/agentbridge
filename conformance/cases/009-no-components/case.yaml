@@ -1,0 +1,10 @@
+id: 009-no-components
+title: A plugin with no components is valid
+section: "6.2"
+requirement: MUST
+expect:
+  loads: true
+  skills: 0
+  mcpServers: 0
+observe: |
+  The plugin loads. A missing component location is not an error.

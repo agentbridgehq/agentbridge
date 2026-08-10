@@ -1,0 +1,12 @@
+id: 010-mcp-invalid-entry-isolated
+title: One malformed server does not affect the others
+section: "7.2.2"
+requirement: MUST
+expect:
+  loads: true
+  skills: 1
+  mcpServers: 1
+  diagnostics:
+    - mcp.server_invalid
+observe: |
+  The server `good` is available and the skill loads. The server `bad` (no command) is skipped and should be reported.

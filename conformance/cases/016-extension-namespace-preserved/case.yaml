@@ -1,0 +1,9 @@
+id: 016-extension-namespace-preserved
+title: A foreign extension namespace is ignored without validation
+section: "8.1"
+requirement: MUST
+expect:
+  loads: true
+  skills: 1
+observe: |
+  The plugin loads and the skill is available. The client must ignore com.example.other entirely — it must not validate its contents, however malformed they look.

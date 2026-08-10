@@ -17,10 +17,27 @@ import (
 
 	"github.com/agentbridge/agentbridge/internal/adapter"
 	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
+	"github.com/agentbridge/agentbridge/internal/conformance"
 )
 
+// fence renders a fenced code block. Written as a helper because a raw string
+// literal cannot contain the backticks a fence is made of.
+func fence(lang string, lines ...string) string {
+	return "```" + lang + "\n" + strings.Join(lines, "\n") + "\n```"
+}
+
+// selfConformance summarizes our own run, so the page cannot claim a result the
+// corpus does not currently produce.
+func selfConformance(corpus string) string {
+	report, err := conformance.RunSelf(corpus)
+	if err != nil {
+		return "corpus unavailable"
+	}
+	return fmt.Sprintf("%d/%d cases pass", report.Count(conformance.Pass), len(report.Results))
+}
+
 func main() {
-	out := Render()
+	out := Render("conformance/cases")
 	if err := os.WriteFile("docs/clients.md", []byte(out), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "gendocs: %v\n", err)
 		os.Exit(1)
@@ -28,9 +45,13 @@ func main() {
 	fmt.Println("wrote docs/clients.md")
 }
 
-// Render builds the page. Exported so the freshness test can compare against it
-// without shelling out.
-func Render() string {
+// Render builds the page.
+//
+// The corpus path is a parameter rather than a constant so the freshness test
+// can produce byte-identical output from its own directory. Resolving it
+// relative to the caller made the generated page depend on where the generator
+// ran from, which is exactly the kind of drift this file exists to prevent.
+func Render(corpus string) string {
 	var b strings.Builder
 
 	b.WriteString(`# Client compatibility
@@ -121,13 +142,34 @@ Adapters implement one interface and declare what they cannot carry. See
 it has not declared, so a new failure mode has to be catalogued before it can
 reach anyone.
 
-## A caution about this page
+## Declared, not measured
 
-These are **declared** capabilities, taken from the adapters. They are not
-measured against running clients. Until the conformance harness lands, treat
-` + "`native`" + ` as "we write what this client's documentation says it reads", not as
-"we have watched it work". Where the two differ, the documentation is wrong and
-we would like to hear about it.
+Everything above is **declared** by the adapters: it says what we write, based
+on each vendor's own documentation. It does not say what the client then does
+with it, because nobody has watched.
+
+That distinction is not pedantry. A conformant client may support neither
+component type (§11.1), several requirements cannot be expressed in JSON Schema
+so a schema-validating client accepts plugins the specification forbids, and in
+one case following the published schema literally makes a client
+*non-conformant*. Real compatibility is an empirical question.
+
+The [conformance corpus](../conformance/README.md) is how it gets answered. It
+is a set of plugin packages, each designed so a client's behaviour with it
+answers one specific question, usable by anyone with no dependency on this tool:
+
+` + fence("bash",
+		"agentbridge conformance --list     # the corpus, as a manual checklist",
+		"agentbridge conformance            # run it against this implementation") + `
+
+| Target | Status |
+|---|---|
+| agentbridge | ` + selfConformance(corpus) + ` |
+| Claude Code, Cursor, VS Code, Codex, Gemini CLI | not yet measured |
+
+Results are contributed as pull requests, and a case nobody ran is recorded as
+` + "`unmeasured`" + ` rather than inferred. A blank row invites the reader to assume
+something; a row saying nobody has checked does not.
 `)
 
 	return b.String()

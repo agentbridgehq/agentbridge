@@ -1,0 +1,11 @@
+id: 014-mcp-reserved-env
+title: A reserved env name invalidates the server
+section: "9.2"
+requirement: MUST
+expect:
+  loads: true
+  mcpServers: 1
+  diagnostics:
+    - mcp.reserved_env_name
+observe: |
+  Only `fine` is available. A server setting PLUGIN_ROOT or PLUGIN_DATA is invalid; the client supplies both.

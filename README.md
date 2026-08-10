@@ -91,6 +91,7 @@ does not. Commit `agentbridge.lock` and that difference shows up in review.
 | `doctor [plugin]` | Why a plugin appears installed and does nothing |
 | `validate <dir>` | Check a plugin against Agent Plugins v1.0.0 |
 | `losses` | What each client might not carry, and why |
+| `conformance [--list]` | Run the Agent Plugins conformance corpus |
 | `secret set/list/rm/scan` | Keep credentials out of client configs |
 | `inspect <dir>` | Show a plugin's normalized form |
 | `list`, `cache`, `version` | |
@@ -102,6 +103,7 @@ Flags work on either side of the argument, and every command takes `--json`.
 | Doc | For |
 |---|---|
 | [Client compatibility](docs/clients.md) | What each client takes — generated from the adapters |
+| [Conformance corpus](conformance/README.md) | 18 plugin packages for testing *any* client against v1.0.0 |
 | [Writing a plugin](docs/plugin-authors.md) | Plugin authors: the conformance traps, and how to avoid them |
 | [Telemetry](docs/telemetry.md) | There is none, and the claim is enforced by a test |
 | [Security](SECURITY.md) | Threat model and reporting |
@@ -369,11 +371,13 @@ claim:
 2. **No release has been cut.** The pipeline is written and validated by CI on
    every pull request, but it has never run. Nothing is signed yet because
    nothing has been published yet.
-3. **The conformance harness (M10) does not exist.** Everything in
-   [clients.md](docs/clients.md) is *declared* by the adapters, not measured
-   against running clients. It is why three clients are marked `undocumented`
-   for skills rather than something more definite, and closing that gap is the
-   single largest difference between what this ships and what it could claim.
+3. **No third-party client has been measured.** The
+   [conformance corpus](conformance/README.md) exists and this implementation
+   passes all 18 cases, but running it against Cursor, VS Code, Codex, Claude
+   Code and Gemini CLI needs those clients installed and a human watching. Until
+   then [clients.md](docs/clients.md) reports what we *write*, based on each
+   vendor's documentation — not what the client does with it. Results are
+   contributed as pull requests.
 4. **Launch has not happened.** See [MVP.md](MVP.md) §9 for the exit criteria
    the first release is measured against.
 

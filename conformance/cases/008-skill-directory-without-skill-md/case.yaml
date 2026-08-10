@@ -1,0 +1,11 @@
+id: 008-skill-directory-without-skill-md
+title: A directory without SKILL.md is skipped
+section: "7.1"
+requirement: MUST
+expect:
+  loads: true
+  skills: 1
+  diagnostics:
+    - skill.missing_skill_md
+observe: |
+  One skill is available. The directory skills/notaskill/ is ignored without failing the plugin.
