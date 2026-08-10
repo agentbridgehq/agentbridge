@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0 and M1 complete. M2 (adapters) is next.**
+Last updated: 2026-08-10 · Overall status: **M0, M1 and M2 complete. M3 (sources and fetch) is next.**
 
 ---
 
@@ -42,7 +42,7 @@ Priority: **P0** = MVP does not ship without it · **P1** = ships if time allows
 | D-03 | Language confirmed: Go | [08 §1](docs/08-tech-stack.md) | ✅ |
 | D-04 | License confirmed: Apache-2.0 core, separate commercial repo | [07 D3](docs/07-open-questions.md) | ✅ |
 | D-05 | IR design reviewed and signed off | [03 §3](docs/03-architecture.md) | ✅ |
-| D-06 | Target client list for MVP locked | §6 below | ⬜ |
+| D-06 | Target client list for MVP locked | §6 below | ✅ |
 
 ---
 
@@ -112,18 +112,56 @@ Two upstream surprises worth recording, both handled in `internal/schema`:
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M2-1 | Adapter interface + registry | Third party can add a client without touching core | ⬜ |
-| M2-2 | Client detection (which agents are installed on this machine) | Correct on macOS/Linux/Windows; no false positives | ⬜ |
-| M2-3 | **Formatting-preserving config editing** (JSONC/JSON/TOML/YAML) | User comments, key order and indentation survive a write; golden-file tested | ⬜ |
-| M2-4 | Adapter: Cursor | Install + remove + idempotent re-install | ⬜ |
-| M2-5 | Adapter: VS Code / Copilot | As above | ⬜ |
-| M2-6 | Adapter: Codex | As above | ⬜ |
-| M2-7 | Adapter: Claude Code (non-conformant) | Skills + MCP land correctly; dropped `extensions` reported | ⬜ |
-| M2-8 | Adapter: one more non-conformant client (Zed / Windsurf / Gemini CLI) | Chosen by measured user overlap, not guess | ⬜ |
-| M2-9 | Dry-run mode (`--dry-run`) showing exact file diffs | No writes; diff is reviewable | ⬜ |
-| M2-10 | Clean uninstall | Removes only what we added; user's other config untouched | ⬜ |
+| M2-1 | Adapter interface + registry | Third party can add a client without touching core | ✅ |
+| M2-2 | Client detection (which agents are installed on this machine) | Correct on macOS/Linux/Windows; no false positives | ✅ |
+| M2-3 | **Formatting-preserving config editing** (JSONC/JSON/TOML/YAML) | User comments, key order and indentation survive a write; golden-file tested | ✅ |
+| M2-4 | Adapter: Cursor | Install + remove + idempotent re-install | ✅ |
+| M2-5 | Adapter: VS Code / Copilot | As above | ✅ |
+| M2-6 | Adapter: Codex | As above | ✅ |
+| M2-7 | Adapter: Claude Code (non-conformant) | Skills + MCP land correctly; dropped `extensions` reported | ✅ |
+| M2-8 | Adapter: one more non-conformant client (Zed / Windsurf / Gemini CLI) | Chosen by measured user overlap, not guess | ✅ ² |
+| M2-9 | Dry-run mode (`--dry-run`) showing exact file diffs | No writes; diff is reviewable | ✅ |
+| M2-10 | Clean uninstall | Removes only what we added; user's other config untouched | ✅ |
 
-**M2-3 is the item most likely to be underestimated.** Destroying a developer's hand-written VS Code settings is an instant uninstall, and there is no recovering the trust.
+² Gemini CLI was chosen on documentation quality, **not** on measured user
+overlap — we have no telemetry and deliberately none is planned (see [D9](docs/07-open-questions.md)). The
+acceptance criterion is therefore only half met, and the choice should be
+revisited once the conformance harness gives real data. Zed and Windsurf remain
+unimplemented.
+
+**M2-3 was, as predicted, the item that mattered most.** It is built on
+`github.com/tailscale/hujson`, which parses JSONC into a syntax tree that
+preserves comments and whitespace exactly. Two properties are asserted by test:
+installing then removing a plugin leaves a config **byte-identical** to how it
+started, and an inserted entry adopts the file's own indentation style
+(including tabs) rather than ours. Codex is TOML, where no comment-preserving
+editor was worth the dependency, so that adapter owns a marker-delimited block
+and leaves every byte outside it untouched.
+
+**The honest gap.** Cursor, VS Code and Codex are Agent Plugins launch clients,
+but none of their vendors documents where a portable plugin package is
+installed. Rather than guess a path and write into a developer's machine on a
+hunch, those adapters declare skills `undocumented`, install MCP servers
+normally, and say plainly in every fidelity report why skills were not carried.
+Closing that gap is M10-2's job — it is a measurement, not a guess. Claude Code
+does document its layout, so it takes the whole package and reaches full skill
+coverage, which is exactly the asymmetry the strategy predicted.
+
+**Two translation hazards found building the adapters**, both of which fail
+silently — the config validates, the client starts, the server never appears:
+
+- VS Code is the odd one out twice: the container key is `servers`, not
+  `mcpServers`, and a streamable-HTTP server's type is spelled `http`.
+- Nothing expands `${PLUGIN_ROOT}` or `${PLUGIN_DATA}` on our behalf, and a
+  plugin-relative `./bin/server` means nothing in a config file living
+  elsewhere. Both are resolved to absolute paths at write time. This is the
+  mirror image of the placeholder problem found importing from Claude Code, and
+  the Claude Code adapter reverses it exactly — closing the round trip.
+
+**Uninstall (M2-10)** is driven entirely by receipts recorded at install time,
+never by pattern-matching the config. A user entry that happens to share our
+`<plugin>.<server>` naming is provably untouched; there is a test for exactly
+that case.
 
 ### M3 — Sources & fetch · P0 · ~1 week
 

@@ -4,9 +4,9 @@
 **License:** Apache-2.0 (core) — see [LICENSE](LICENSE) and [NOTICE](NOTICE)
 
 **Status: early implementation.** The planning documents below decide what to
-build; [MVP.md](MVP.md) tracks what is actually built. M0 (foundations) and M1
-(internal representation and importers) have landed — see
-[Implementation](#implementation).
+build; [MVP.md](MVP.md) tracks what is actually built. M0 (foundations), M1
+(internal representation and importers) and M2 (client adapters) have landed —
+see [Implementation](#implementation).
 
 ## What problem does this solve?
 
@@ -78,13 +78,30 @@ make cross    # build every supported platform
 make licenses # dependency license policy check
 ```
 
-The only command today is `inspect`, which loads a plugin directory in any
-supported dialect and reports what was found, what was translated, and what
-could not be carried across:
-
 ```bash
-./agentbridge inspect ./some-plugin
+./agentbridge clients                    # agent clients detected on this machine
+./agentbridge inspect  ./some-plugin     # load a plugin, show its normalized form
+./agentbridge install ./some-plugin --dry-run   # exact diffs, writes nothing
+./agentbridge install ./some-plugin      # install into every detected client
+./agentbridge remove  some-plugin        # remove exactly what was installed
+./agentbridge list                       # what agentbridge has installed
 ```
+
+Every install prints a fidelity report — per client, what was carried and what
+was not, with a reason for each loss:
+
+```
+deploy-tools
+
+  !! claude-code    user      skills 2/2     mcp 2/2
+  !! cursor         user      skills 0/2     mcp 2/2
+       - Cursor may support skills, but its vendor has not documented where they
+         are installed; 2 skill(s) not installed. We will not write to an
+         unverified path
+       - env DEPLOY_TOKEN is written as plaintext into .../mcp.json
+```
+
+Clients: Claude Code, Cursor, VS Code / Copilot, Codex, Gemini CLI.
 
 | Package | Role |
 |---|---|
@@ -97,6 +114,30 @@ could not be carried across:
 | [`internal/safepath`](internal/safepath) | Plugin-root containment, including symlink escapes |
 | [`internal/capability`](internal/capability) | What access a plugin can obtain, with evidence |
 | [`internal/diag`](internal/diag) | Structured diagnostics with stable reason codes |
+| [`internal/adapter`](internal/adapter) | The adapter contract, planning, atomic apply, and the fidelity report |
+| [`internal/adapter/clients`](internal/adapter/clients) | One package per target client |
+| [`internal/configedit`](internal/configedit) | Formatting-preserving JSONC and TOML editing |
+| [`internal/adapter/receipt`](internal/adapter/receipt) | What was written where, so uninstall is exact rather than pattern-matched |
+
+**What M2 established.** Installing into a client is mostly a translation
+problem, and every hazard in it fails *silently* — the config validates, the
+client starts, the server never appears. VS Code alone has two: the container
+key is `servers`, not `mcpServers`, and a streamable-HTTP server's type is
+spelled `http`. And nothing expands `${PLUGIN_ROOT}` on our behalf, so a
+plugin-relative `./bin/server` has to be resolved to an absolute path at write
+time — the mirror image of the import-side placeholder problem, which the
+Claude Code adapter then reverses exactly, closing the round trip.
+
+The honest gap: Cursor, VS Code and Codex are Agent Plugins launch clients, but
+none of their vendors documents where a portable plugin package is installed. We
+install their MCP servers and decline to guess at a skills path, saying so in
+every fidelity report. That is a measurement for the conformance harness, not a
+hunch to act on.
+
+Two properties are asserted by test because the product's credibility rests on
+them: install-then-remove leaves a config **byte-identical** to how it started,
+and removal is driven by install receipts, so a user's own entry that happens to
+match our naming convention is provably untouched.
 
 **What M1 established.** The Claude Code round trip works, and it is lossy in
 exactly the places the design predicted — every one of which is now reported
