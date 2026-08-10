@@ -40,6 +40,7 @@ func (*Adapter) Client() adapter.Client {
 		Skills:    adapter.SupportUndocumented,
 		MCP:       adapter.SupportNative,
 		ConfigDoc: "https://cursor.com/docs/mcp",
+		Losses:    adapter.DeclaredLosses(adapter.LossSkillsUndocumented),
 	}
 }
 

@@ -84,6 +84,7 @@ make licenses # dependency license policy check
 ./agentbridge inspect  ./some-plugin     # load a plugin, show its normalized form
 ./agentbridge validate ./some-plugin     # check it against Agent Plugins v1.0.0
 ./agentbridge doctor                     # why isn't this plugin doing anything?
+./agentbridge losses                     # what each client might not carry, and why
 ./agentbridge install ./some-plugin --dry-run   # exact diffs, writes nothing
 ./agentbridge install ./some-plugin      # install into every detected client
 ./agentbridge install github.com/org/repo@v1.2.0#plugins/db   # pinned, from git
@@ -133,6 +134,21 @@ Clients: Claude Code, Cursor, VS Code / Copilot, Codex, Gemini CLI.
 | [`internal/workspace`](internal/workspace) | Convergence: sync, update, prune |
 | [`internal/secrets`](internal/secrets) | Secret references, OS keychain, credential detection |
 | [`internal/doctor`](internal/doctor) | Why a plugin appears installed and does nothing |
+
+**What M7 established.** "Nothing is dropped silently" cannot rest on
+discipline, so it is enforced by three rules, each with a test: every loss code
+is catalogued with a meaning and a remedy; every adapter declares the codes it
+can emit; and **an adapter may not emit a code it did not declare.** That last
+one is what keeps the rest honest — without it a new drop can be reported
+perfectly at runtime and still surprise someone, because the list of what that
+client might not carry never mentioned it.
+
+Writing the catalogue immediately found a code that was declared and never
+emitted — documentation for a failure mode that does not exist. It was deleted.
+
+Reports now separate *faults* from *facts*. Gemini CLI having no skills
+mechanism is permanent; a refused credential is not. A user looking at six
+warnings needs to know which two deserve their attention.
 
 **What M6 established.** `doctor` is the command the positioning rests on. A
 conformant client may support *neither* skills nor MCP servers, component

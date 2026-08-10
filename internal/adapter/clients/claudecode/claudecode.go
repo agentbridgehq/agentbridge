@@ -60,6 +60,10 @@ func (*Adapter) Client() adapter.Client {
 		Skills:     adapter.SupportTranslated,
 		MCP:        adapter.SupportTranslated,
 		ConfigDoc:  "https://code.claude.com/docs/en/plugins-reference",
+		Losses: adapter.DeclaredLosses(
+			adapter.LossFlatSkillRestructured,
+			adapter.LossNativeComponentDropped,
+		),
 	}
 }
 

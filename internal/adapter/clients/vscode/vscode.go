@@ -45,6 +45,7 @@ func (*Adapter) Client() adapter.Client {
 		Skills:     adapter.SupportUndocumented,
 		MCP:        adapter.SupportNative,
 		ConfigDoc:  "https://code.visualstudio.com/docs/agents/reference/mcp-configuration",
+		Losses:     adapter.DeclaredLosses(adapter.LossSkillsUndocumented),
 	}
 }
 

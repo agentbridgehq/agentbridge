@@ -43,6 +43,7 @@ func (*Adapter) Client() adapter.Client {
 		Skills:     adapter.SupportNone,
 		MCP:        adapter.SupportTranslated,
 		ConfigDoc:  "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md",
+		Losses:     adapter.DeclaredLosses(adapter.LossSkillsUnsupported),
 	}
 }
 

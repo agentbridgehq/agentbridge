@@ -63,6 +63,13 @@ type Client struct {
 	// ConfigDoc points at the vendor documentation the paths came from, so a
 	// reviewer can check the claim rather than trust it.
 	ConfigDoc string `json:"configDoc,omitempty"`
+	// Losses enumerates every loss code this adapter can emit.
+	//
+	// Declaring them makes what a client might not carry knowable before
+	// anything is installed, and an adapter may not emit a code it has not
+	// declared — which is what stops a new drop being added quietly. See
+	// losses.go.
+	Losses []string `json:"losses,omitempty"`
 }
 
 // Scope is where a plugin is installed.
@@ -171,7 +178,6 @@ type Loss struct {
 const (
 	LossSkillsUnsupported      = "client.skills_unsupported"
 	LossSkillsUndocumented     = "client.skills_location_undocumented"
-	LossMCPUnsupported         = "client.mcp_unsupported"
 	LossTransportUnsupported   = "client.transport_unsupported"
 	LossExtensionsDropped      = "client.extensions_dropped"
 	LossNativeComponentDropped = "client.native_component_dropped"

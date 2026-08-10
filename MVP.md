@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0–M6 complete, audited against the canonical spec. M7–M9 remain.**
+Last updated: 2026-08-10 · Overall status: **M0–M7 complete, audited against the canonical spec. M8–M9 remain.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -367,8 +367,35 @@ either side of the argument.
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M7-1 | Per-client fidelity report on install | Shows skills n/m, mcp n/m, and every dropped element with a reason | ⬜ |
-| M7-2 | Documented, enumerated loss list per adapter | No silent drops anywhere; each has a stable reason code | ⬜ |
+| M7-1 | Per-client fidelity report on install | Shows skills n/m, mcp n/m, and every dropped element with a reason | ✅ |
+| M7-2 | Documented, enumerated loss list per adapter | No silent drops anywhere; each has a stable reason code | ✅ |
+
+**"No silent drops" cannot be a matter of discipline, so it is enforced.** Three
+rules, each with a test:
+
+1. Every loss code is catalogued with a meaning and, where one exists, a remedy.
+2. Every adapter declares the codes it can emit, so what a client might not
+   carry is knowable *before* installing anything — `agentbridge losses`.
+3. **An adapter may not emit a code it did not declare.** This is the rule that
+   keeps the rest honest: without it, a new drop can be reported perfectly at
+   runtime and still be a surprise, because the list of what that client might
+   not carry never mentioned it.
+
+Writing the catalogue immediately found `client.mcp_unsupported`, declared and
+never emitted — dead documentation for a failure mode that does not exist. It
+was deleted.
+
+**Faults are now distinguished from facts.** Some losses are permanent
+properties of an ecosystem where clients genuinely differ: Gemini CLI has no
+skills mechanism and no amount of effort changes that. Others mean something is
+wrong and can be fixed. A user looking at six warnings needs to know which two
+deserve their attention, so the report marks them differently and every
+non-expected loss is required by test to carry a remedy.
+
+One test was written and then rewritten: it asserted that each catalogue entry's
+prose contained one of a set of phrases. That tested the wording rather than the
+contract, and failed on a description that was perfectly clear. It now checks
+that the meaning explains rather than restates.
 
 ### M8 — Distribution · P0 · ~1 week
 

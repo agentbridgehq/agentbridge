@@ -44,6 +44,7 @@ func (*Adapter) Client() adapter.Client {
 		Skills:     adapter.SupportUndocumented,
 		MCP:        adapter.SupportTranslated,
 		ConfigDoc:  "https://developers.openai.com/codex/mcp",
+		Losses:     adapter.DeclaredLosses(adapter.LossSkillsUndocumented),
 	}
 }
 
