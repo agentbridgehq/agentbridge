@@ -1,14 +1,114 @@
 # AgentBridge
 
-**Author:** Masih Moloodian <masihmoloodian@gmail.com>
-**License:** Apache-2.0 (core) — see [LICENSE](LICENSE) and [NOTICE](NOTICE)
+**The supply chain for agent extensions.** Install any agent plugin into any
+agent client — including the ones the standard does not cover — with a lockfile,
+signed provenance, secrets kept off disk, and an honest report of exactly what
+each client received and what it dropped.
 
-**Status: early implementation.** The planning documents below decide what to
-build; [MVP.md](MVP.md) tracks what is actually built. M0 (foundations), M1
-(internal representation and importers) and M2 (client adapters) have landed —
-see [Implementation](#implementation).
+Apache-2.0 · by Masih Moloodian · [LICENSE](LICENSE) · [NOTICE](NOTICE)
 
-## What problem does this solve?
+> **Status: pre-release.** Every milestone through M8 is implemented and tested
+> ([MVP.md](MVP.md)), but no release has been cut and the release pipeline has
+> never run. The install commands below will work once it has.
+
+## Install
+
+```bash
+brew install agentbridge/tap/agentbridge
+npm install -g agentbridge
+curl -fsSL https://raw.githubusercontent.com/agentbridge/agentbridge/main/install.sh | sh
+```
+
+All three verify a SHA-256 checksum against the release's signed checksum file
+and refuse an artifact that file does not list. A tool arguing about where your
+plugins came from cannot have an installer that downloads a binary and trusts
+it. See [RELEASING.md](RELEASING.md).
+
+## Quickstart
+
+```bash
+agentbridge clients                              # what is on this machine
+agentbridge install github.com/org/repo@v1.2.0   # into every client, pinned
+agentbridge doctor                               # why is nothing happening?
+```
+
+Every install prints a fidelity report — per client, what was carried and what
+was not, with a reason and a stable code for each:
+
+```
+deploy-tools
+
+  ok claude-code    user      skills 2/2     mcp 2/2
+  !! cursor         user      skills 0/2     mcp 1/2
+       - Cursor may support skills, but its vendor has not documented where they
+         are installed; 2 skill(s) not installed. We will not write to an
+         unverified path
+         [client.skills_location_undocumented]
+       ! env DEPLOY_TOKEN was not written: name suggests a credential. Store it
+         with `agentbridge secret set deploy-token`…
+         [client.secret_plaintext_refused]
+```
+
+One of those is something you can fix. The other is a permanent difference
+between clients. `agentbridge losses` explains every code.
+
+For a team, declare plugins once and converge:
+
+```yaml
+# agentbridge.yaml
+version: 1
+plugins:
+  - source: github.com/org/repo@v1.2.0
+```
+
+```bash
+agentbridge sync            # make this machine match the lock
+agentbridge update --dry-run
+```
+
+`update` leads with what a version bump actually changes:
+
+```
+  ~ acme.db                  ca0a9d4c2d1d
+      version 1.0.0 -> 1.1.0
+      !! gains capability: network
+      + skill report
+      + server telemetry
+```
+
+A plugin is not only code but instruction text handed to an agent with tool
+access, so a bump that grants it the network is a different event from one that
+does not. Commit `agentbridge.lock` and that difference shows up in review.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `clients` | Agent clients detected on this machine |
+| `install <ref>` | Install into every client, or `--client` a subset |
+| `remove <name>` | Remove exactly what was installed, and nothing else |
+| `sync` / `update` | Converge on `agentbridge.yaml` + `.lock` |
+| `doctor [plugin]` | Why a plugin appears installed and does nothing |
+| `validate <dir>` | Check a plugin against Agent Plugins v1.0.0 |
+| `losses` | What each client might not carry, and why |
+| `secret set/list/rm/scan` | Keep credentials out of client configs |
+| `inspect <dir>` | Show a plugin's normalized form |
+| `list`, `cache`, `version` | |
+
+Flags work on either side of the argument, and every command takes `--json`.
+
+## Documentation
+
+| Doc | For |
+|---|---|
+| [Client compatibility](docs/clients.md) | What each client takes — generated from the adapters |
+| [Writing a plugin](docs/plugin-authors.md) | Plugin authors: the conformance traps, and how to avoid them |
+| [Telemetry](docs/telemetry.md) | There is none, and the claim is enforced by a test |
+| [Security](SECURITY.md) | Threat model and reporting |
+| [Spec compliance](docs/10-spec-compliance.md) | Requirement-by-requirement audit against v1.0.0 |
+| [Releasing](RELEASING.md) | How a release is cut and verified |
+
+## Why this exists
 
 **Today.** Every developer now runs three to six AI agents — Copilot in VS Code, Cursor, Codex, Claude Code, something in the terminal. Each keeps its extensions in a different place, with different config and different secrets.
 
@@ -44,15 +144,9 @@ Microsoft, OpenAI, Amazon and Cursor will each manage plugins for **their own** 
 > The standard says what the folder should look like.
 > We say where it came from, whether it's safe, which machines it landed on, and what it did.
 
-## The condensed version
+## Planning documents
 
-[Agent Plugins 1.0](https://agent-plugins.org/) (announced 2026-08-06 by Vercel, OpenAI, Microsoft, Amazon and Cursor) standardizes the *shape of the folder* that extends an AI agent — Agent Skills plus MCP servers in one portable directory. It deliberately defines nothing about distribution, installation, updates, secrets, permissions, provenance, or audit. The result is a package format with no supply chain: npm without npmjs.com, and without a scanner.
-
-**AgentBridge is the supply chain and control plane for agent extensions.** A free, open-source CLI that installs any plugin into any agent client — including the ones the standard doesn't cover, like Claude Code — with a lockfile, a fidelity report, and no plaintext secrets. Then, for teams: one inventory, one policy, and one audit trail across every agent client a company runs. Client vendors will each govern their own client; nobody is positioned to govern all of them, and nobody at all inspects skills — which are untrusted natural-language instructions handed to a model with tool access.
-
-## Documents
-
-**→ [MVP.md](MVP.md) — scope and live status tracker for the first release.**
+The strategy this was built from. **→ [MVP.md](MVP.md) — scope and live status tracker.**
 
 
 | # | Doc | What's in it |
@@ -69,18 +163,7 @@ Microsoft, OpenAI, Amazon and Cursor will each manage plugins for **their own** 
 | 09 | [UI & surfaces](docs/09-ui-and-surfaces.md) | What the web UI is for, who uses it, screens, and what stays out of it |
 | 10 | [Spec compliance](docs/10-spec-compliance.md) | Requirement-by-requirement audit against Agent Plugins v1.0.0, and where we are deliberately not a client |
 
-## Install
-
-```bash
-brew install agentbridge/tap/agentbridge
-npm install -g agentbridge
-curl -fsSL https://raw.githubusercontent.com/agentbridge/agentbridge/main/install.sh | sh
-```
-
-All three verify a SHA-256 checksum against the release's signed checksum file
-before installing anything, and refuse an artifact that file does not list. A
-tool arguing about where your plugins came from cannot have an installer that
-downloads a binary and trusts it. See [RELEASING.md](RELEASING.md).
+User-facing documentation is listed under [Documentation](#documentation) above.
 
 ## Implementation
 
@@ -274,11 +357,25 @@ command and says so.
 3. **Skills are an unguarded attack surface.** Every existing security product — SCA, SAST, MCP gateways, EDR — is blind to a `SKILL.md`. It is executable instruction for a probabilistic interpreter with tool access.
 4. **Distribution first, monetization second.** The only asset a competitor cannot buy is a binary already installed on a developer's machine.
 
-## Immediate next steps
+## What is not done
 
-1. Verify the `agentbridge` name/trademark is available before any public commit (see [D6](docs/07-open-questions.md)).
-2. Build the compatibility harness and measure what each client *actually* supports today — the published matrix is not machine-readable, so this must be empirical.
-3. Spike the round-trip: Claude Code plugin → IR → Agent Plugins → back. Go/no-go on the IR design.
+Being straight about the gaps, since two of them affect what this can honestly
+claim:
+
+1. **The name is unverified.** `agentbridge` has not been checked for
+   availability as a trademark, an npm package, a GitHub organization or a
+   domain — and the module path, Homebrew tap, Scoop bucket and npm name all
+   assume it. This blocks a first release ([D-02](MVP.md)).
+2. **No release has been cut.** The pipeline is written and validated by CI on
+   every pull request, but it has never run. Nothing is signed yet because
+   nothing has been published yet.
+3. **The conformance harness (M10) does not exist.** Everything in
+   [clients.md](docs/clients.md) is *declared* by the adapters, not measured
+   against running clients. It is why three clients are marked `undocumented`
+   for skills rather than something more definite, and closing that gap is the
+   single largest difference between what this ships and what it could claim.
+4. **Launch has not happened.** See [MVP.md](MVP.md) §9 for the exit criteria
+   the first release is measured against.
 
 ## Sources
 

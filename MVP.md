@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0–M8 complete, audited against the canonical spec. M9 (docs and launch) remains.**
+Last updated: 2026-08-10 · Overall status: **M0–M9 implemented. Launch (M9-4) is a human task; M10 conformance harness remains.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -442,10 +442,35 @@ release. `internal/release` moves both to every commit.
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M9-1 | README, quickstart, per-client compatibility notes | | ⬜ |
-| M9-2 | Plugin author guide (`validate` workflow) | | ⬜ |
-| M9-3 | Public threat model + telemetry statement | Telemetry is opt-in; schema published field-by-field | ⬜ |
-| M9-4 | Launch: HN / relevant communities / plugin-author outreach | Target ≥15 third-party READMEs recommending us | ⬜ |
+| M9-1 | README, quickstart, per-client compatibility notes | | ✅ |
+| M9-2 | Plugin author guide (`validate` workflow) | | ✅ |
+| M9-3 | Public threat model + telemetry statement | Telemetry is opt-in; schema published field-by-field | ✅ |
+| M9-4 | Launch: HN / relevant communities / plugin-author outreach | Target ≥15 third-party READMEs recommending us | ⏸️ |
+
+**M9-4 is not something the code can do.** Posting to communities and
+approaching plugin authors is a human task; the materials are ready and the exit
+criteria are in §9. Marked blocked rather than done, because marking it complete
+would misrepresent the state of the project.
+
+**Two documents are generated or enforced rather than written**, because both
+are the kind that rot into being actively misleading:
+
+- [`docs/clients.md`](docs/clients.md) is generated from the adapters
+  (`make docs`), and a test fails when it drifts. Compatibility documentation
+  written by hand goes stale within a release, and for this page that would be
+  worse than having none — the whole product claim is that we tell people the
+  truth about what each client takes.
+- [`docs/telemetry.md`](docs/telemetry.md) says the tool collects nothing, and
+  [`internal/privacy`](internal/privacy) fails the build if any shipping package
+  makes an HTTP, TCP, WebSocket or gRPC call, references a domain we operate, or
+  stops embedding the schemas. That claim erodes quietly otherwise: one
+  well-meant crash reporter and a tool on every developer machine in a company
+  is phoning home, with the documentation still saying it does not.
+
+The audit behind that test found the claim already true — the only `net/http`
+import in the codebase is a header-name validity check that touches no network,
+and derived schema identifiers use the reserved `.invalid` TLD so they cannot be
+fetched even by accident.
 
 ### M10 — Conformance harness seed · P1 · ~1 week
 

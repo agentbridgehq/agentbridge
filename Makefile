@@ -6,7 +6,7 @@ PKG := ./...
 
 PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64
 
-.PHONY: all build test vet lint fmt tidy cross licenses clean
+.PHONY: all build test vet lint fmt tidy cross licenses docs clean
 
 all: vet test build
 
@@ -37,6 +37,10 @@ cross:
 		echo "  build $$os/$$arch"; \
 		GOOS=$$os GOARCH=$$arch $(GO) build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-$$os-$$arch$$ext ./cmd/agentbridge; \
 	done
+
+# Regenerate documentation derived from the code. A test fails when it drifts.
+docs:
+	$(GO) run ./internal/tools/gendocs
 
 # M0-3: fail on copyleft licenses that would contaminate commercial code.
 # See docs/08-tech-stack.md section 9.
