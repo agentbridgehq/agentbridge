@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0, M1 and M2 complete, audited against the canonical spec. M3 (sources and fetch) is next.**
+Last updated: 2026-08-10 · Overall status: **M0–M3 complete, audited against the canonical spec. M4 (lockfile and resolution) is next.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -201,11 +201,35 @@ that case.
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M3-1 | Local directory source | | ⬜ |
-| M3-2 | Git source, pinned to resolved commit SHA | Tag/branch resolves to an immutable SHA in the lock | ⬜ |
-| M3-3 | Digest computation + verification | Content-addressed; tamper detected on re-fetch | ⬜ |
-| M3-4 | Local content cache | Offline re-install works | ⬜ |
-| M3-5 | OCI source | **P1** — defer if it costs schedule | ⬜ |
+| M3-1 | Local directory source | | ✅ |
+| M3-2 | Git source, pinned to resolved commit SHA | Tag/branch resolves to an immutable SHA in the lock | ✅ |
+| M3-3 | Digest computation + verification | Content-addressed; tamper detected on re-fetch | ✅ |
+| M3-4 | Local content cache | Offline re-install works | ✅ |
+| M3-5 | OCI source | **P1** — defer if it costs schedule | ⬜ ⁴ |
+
+⁴ Deferred as planned. Git covers the way plugins are actually distributed
+today, and OCI's real value — signing, mirroring, org-scoped registries — pairs
+with M8 rather than with fetching.
+
+**Two design decisions in M3 worth recording.**
+
+*Git is invoked as a subprocess, not through a library* — a reversal of the plan
+in [08 §3](docs/08-tech-stack.md), and the reason is authentication. A pure-Go
+implementation has to reimplement credential helpers, SSH agent forwarding,
+`insteadOf` rewrites, enterprise proxies and SSO device flows, and the first
+plugin an enterprise developer installs is the private one in their own
+organization. Shelling out inherits all of that correctly on day one. The costs
+are accepted and handled: `git` must be present (detected, with a clear error),
+nothing goes through a shell, and arguments that could be read as flags are
+rejected before anything executes.
+
+*There are now two digests, and both are needed.* The IR digest asks "is this
+the same plugin?" and is computed from the parsed model. The **tree digest** asks
+"are these the same bytes?" — and that is the question integrity actually turns
+on, because a script under a skill's `scripts/` directory can be replaced
+without changing a single field the IR records. That is precisely the tamper a
+supply chain has to catch, and it is why the cache re-verifies every entry it
+serves rather than trusting its own contents.
 
 ### M4 — Lockfile & resolution · P0 · ~1.5 weeks
 

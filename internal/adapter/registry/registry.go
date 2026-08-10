@@ -45,6 +45,11 @@ func DefaultEnv(projectDir string) (adapter.Env, error) {
 // StateDir returns the directory holding receipts and per-plugin data.
 func StateDir(env adapter.Env) string { return filepath.Join(env.HomeDir, StateDirName) }
 
+// CacheDir returns the directory holding fetched source packages. It sits
+// beside the receipts rather than inside any client's directory, so a client
+// reinstall cannot destroy it and it can be cleared independently.
+func CacheDir(env adapter.Env) string { return filepath.Join(StateDir(env), "cache") }
+
 // PluginDataDir returns the persistent directory backing ${PLUGIN_DATA} for a
 // plugin. The specification requires it to survive updates, so it lives in our
 // state directory rather than inside any client's install location.
@@ -208,12 +213,21 @@ func PlanRemove(env adapter.Env, store *receipt.Store, pluginName string, sel Se
 	return plans, nil
 }
 
+// Provenance records where a plugin came from, for the receipt.
+type Provenance struct {
+	// Source is the pinned reference: a branch or tag already replaced by the
+	// commit it resolved to.
+	Source string
+	// TreeDigest is the content address of the installed package.
+	TreeDigest string
+}
+
 // ApplyInstall executes plans and records receipts.
 //
 // The receipt is written after the plan succeeds. If the process dies between
 // the two, the next install re-records it, whereas recording first would leave
 // a receipt claiming ownership of something that was never written.
-func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*adapter.Plan) error {
+func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*adapter.Plan, prov Provenance) error {
 	digest, err := p.Digest()
 	if err != nil {
 		return err
@@ -234,6 +248,8 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 			Client:        plan.Installation.Client.ID,
 			Scope:         string(plan.Installation.Scope),
 			Digest:        digest,
+			Source:        prov.Source,
+			TreeDigest:    prov.TreeDigest,
 			ConfigPath:    plan.Installation.ConfigPath,
 			ConfigKeys:    plan.ConfigKeys,
 			BlockSections: plan.BlockSections,

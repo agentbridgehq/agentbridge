@@ -54,7 +54,7 @@ Everything below follows from those.
 | OCI push/pull of arbitrary artifacts | `oras-go` (ORAS v2) or `google/go-containerregistry` |
 | Signing / verification | Sigstore `cosign` as a library — keyless OIDC signing, so plugin authors never manage keys |
 | Provenance | in-toto attestations + SLSA build provenance, recorded in Rekor |
-| Git sources | `go-git/go-git` for convenience fetching, always pinned to a resolved commit SHA in the lockfile |
+| Git sources | **Revised in M3: invoke the `git` binary, not a library.** The deciding factor is authentication — a pure-Go client has to reimplement credential helpers, SSH agent forwarding, `insteadOf` rewrites, enterprise proxies and SSO device flows, and the first plugin an enterprise developer installs is the private one in their own org. Always pinned to a resolved commit. |
 
 We must sign and publish provenance for **our own** binary from day one. Selling provenance while shipping unsigned releases is not survivable in diligence.
 

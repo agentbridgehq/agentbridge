@@ -32,7 +32,7 @@ func TestRemoveActuallyDeletesPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.ApplyInstall(env, store, plugin, plans); err != nil {
+	if err := registry.ApplyInstall(env, store, plugin, plans, registry.Provenance{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,7 +74,7 @@ func TestRemoveMissingPackageIsNoOp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.ApplyInstall(env, store, plugin, plans); err != nil {
+	if err := registry.ApplyInstall(env, store, plugin, plans, registry.Provenance{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -198,7 +198,7 @@ func TestPluginDataDirectoryIsCreated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.ApplyInstall(env, store, plugin, plans); err != nil {
+	if err := registry.ApplyInstall(env, store, plugin, plans, registry.Provenance{}); err != nil {
 		t.Fatal(err)
 	}
 

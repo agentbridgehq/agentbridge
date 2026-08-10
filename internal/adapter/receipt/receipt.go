@@ -32,6 +32,14 @@ type Entry struct {
 	// Digest is the plugin's IR digest at install time, so drift between what
 	// is installed and what a lockfile expects is detectable.
 	Digest string `json:"digest,omitempty"`
+	// Source is the pinned reference the plugin was installed from — a branch
+	// or tag replaced by the commit it resolved to, so the record reproduces
+	// exactly these bytes rather than whatever that ref points at later.
+	Source string `json:"source,omitempty"`
+	// TreeDigest is the content address of the installed package. Together with
+	// Source it is what makes an install reproducible and a substitution
+	// detectable.
+	TreeDigest string `json:"treeDigest,omitempty"`
 	// ConfigPath is the file that was edited, if any.
 	ConfigPath string `json:"configPath,omitempty"`
 	// ConfigKeys are the key paths written into ConfigPath. Each is a path

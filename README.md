@@ -85,8 +85,10 @@ make licenses # dependency license policy check
 ./agentbridge validate ./some-plugin     # check it against Agent Plugins v1.0.0
 ./agentbridge install ./some-plugin --dry-run   # exact diffs, writes nothing
 ./agentbridge install ./some-plugin      # install into every detected client
+./agentbridge install github.com/org/repo@v1.2.0#plugins/db   # pinned, from git
 ./agentbridge remove  some-plugin        # remove exactly what was installed
-./agentbridge list                       # what agentbridge has installed
+./agentbridge list                       # what agentbridge has installed, and where from
+./agentbridge cache --clear              # drop fetched packages
 ```
 
 Every install prints a fidelity report — per client, what was carried and what
@@ -121,6 +123,22 @@ Clients: Claude Code, Cursor, VS Code / Copilot, Codex, Gemini CLI.
 | [`internal/configedit`](internal/configedit) | Formatting-preserving JSONC and TOML editing |
 | [`internal/adapter/receipt`](internal/adapter/receipt) | What was written where, so uninstall is exact rather than pattern-matched |
 | [`internal/validate`](internal/validate) | Author-facing conformance checking, with a spec citation on every finding |
+| [`internal/source`](internal/source) | Reference parsing, git fetch pinned to a commit, tree digests, and a cache that re-verifies what it serves |
+
+**What M3 established.** The specification says a plugin is "a directory rooted
+at a single filesystem location" and nothing at all about how that directory
+arrives. So every property worth having had to be chosen: a branch or tag is
+resolved to an immutable commit *before* anything is fetched, every package
+carries a **tree digest** over its bytes, and the cache re-verifies each entry it
+serves rather than trusting its own contents — because the cache is a writable
+directory on a developer's machine, and poisoning one entry would otherwise
+compromise every future install of that plugin behind a valid-looking pin.
+
+Note there are now two digests and both earn their place: the IR digest asks
+*is this the same plugin?*, the tree digest asks *are these the same bytes?* A
+script under a skill's `scripts/` directory can be replaced without changing a
+single field the IR records, and that is exactly the tamper a supply chain
+exists to catch.
 
 **What M2 established.** Installing into a client is mostly a translation
 problem, and every hazard in it fails *silently* — the config validates, the
