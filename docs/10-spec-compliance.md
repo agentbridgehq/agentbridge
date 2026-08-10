@@ -212,7 +212,14 @@ why — rather than discovering it when the agent quietly fails to do something.
 
 ## 6. Watch list
 
-Re-check on every spec release:
+Checked automatically every night by
+[`internal/tools/specwatch`](../internal/tools/specwatch) (`make upstream`):
+the embedded schemas against the canonical ones, the set of published
+specification versions, and whether each adapter's cited vendor documentation
+still resolves. Drift opens a single tracking issue rather than a new one each
+morning.
+
+Re-check by hand on every spec release:
 
 - A new `spec/<version>.md` in the upstream repo. §10.1 guarantees both schemas
   are republished with it even when unchanged, so a schema `$id` bump is the

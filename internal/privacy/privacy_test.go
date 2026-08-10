@@ -16,6 +16,7 @@ package privacy_test
 import (
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -31,6 +32,17 @@ var networkCalls = regexp.MustCompile(
 		`|\bwebsocket\.\b` +
 		`|\bgrpc\.Dial\b`)
 
+// devToolPrefix holds programs run by maintainers, never compiled into the
+// binary users install: the licence checker, the documentation generator, and
+// the upstream watcher, which fetches the canonical schemas precisely so a
+// human is told when they change.
+//
+// Excluding them from the network scan would be a loophole if it stood alone —
+// somebody could add a telemetry package here and the scan would say nothing.
+// TestShippedBinaryExcludesDevTools closes it by proving from the real build
+// graph that none of this reaches the binary.
+const devToolPrefix = "internal/tools/"
+
 // sourceFiles walks the packages that ship in the binary.
 func sourceFiles(t *testing.T) map[string]string {
 	t.Helper()
@@ -42,6 +54,9 @@ func sourceFiles(t *testing.T) map[string]string {
 				return err
 			}
 			if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			if strings.Contains(filepath.ToSlash(path), devToolPrefix) {
 				return nil
 			}
 			raw, err := os.ReadFile(path)
@@ -85,6 +100,24 @@ func TestNoCallsToOperatedInfrastructure(t *testing.T) {
 	for path, content := range sourceFiles(t) {
 		if m := operated.FindString(content); m != "" {
 			t.Errorf("%s references %s. Nothing in the CLI may contact infrastructure we operate.", path, m)
+		}
+	}
+}
+
+// The exclusion above is only sound if those packages genuinely do not reach
+// the binary, so that is checked against the real build graph rather than
+// assumed. `go list -deps` reports exactly what the linker will include.
+func TestShippedBinaryExcludesDevTools(t *testing.T) {
+	out, err := exec.Command("go", "list", "-deps", "../../cmd/agentbridge").Output()
+	if err != nil {
+		t.Fatalf("go list: %v", err)
+	}
+
+	for _, pkg := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.Contains(pkg, devToolPrefix) {
+			t.Errorf("the agentbridge binary depends on %s.\n"+
+				"Development tools are excluded from the network scan on the grounds that they are "+
+				"not shipped. Importing one from the CLI turns that exclusion into a hole.", pkg)
 		}
 	}
 }

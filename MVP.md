@@ -478,7 +478,7 @@ fetched even by accident.
 |---|---|---|---|
 | M10-1 | Canonical test plugins (valid, partially-invalid, edge cases) | Covers each conformance rule in the spec | ✅ |
 | M10-2 | Manual matrix run across MVP target clients | Produces the honest per-client support table for M9-1 | ✅ |
-| M10-3 | Automated nightly runs | **P2** — Phase 2 | ⬜ |
+| M10-3 | Automated nightly runs | **P2** — Phase 2 | ✅ |
 
 Enough of M10 must exist to make the fidelity reports factually correct. Full automation is Phase 2.
 

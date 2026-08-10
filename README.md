@@ -173,6 +173,7 @@ Go 1.26, no runtime dependencies. See [docs/08-tech-stack.md](docs/08-tech-stack
 
 ```bash
 make          # vet + test + build
+make upstream # has the spec, its schemas, or a vendor's docs moved?
 make cross    # build every supported platform
 make licenses # dependency license policy check
 ```
