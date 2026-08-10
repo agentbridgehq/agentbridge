@@ -69,6 +69,19 @@ Microsoft, OpenAI, Amazon and Cursor will each manage plugins for **their own** 
 | 09 | [UI & surfaces](docs/09-ui-and-surfaces.md) | What the web UI is for, who uses it, screens, and what stays out of it |
 | 10 | [Spec compliance](docs/10-spec-compliance.md) | Requirement-by-requirement audit against Agent Plugins v1.0.0, and where we are deliberately not a client |
 
+## Install
+
+```bash
+brew install agentbridge/tap/agentbridge
+npm install -g agentbridge
+curl -fsSL https://raw.githubusercontent.com/agentbridge/agentbridge/main/install.sh | sh
+```
+
+All three verify a SHA-256 checksum against the release's signed checksum file
+before installing anything, and refuse an artifact that file does not list. A
+tool arguing about where your plugins came from cannot have an installer that
+downloads a binary and trusts it. See [RELEASING.md](RELEASING.md).
+
 ## Implementation
 
 Go 1.26, no runtime dependencies. See [docs/08-tech-stack.md](docs/08-tech-stack.md) for why.

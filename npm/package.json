@@ -1,0 +1,17 @@
+{
+  "name": "agentbridge",
+  "version": "0.0.0",
+  "description": "The supply chain for agent extensions — install any agent plugin into any agent client",
+  "license": "Apache-2.0",
+  "author": "Masih Moloodian <masihmoloodian@gmail.com>",
+  "homepage": "https://github.com/agentbridge/agentbridge",
+  "repository": { "type": "git", "url": "git+https://github.com/agentbridge/agentbridge.git" },
+  "keywords": ["agent", "plugins", "mcp", "agent-plugins", "skills", "cli"],
+  "bin": { "agentbridge": "bin/agentbridge" },
+  "files": ["bin/", "install.js", "platform.js", "README.md"],
+  "scripts": {
+    "postinstall": "node install.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=18" }
+}

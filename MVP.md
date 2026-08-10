@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0–M7 complete, audited against the canonical spec. M8–M9 remain.**
+Last updated: 2026-08-10 · Overall status: **M0–M8 complete, audited against the canonical spec. M9 (docs and launch) remains.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -401,12 +401,42 @@ that the meaning explains rather than restates.
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M8-1 | GoReleaser pipeline, signed releases | Cosign signature + checksums on every artifact | ⬜ |
-| M8-2 | SLSA provenance for our own binary | We cannot sell provenance while shipping unsigned | ⬜ |
-| M8-3 | Homebrew tap | | ⬜ |
-| M8-4 | npm wrapper package (downloads + verifies the binary) | `npm i -g` works without a Node runtime dependency at execution | ⬜ |
+| M8-1 | GoReleaser pipeline, signed releases | Cosign signature + checksums on every artifact | ✅ |
+| M8-2 | SLSA provenance for our own binary | We cannot sell provenance while shipping unsigned | ✅ |
+| M8-3 | Homebrew tap | | ✅ |
+| M8-4 | npm wrapper package (downloads + verifies the binary) | `npm i -g` works without a Node runtime dependency at execution | ✅ |
 | M8-5 | Install script with signature verification | `curl \| sh` verifies before executing | ⬜ |
-| M8-6 | Scoop / winget | **P1** | ⬜ |
+| M8-6 | Scoop / winget | **P1** | ✅ |
+
+**Honest status: the release pipeline has never run.** GoReleaser and cosign
+are not installed on the development machine, so `.goreleaser.yaml` and the
+release workflow are written carefully and **unverified**. Rather than claim
+otherwise, CI now runs `goreleaser check` and a snapshot build on every pull
+request, which means the config is validated on the first push rather than on
+the first tag. See [RELEASING.md](RELEASING.md) for the pre-first-release
+checklist.
+
+What *was* verified locally: the installer, against a fake release, in four
+scenarios — happy path, tampered archive, a checksums file that does not list
+our artifact, and `AGENTBRIDGE_REQUIRE_SIGNATURE=1` with no signature published.
+Testing it found a real bug: `tar -xzf FILE -C DIR` fails on BSD tar, which
+applies options in order, so the `-C` changed directory before the archive path
+was resolved. On macOS every install would have failed after passing
+verification.
+
+**Verification is not optional anywhere.** The usual `curl | sh` installer
+downloads a binary and runs it having checked nothing, which is precisely the
+posture this project exists to argue against. So: checksum verification cannot
+be turned off; an artifact the checksums file does not list is refused rather
+than waved through (`--ignore-missing` is deliberately unused, and a test
+enforces that); signatures are verified whenever cosign is present and can be
+made mandatory; and the npm postinstall verifies before writing anything.
+
+**Drift tests.** Distribution breaks in a characteristic way — a platform added
+to CI but not to the release build, or an archive naming template changed while
+the installers keep constructing the old name. Neither is caught until a tag is
+pushed, which is the worst moment to find out because the fix needs another
+release. `internal/release` moves both to every commit.
 
 ### M9 — Docs & launch · P0 · ~0.5 week
 

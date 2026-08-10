@@ -1,0 +1,149 @@
+# GoReleaser configuration.
+#
+# Requires GoReleaser v2.5 or later. CI runs `goreleaser check` on every pull
+# request, so a change that breaks this file fails before a release does — which
+# matters because a release pipeline is otherwise exercised for the first time
+# at exactly the moment it must not fail.
+#
+# The signing here is not decoration. This project asks users to care about the
+# provenance of the plugins they install; shipping unsigned binaries while doing
+# so would not survive its own argument, let alone diligence
+# (docs/06-business-model-and-acquisition.md §4).
+version: 2
+
+project_name: agentbridge
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+
+builds:
+  - id: agentbridge
+    main: ./cmd/agentbridge
+    binary: agentbridge
+    env:
+      # A static binary with no libc dependency is the whole distribution
+      # story: "install Node first" or "install glibc 2.34 first" loses a
+      # meaningful share of users and rules out fleet deployment entirely.
+      - CGO_ENABLED=0
+    flags:
+      # Strip local paths so the same source produces the same bytes on any
+      # machine. Reproducibility is a precondition for provenance meaning
+      # anything.
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+signs:
+  # Keyless signing through Sigstore: the certificate is bound to the GitHub
+  # Actions identity that produced the release, so there is no long-lived key
+  # for anyone to lose or leak. Only the checksum file is signed — verifying it
+  # transitively covers every artifact it lists.
+  - id: checksums
+    cmd: cosign
+    signature: ${artifact}.sig
+    certificate: ${artifact}.pem
+    args:
+      - sign-blob
+      - --yes
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
+      - ${artifact}
+    artifacts: checksum
+    output: true
+
+sboms:
+  - id: archives
+    artifacts: archive
+
+brews:
+  - name: agentbridge
+    repository:
+      owner: agentbridge
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/agentbridge/agentbridge
+    description: The supply chain for agent extensions
+    license: Apache-2.0
+    test: |
+      system "#{bin}/agentbridge", "version"
+
+scoops:
+  - repository:
+      owner: agentbridge
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    homepage: https://github.com/agentbridge/agentbridge
+    description: The supply chain for agent extensions
+    license: Apache-2.0
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat'
+      order: 0
+    - title: Fixes
+      regexp: '^fix'
+      order: 1
+    - title: Documentation
+      regexp: '^docs'
+      order: 2
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore:'
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Verifying this release
+
+    Every artifact is covered by a signed checksum file. Verification is not an
+    optional extra here — a tool that asks you to care about where your plugins
+    come from should make it trivial to check where it came from itself.
+
+    ```bash
+    cosign verify-blob checksums.txt \
+      --signature checksums.txt.sig \
+      --certificate checksums.txt.pem \
+      --certificate-identity-regexp 'https://github.com/agentbridge/agentbridge/.github/workflows/release.yml@.*' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+    sha256sum --check --ignore-missing checksums.txt
+    ```
+
+    Build provenance is attested through GitHub and can be checked with:
+
+    ```bash
+    gh attestation verify <artifact> --repo agentbridge/agentbridge
+    ```
