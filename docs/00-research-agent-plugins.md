@@ -149,7 +149,7 @@ This is the entire commercial opportunity. Confirmed absent from v1.0.0:
 2. **The `extensions` + `com.example.client/` escape hatch guarantees divergence.** The spec makes it *cheap* for each client to add proprietary behavior and *mandatory* for others to ignore it. In 12 months a "portable" plugin will carry 4 vendor namespaces, and "portable" will mean "loads, but does less."
 3. **The floor is deliberately low.** "Support at least one of skills or MCP servers" means a conformant client may support neither of the things a given plugin ships. Real-world compatibility is a matrix, not a boolean — and nobody owns publishing that matrix.
 4. **`$schema` must not be fetched at load time.** Clients pin locally-known rules. So spec upgrades roll out at client-release speed, unevenly. Version skew across a developer's machine is guaranteed.
-5. **The spec is 4 days old.** Tooling, conventions and defaults are unset. This is the shortest window this opportunity will ever have.
+5. **The format is new and its conventions are unset.** Tooling, defaults and packaging practice have not hardened, which is the only reason a neutral layer can still define them. That window narrows every month.
 
 ## 5. What the TSC says it may do next
 

@@ -29,7 +29,12 @@ const (
 // at a table header line and runs to the next header or the end of the block,
 // so an entry can be added or removed without disturbing its neighbours.
 type BlockDoc struct {
-	path    string
+	path string
+	// raw is the file exactly as read. Original returns it verbatim rather
+	// than re-rendering, because a human may have added blank lines or
+	// reflowed the managed block, and re-rendering would report those as
+	// changes we are about to make when we are not.
+	raw     []byte
 	existed bool
 	// before and after are the file content outside the managed block.
 	before, after []byte
@@ -50,7 +55,7 @@ func LoadBlock(path string) (*BlockDoc, error) {
 		return nil, err
 	}
 
-	d := &BlockDoc{path: path, existed: true, sections: map[string][]string{}}
+	d := &BlockDoc{path: path, raw: raw, existed: true, sections: map[string][]string{}}
 
 	beginIdx := indexOfLine(raw, BlockBegin)
 	if beginIdx < 0 {
@@ -87,9 +92,7 @@ func (d *BlockDoc) Original() []byte {
 	if !d.existed {
 		return nil
 	}
-	// Reconstructing rather than caching keeps a single definition of the
-	// file's shape.
-	return d.render(d.hadBlock)
+	return bytes.Clone(d.raw)
 }
 
 // Sections returns the managed section names in file order.

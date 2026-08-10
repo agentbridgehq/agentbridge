@@ -25,7 +25,9 @@
 package adapter
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -124,21 +126,35 @@ type Op struct {
 	After []byte `json:"-"`
 	// SourceDir is the directory to copy, for OpCopyTree.
 	SourceDir string `json:"sourceDir,omitempty"`
+	// TargetExists records whether Path was present when the plan was built.
+	// Removal operations have no Before content to compare, so this is what
+	// tells them apart from a no-op.
+	TargetExists bool `json:"targetExists,omitempty"`
 	// Note explains the operation in one line, for the plan summary.
 	Note string `json:"note,omitempty"`
 }
 
-// Unchanged reports whether an operation would leave the file as it is.
-// Re-running an install must be a no-op, and the plan should say so rather
-// than rewriting identical bytes and churning the file's mtime.
+// Unchanged reports whether an operation would leave the filesystem as it is.
+//
+// Re-running an install must be a no-op, and the plan should say so rather than
+// rewriting identical bytes and churning the file's mtime. The distinction has
+// to be drawn per operation kind: a write compares content, but a removal has
+// no content to compare and is a no-op only when there is nothing there.
+//
+// Getting this wrong once made `remove` silently do nothing for whole-package
+// installs while reporting "already up to date" — the exact silent-failure mode
+// this project exists to eliminate. Anything genuinely unknown at plan time
+// reports as changed, so the worst case is a redundant write rather than a
+// skipped one.
 func (o Op) Unchanged() bool {
 	switch o.Kind {
 	case OpWriteFile:
-		return o.Before != nil && string(o.Before) == string(o.After)
+		return o.Before != nil && bytes.Equal(o.Before, o.After)
 	case OpRemoveFile, OpRemoveTree:
-		return o.Before == nil && o.SourceDir == ""
+		return !o.TargetExists
+	default:
+		return false
 	}
-	return false
 }
 
 // Loss is one thing that did not survive translation into a client.
@@ -233,6 +249,12 @@ type Adapter interface {
 	Plan(inst Installation, p *ir.Plugin, src *safepath.Root) (*Plan, error)
 	// PlanRemove computes what removing a plugin by name would do.
 	PlanRemove(inst Installation, pluginName string) (*Plan, error)
+}
+
+// PathExists reports whether a path is present, for setting Op.TargetExists.
+func PathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // ManagedKey builds the configuration key for one of a plugin's MCP servers.

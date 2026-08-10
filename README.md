@@ -82,6 +82,7 @@ make licenses # dependency license policy check
 ```bash
 ./agentbridge clients                    # agent clients detected on this machine
 ./agentbridge inspect  ./some-plugin     # load a plugin, show its normalized form
+./agentbridge validate ./some-plugin     # check it against Agent Plugins v1.0.0
 ./agentbridge install ./some-plugin --dry-run   # exact diffs, writes nothing
 ./agentbridge install ./some-plugin      # install into every detected client
 ./agentbridge remove  some-plugin        # remove exactly what was installed
@@ -119,6 +120,7 @@ Clients: Claude Code, Cursor, VS Code / Copilot, Codex, Gemini CLI.
 | [`internal/adapter/clients`](internal/adapter/clients) | One package per target client |
 | [`internal/configedit`](internal/configedit) | Formatting-preserving JSONC and TOML editing |
 | [`internal/adapter/receipt`](internal/adapter/receipt) | What was written where, so uninstall is exact rather than pattern-matched |
+| [`internal/validate`](internal/validate) | Author-facing conformance checking, with a spec citation on every finding |
 
 **What M2 established.** Installing into a client is mostly a translation
 problem, and every hazard in it fails *silently* — the config validates, the
@@ -151,7 +153,7 @@ command and says so.
 
 ## The four claims everything else rests on
 
-1. **The format is standardized; the supply chain is not.** That gap is the entire opportunity, and it is four days old.
+1. **The format is standardized; the supply chain is not.** That gap is the entire opportunity, and the standard is new enough that no convention has hardened around it yet.
 2. **Neutrality is the moat.** Every steering-committee member will manage plugins for their own client and never for a rival's. An enterprise running Copilot + Cursor + Claude Code needs one place for all three.
 3. **Skills are an unguarded attack surface.** Every existing security product — SCA, SAST, MCP gateways, EDR — is blind to a `SKILL.md`. It is executable instruction for a probabilistic interpreter with tool access.
 4. **Distribution first, monetization second.** The only asset a competitor cannot buy is a binary already installed on a developer's machine.

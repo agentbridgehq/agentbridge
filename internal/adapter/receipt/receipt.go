@@ -83,7 +83,7 @@ func Open(dir string) (*Store, error) {
 }
 
 // Path returns the store's file path.
-func (s *Store) Store() string { return s.path }
+func (s *Store) Path() string { return s.path }
 
 // Put records an installation, replacing any previous entry for the same
 // plugin, client and scope.

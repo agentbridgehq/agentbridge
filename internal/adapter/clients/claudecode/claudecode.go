@@ -167,9 +167,10 @@ func (a *Adapter) PlanRemove(inst adapter.Installation, pluginName string) (*ada
 		PluginName:   pluginName,
 		PackageDir:   target,
 		Ops: []adapter.Op{{
-			Kind: adapter.OpRemoveTree,
-			Path: target,
-			Note: "remove plugin package",
+			Kind:         adapter.OpRemoveTree,
+			Path:         target,
+			TargetExists: adapter.PathExists(target),
+			Note:         "remove plugin package",
 		}},
 	}, nil
 }
@@ -234,13 +235,21 @@ func buildMCP(servers []ir.MCPServer, f *adapter.Fidelity) ([]byte, int, error) 
 			if len(s.Args) > 0 {
 				entry["args"] = mapStrings(s.Args, toClaudePlaceholders)
 			}
-			if len(s.Env) > 0 {
-				env := map[string]string{}
-				for k, v := range s.Env {
-					env[k] = toClaudePlaceholders(v)
-				}
-				entry["env"] = env
+			env := map[string]string{}
+			for k, v := range s.Env {
+				env[k] = toClaudePlaceholders(v)
 			}
+			// Spec 9.1 requires every plugin subprocess to receive PLUGIN_ROOT
+			// and PLUGIN_DATA. Claude Code supplies its own CLAUDE_-prefixed
+			// variables and knows nothing about these, so a portable plugin
+			// reading the spec-mandated names would find them unset. Mapping
+			// them onto Claude Code's placeholders is exact and costs nothing:
+			// Claude Code expands placeholders in env values, so the process
+			// receives the same absolute paths a conformant client would give
+			// it. Set last, which is also the precedence §9.1 requires.
+			env["PLUGIN_ROOT"] = placeholderRoot
+			env["PLUGIN_DATA"] = placeholderData
+			entry["env"] = env
 			if s.Cwd != "" {
 				entry["cwd"] = toClaudePlaceholders(s.Cwd)
 			}

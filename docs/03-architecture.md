@@ -1,6 +1,12 @@
 # 03 — Architecture
 
-Design notes only. No implementation decisions are final; open items are tracked in [07](07-open-questions.md).
+**Status.** Sections 1–5 and 11 are **built** — see the package table in the
+[README](../README.md) and the conformance matrix in
+[10](10-spec-compliance.md). Sections 6–10 are design intent for later phases.
+Where the built IR differs from the sketch below, the code is authoritative;
+this document records the reasoning, not the field list.
+
+Open items are tracked in [07](07-open-questions.md).
 
 ## 1. Design principles
 
@@ -53,23 +59,50 @@ Design notes only. No implementation decisions are final; open items are tracked
 
 The IR is a superset of every dialect, with explicit provenance for each field.
 
+As built (`internal/ir`), with the fields not yet present marked:
+
 ```
 Plugin
-  id            digest (sha256 of canonical archive)
-  name          namespaced: <scope>/<name>
-  version       semver
-  source        {kind: git|oci|registry|local, uri, ref, resolvedAt}
-  provenance    {signer, attestation, buildRef, verified: bool}
-  skills[]      {name, path, frontmatter, contentHash, riskFindings[]}
-  mcpServers[]  {name, transport, command|url, args, env(refs), cwd, contentHash}
+  irVersion     schema version of this representation
+  name          plugin name, as the manifest declares it
+  version        description  author  homepage  repository  license  keywords
+  origin        {dialect, schemaId, root, manifestPath}
+  skills[]      {name, description, kind, dir, entrypoint, frontmatter, contentHash}
+  mcpServers[]  {name, transport, command, args, env, cwd, url, headers, contentHash}
   extensions{}  namespace -> opaque blob (preserved, never validated)
-  capabilities  declared: filesystem, network, exec, secrets
-  compat        {clientId -> {supported, degraded, reasons[]}}
+  native{}      dialect-specific data with no portable home
+  capabilities  {exec, network, filesystem, secrets, evidence[]}
+
+  -- not yet built --
+  source        {kind: git|oci|registry|local, uri, ref, resolvedAt}   M3
+  provenance    {signer, attestation, buildRef, verified}              M8/Phase 2
+  compat        {clientId -> {supported, degraded, reasons[]}}          M10
+  riskFindings  per-skill scanner output                                Phase 2
 ```
+
+Three decisions in the built version that the original sketch got wrong, all
+worth recording because they were only obvious once the importers existed:
+
+- **`native` was missing.** `extensions` is a spec-defined field with
+  spec-defined semantics; a Claude Code plugin's hooks and agents belong to
+  neither it nor any portable field. Conflating the two would have meant either
+  discarding them or writing non-spec data into a spec field.
+- **Skill bodies are deliberately absent.** Capability inference runs at import
+  time while the content is in hand, and only the hash is kept. Lockfiles stay
+  small, and untrusted instruction text does not get copied through every layer.
+- **`name` is not namespaced in the IR.** The IR mirrors what the manifest
+  actually says. Scoping is a resolution concern, and putting it here would mean
+  the IR could not represent a real plugin faithfully. See [D11](07-open-questions.md).
 
 Key IR-only concepts the spec has no notion of:
 
-- **Secret references.** `env` values are never literals in our model. They are `${secret:openai/api_key}` refs resolved at write time from OS keychain / gateway / vault. Writing a literal secret into a client config file requires an explicit `--allow-plaintext-secrets`.
+- **Secret references** (M5, not yet built). `env` values become
+  `${secret:openai/api_key}` refs resolved at write time from OS keychain,
+  gateway or vault. Note the spec is on our side here and more strongly than
+  expected: §9.2 and §7.2.1 state that `env` values and headers are *visible
+  package data* and that plugins MUST NOT embed secrets in them, and §7.2.1
+  adds that v1 defines no portable credential-reference field at all. Today we
+  write literals and report each one as a fidelity loss.
 - **Capabilities.** Derived (static analysis) + declared. Drives policy: "no plugin with `exec` from an unsigned source."
 - **Compat.** Per-client, per-version outcome of installing this exact plugin. Populated by the conformance harness (§7).
 - **Risk findings.** Per-skill and per-server analysis results, carried with the artifact.
@@ -78,23 +111,39 @@ Key IR-only concepts the spec has no notion of:
 
 Each adapter answers three questions for a target client: *where do files go*, *what config does it write*, and *what does it lose*.
 
-| Client | Conformant? | Mechanism | Expected fidelity loss |
-|---|---|---|---|
-| VS Code / Copilot | yes | native plugin dir | low |
-| Cursor | yes | native plugin dir | low; may ignore foreign `extensions` |
-| Codex / ChatGPT | yes | native | varies by component support |
-| Kiro | yes | native | low |
-| Claude Code | no | translate to its plugin/marketplace + `.mcp.json` | `extensions` dropped; frontmatter mapping |
-| Gemini CLI, Zed, Windsurf, Continue, JetBrains | no | write MCP config; skills → client-specific memory/rules file or unsupported | skills often unsupported → **must be reported, not silently dropped** |
+**This table's original prediction was exactly inverted, and the correction is
+the most useful thing M2 produced.** It assumed conformant clients would take
+plugins natively with low loss, and that Claude Code — the non-conformant one —
+would be the lossy case. The opposite is true, for a reason no amount of
+planning would have surfaced: *conformance is not the same as documentation*.
 
-**Fidelity report** is a first-class output:
+| Client | Conformant? | Mechanism | Actual fidelity |
+|---|---|---|---|
+| Claude Code | **no** | copy the package + write `.claude-plugin/plugin.json` and `.mcp.json` | **skills + MCP, full coverage** — the only client that takes a whole package, because it is the only one whose layout is documented |
+| Cursor | yes | write `mcp.json` | MCP only; skills declined — package location undocumented |
+| VS Code / Copilot | yes | write `mcp.json` (`servers`, type `http`) | MCP only; same reason |
+| Codex | yes | managed block in `config.toml` | MCP only, no `sse`; same reason |
+| Gemini CLI | no | write `settings.json` | MCP only; no skills mechanism exists at all |
+
+The one client the standard does not cover carries the most, and three clients
+that *do* implement the standard carry the least — because their vendors have
+not published where a portable package goes. We will not guess a path and write
+into a developer's machine on a hunch, so those adapters declare skills
+`undocumented` and say so on every install. Resolving that is a measurement for
+the conformance harness (M10-2), not a decision.
+
+**Fidelity report** is a first-class output, printed by default rather than
+behind a flag:
 
 ```
-$ agentbridge install acme/db-tools
-  ✔ cursor        skills 3/3   mcp 2/2
-  ✔ vscode        skills 3/3   mcp 2/2
-  ▲ claude-code   skills 3/3   mcp 2/2   (1 extension namespace dropped)
-  ▲ zed           skills 0/3   mcp 2/2   (client has no skills support)
+deploy-tools
+
+  !! claude-code    user      skills 2/2     mcp 2/2
+  !! cursor         user      skills 0/2     mcp 2/2
+       - Cursor may support skills, but its vendor has not documented where they
+         are installed; 2 skill(s) not installed. We will not write to an
+         unverified path
+       - env DEPLOY_TOKEN is written as plaintext into .../mcp.json
 ```
 
 Round-trip property to test: `import(export(p)) ≡ p` modulo documented, enumerated loss.

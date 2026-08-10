@@ -169,6 +169,29 @@ silently — the config validates, the client starts, the server never appears:
   mirror image of the placeholder problem found importing from Claude Code, and
   the Claude Code adapter reverses it exactly — closing the round trip.
 
+**Post-M2 review pass (2026-08-10).** A full re-read of the docs and code against
+the canonical spec turned up three real defects, all now fixed with regression
+tests:
+
+1. **`remove` silently did nothing for whole-package installs.** Removal
+   operations carry no "before" content, and the no-op check read a nil before
+   as "nothing to do" — so Apply skipped the deletion and the plan printed
+   *already up to date*. It affected Claude Code, the highest-value adapter, and
+   survived because every other client's removal edits a config file. The exact
+   silent-failure mode this project exists to eliminate, shipped inside it.
+2. **The TOML editor's `Original()` re-rendered instead of returning the bytes
+   it read.** Renderer output is normalized, so for any file a human had touched
+   the `--dry-run` diff claimed changes we were not making, and the no-op check
+   compared against the wrong baseline.
+3. **Claude Code did not receive the §9.1 environment.** We had fixed this for
+   the clients we write config files for and missed the one that gets a whole
+   package. Now mapped onto Claude Code's own placeholders, which it expands, so
+   the process receives exactly what a conformant client would give it.
+
+The first two are worth remembering as a class: both were *silent*, both passed
+a green test suite, and both were found by asking "what would this do if it were
+wrong?" rather than by adding coverage to what was already tested.
+
 **Uninstall (M2-10)** is driven entirely by receipts recorded at install time,
 never by pattern-matching the config. A user entry that happens to share our
 `<plugin>.<server>` naming is provably untouched; there is a test for exactly
@@ -211,9 +234,16 @@ that case.
 | M6-2 | `list` | What's installed, where, at what version | ⬜ |
 | M6-3 | `remove` | Clean removal across clients | ⬜ |
 | M6-4 | `sync` / `update` | Per M4 | ⬜ |
-| M6-5 | `validate` | Spec conformance for plugin authors + practical warnings the spec doesn't cover | ⬜ |
+| M6-5 | `validate` | Spec conformance for plugin authors + practical warnings the spec doesn't cover | ✅ ³ |
 | M6-6 | `doctor` | Explains why a plugin did nothing in client X — the ecosystem's most common question | ⬜ |
 | M6-7 | `--json` output on every command | Scriptable from day one | ⬜ |
+
+³ Landed early, during the spec-alignment review: it is the author-side of
+conformance and it wired up a strict validator that otherwise had no caller.
+Every finding cites the clause it comes from. It is the only place the
+author-binding MUST NOTs get reported — §9.2 and §7.2.1 forbid credentials in
+`env` values and headers, and no *client* can enforce that, because by the time
+a client sees them they are already package data.
 
 ### M7 — Fidelity reporting · P0 · ~0.5 week
 
