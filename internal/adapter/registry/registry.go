@@ -123,7 +123,7 @@ func (s Selection) matches(inst adapter.Installation) bool {
 
 // PlanInstall computes what installing a plugin would do to every selected
 // client, without touching disk.
-func PlanInstall(env adapter.Env, p *ir.Plugin, src *safepath.Root, sel Selection) ([]*adapter.Plan, error) {
+func PlanInstall(env adapter.Env, p *ir.Plugin, src *safepath.Root, sel Selection, opts adapter.PlanOptions) ([]*adapter.Plan, error) {
 	var plans []*adapter.Plan
 
 	for _, a := range Adapters(env) {
@@ -131,7 +131,7 @@ func PlanInstall(env adapter.Env, p *ir.Plugin, src *safepath.Root, sel Selectio
 			if !sel.matches(inst) {
 				continue
 			}
-			plan, err := a.Plan(inst, p, src)
+			plan, err := a.Plan(inst, p, src, opts)
 			if err != nil {
 				return nil, fmt.Errorf("%s (%s): %w", inst.Client.Name, inst.Scope, err)
 			}

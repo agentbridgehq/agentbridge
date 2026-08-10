@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0–M4 complete, audited against the canonical spec. M5 (secrets) is next.**
+Last updated: 2026-08-10 · Overall status: **M0–M5 complete, audited against the canonical spec. M6 (commands) is largely landed; M7–M9 remain.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -278,10 +278,43 @@ since it was read and refuses rather than clobbering.
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M5-1 | Secret reference syntax (`${secret:...}`) in IR | Never a literal in our model | ⬜ |
-| M5-2 | OS keychain backend (macOS / Windows / libsecret) | Read + write + delete | ⬜ |
-| M5-3 | Refuse plaintext secrets by default | Requires explicit `--allow-plaintext-secrets`; warning is loud | ⬜ |
-| M5-4 | Detect existing plaintext secrets in client configs and offer migration | Read-only detection; migration is opt-in | ⬜ |
+| M5-1 | Secret reference syntax (`${secret:...}`) in IR | Never a literal in our model | ✅ |
+| M5-2 | OS keychain backend (macOS / Windows / libsecret) | Read + write + delete | ✅ |
+| M5-3 | Refuse plaintext secrets by default | Requires explicit `--allow-plaintext-secrets`; warning is loud | ✅ |
+| M5-4 | Detect existing plaintext secrets in client configs and offer migration | Read-only detection; migration is opt-in | ✅ |
+
+**The specification made this harder than expected, and said so.** §9.2 and
+§7.2.1 both state that `env` values and headers are *visible package data* and
+that plugins MUST NOT embed credentials in them, and §7.2.1 adds that "Agent
+Plugins v1 defines no OAuth configuration or portable credential-reference
+fields." Read together: **there is no conformant way to give an MCP server a
+credential in v1.0.0.** Every plugin that needs one is either violating the
+specification or relying on client-specific behavior.
+
+So `${secret:...}` is deliberately **ours alone and not portable**. §9.2 requires
+a conformant client to leave unrecognized placeholder text literal, which means
+a reference written into an `mcp.json` would be handed to the server as the
+eleven-character string it is. A reference must therefore be resolved before
+anything reaches a client — never written into a portable artifact.
+
+**How the value actually reaches the server.** A referenced secret is not
+resolved at install; the server is rewritten to launch through `agentbridge run`,
+which reads the credential store at spawn time and execs the real command. The
+value exists only in the process environment of the server that needs it, never
+in a file that gets committed, backed up, or shared on a screen. Verified end to
+end: after installing a plugin with a reference, the credential appears nowhere
+in the written config.
+
+This is the only part of the tool that sits in a running agent's path, and it
+gets there only because someone chose to use a reference — so
+[03 principle 3](docs/03-architecture.md) still holds: the default install
+writes plain configuration with no runtime dependency on us.
+
+**Refusal is the default.** A credential-shaped literal is not written unless
+`--allow-plaintext-secrets` is passed, and the message says all three ways
+forward rather than just objecting. Detection is by value as well as name,
+because a token in a variable called `API_URL` is exactly the case
+name-matching misses.
 
 ### M6 — Commands · P0 · ~1.5 weeks
 

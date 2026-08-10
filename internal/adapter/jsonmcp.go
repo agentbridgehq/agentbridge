@@ -28,7 +28,7 @@ type JSONMCPSpec struct {
 }
 
 // PlanJSONMCP builds an install plan for a JSON-configured client.
-func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepath.Root) (*Plan, error) {
+func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepath.Root, opts PlanOptions) (*Plan, error) {
 	plan := &Plan{Installation: inst, PluginName: p.Name}
 	plan.Fidelity.Skills = Coverage{Carried: 0, Total: len(p.Skills)}
 	NoteSkillsUnsupported(&plan.Fidelity, spec.Client, p.Skills)
@@ -51,6 +51,13 @@ func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepat
 	for _, s := range servers {
 		materialized := Materialize(s, pluginRoot, pluginData)
 
+		prepared, notes, allowed := PrepareSecrets(materialized, opts, &plan.Fidelity, inst.ConfigPath)
+		if !allowed {
+			continue
+		}
+		plan.SecretNotes = append(plan.SecretNotes, notes...)
+		materialized = prepared
+
 		value, reason, ok := spec.Encode(materialized)
 		if !ok {
 			plan.Fidelity.AddLoss(LossTransportUnsupported, s.Name,
@@ -64,8 +71,6 @@ func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepat
 		}
 		writtenKeys = append(writtenKeys, keyPath)
 		plan.Fidelity.MCPServers.Carried++
-
-		NoteSecretsWritten(&plan.Fidelity, s.Name, materialized.Env, inst.ConfigPath)
 	}
 
 	if len(p.Extensions) > 0 {

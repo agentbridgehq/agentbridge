@@ -28,7 +28,7 @@ func TestRemoveActuallyDeletesPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestRemoveMissingPackageIsNoOp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestClaudeCodeReceivesSpecEnvVars(t *testing.T) {
 	env := fakeMachine(t, "claude-code")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestNonConformantClientsReceiveSpecEnvVars(t *testing.T) {
 	env := fakeMachine(t, "cursor")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestDefaultWorkingDirectoryIsMadeExplicit(t *testing.T) {
 	env := fakeMachine(t, "cursor")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestPluginDataDirectoryIsCreated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}

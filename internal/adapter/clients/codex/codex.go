@@ -84,7 +84,7 @@ func (a *Adapter) Detect(env adapter.Env) []adapter.Installation {
 }
 
 // Plan implements adapter.Adapter.
-func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Root) (*adapter.Plan, error) {
+func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Root, opts adapter.PlanOptions) (*adapter.Plan, error) {
 	plan := &adapter.Plan{Installation: inst, PluginName: p.Name}
 	plan.Fidelity.Skills = adapter.Coverage{Total: len(p.Skills)}
 	adapter.NoteSkillsUnsupported(&plan.Fidelity, a.Client(), p.Skills)
@@ -107,6 +107,13 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	for _, s := range servers {
 		materialized := adapter.Materialize(s, pluginRoot, pluginData)
 
+		prepared, notes, allowed := adapter.PrepareSecrets(materialized, opts, &plan.Fidelity, inst.ConfigPath)
+		if !allowed {
+			continue
+		}
+		plan.SecretNotes = append(plan.SecretNotes, notes...)
+		materialized = prepared
+
 		header, lines, reason, ok := renderServer(p.Name, materialized)
 		if !ok {
 			plan.Fidelity.AddLoss(adapter.LossTransportUnsupported, s.Name, "Codex: %s", reason)
@@ -115,8 +122,6 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 		doc.SetSection(header, lines)
 		sections = append(sections, header)
 		plan.Fidelity.MCPServers.Carried++
-
-		adapter.NoteSecretsWritten(&plan.Fidelity, s.Name, materialized.Env, inst.ConfigPath)
 	}
 
 	for ns := range p.Extensions {

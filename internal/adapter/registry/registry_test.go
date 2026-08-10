@@ -63,6 +63,11 @@ func loadFixture(t *testing.T, dir string) (*ir.Plugin, *safepath.Root) {
 
 const ccFixture = "../../importer/claudecode/testdata/full"
 
+// The Claude Code fixture deliberately carries a plaintext DEPLOY_TOKEN, which
+// M5 refuses to write by default. Tests exercising anything other than secret
+// policy opt in, so the refusal shows up only in the tests that are about it.
+var allowPlaintext = adapter.PlanOptions{AllowPlaintextSecrets: true}
+
 func TestDetect(t *testing.T) {
 	env := fakeMachine(t, "cursor", "codex")
 
@@ -88,7 +93,7 @@ func TestInstallAcrossClients(t *testing.T) {
 	env := fakeMachine(t, "claude-code", "cursor", "vscode", "codex", "gemini-cli")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +137,7 @@ func TestVSCodeUsesItsOwnSpelling(t *testing.T) {
 	env := fakeMachine(t, "vscode")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +172,7 @@ func TestPlaceholdersAreResolvedForNonConformantTargets(t *testing.T) {
 	env := fakeMachine(t, "cursor")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +197,7 @@ func TestCodexPreservesExistingTOML(t *testing.T) {
 	}
 
 	plugin, src := loadFixture(t, ccFixture)
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +220,7 @@ func TestInstallIsIdempotent(t *testing.T) {
 	env := fakeMachine(t, "cursor")
 	plugin, src := loadFixture(t, ccFixture)
 
-	first, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	first, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +228,7 @@ func TestInstallIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	second, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	second, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +259,7 @@ func TestRemoveLeavesUserEntriesAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +307,7 @@ func TestRemoveIgnoresLookalikeUserEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +346,7 @@ func TestClaudeCodeRoundTrip(t *testing.T) {
 	env := fakeMachine(t, "claude-code")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +415,7 @@ func TestSelectionFilters(t *testing.T) {
 	env := fakeMachine(t, "cursor", "codex", "gemini-cli")
 	plugin, src := loadFixture(t, ccFixture)
 
-	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{Clients: []string{"codex"}})
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{Clients: []string{"codex"}}, allowPlaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +423,7 @@ func TestSelectionFilters(t *testing.T) {
 		t.Errorf("selection ignored: %v", planIDs(plans))
 	}
 
-	if _, err := registry.PlanInstall(env, plugin, src, registry.Selection{Clients: []string{"nope"}}); err == nil {
+	if _, err := registry.PlanInstall(env, plugin, src, registry.Selection{Clients: []string{"nope"}}, allowPlaintext); err == nil {
 		t.Error("selecting an unknown client should fail rather than silently install nothing")
 	}
 }

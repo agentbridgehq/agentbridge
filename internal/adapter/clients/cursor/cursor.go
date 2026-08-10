@@ -72,8 +72,8 @@ func (a *Adapter) Detect(env adapter.Env) []adapter.Installation {
 }
 
 // Plan implements adapter.Adapter.
-func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Root) (*adapter.Plan, error) {
-	return adapter.PlanJSONMCP(a.spec(), inst, p, src)
+func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Root, opts adapter.PlanOptions) (*adapter.Plan, error) {
+	return adapter.PlanJSONMCP(a.spec(), inst, p, src, opts)
 }
 
 // PlanRemove implements adapter.Adapter.

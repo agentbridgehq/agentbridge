@@ -90,6 +90,8 @@ make licenses # dependency license policy check
 ./agentbridge sync                       # make this machine match agentbridge.yaml + .lock
 ./agentbridge update --dry-run           # re-resolve, and show what would change
 ./agentbridge list                       # what agentbridge has installed, and where from
+./agentbridge secret set acme/token      # store a credential in the OS keychain
+./agentbridge secret scan --migrate      # find credentials in client configs, move them
 ./agentbridge cache --clear              # drop fetched packages
 ```
 
@@ -128,6 +130,30 @@ Clients: Claude Code, Cursor, VS Code / Copilot, Codex, Gemini CLI.
 | [`internal/source`](internal/source) | Reference parsing, git fetch pinned to a commit, tree digests, and a cache that re-verifies what it serves |
 | [`internal/lockfile`](internal/lockfile) | `agentbridge.yaml` (intent) and `agentbridge.lock` (what it resolved to), plus scope precedence |
 | [`internal/workspace`](internal/workspace) | Convergence: sync, update, prune |
+| [`internal/secrets`](internal/secrets) | Secret references, OS keychain, credential detection |
+
+**What M5 established.** The specification is blunt about the problem and
+offers nothing for it: §9.2 and §7.2.1 say `env` values and headers are *visible
+package data* and that plugins MUST NOT put credentials in them, and §7.2.1 adds
+that v1 "defines no OAuth configuration or portable credential-reference
+fields." **There is no conformant way to give an MCP server a credential
+today.**
+
+`${secret:...}` is therefore ours alone and deliberately not portable — §9.2
+requires a conformant client to leave unrecognized placeholder text literal, so
+a reference in an `mcp.json` would be sent to the server verbatim. References
+are resolved before anything reaches a client. A referenced secret is injected
+at launch by `agentbridge run`, which reads the OS credential store and execs
+the real command, so the value lives only in the server's process environment:
+
+```json
+"command": "/usr/local/bin/agentbridge",
+"args": ["run", "--secret", "DB_API_TOKEN=acme/db-token", "--", "npx", "@acme/db"]
+```
+
+Credential-shaped literals are refused by default, detected by value as well as
+by name — a token in a variable called `API_URL` is exactly what name-matching
+misses.
 
 **What M4 established.** The lock is a security artifact, not a build artifact.
 Its most important line is `capabilities`, and `update --dry-run` leads with the

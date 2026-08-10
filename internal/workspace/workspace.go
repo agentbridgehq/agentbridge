@@ -51,6 +51,8 @@ type Options struct {
 	// Clients and Scope narrow which client targets are written.
 	Clients []string
 	Scope   adapter.Scope
+	// Plan carries install-time secret policy into the adapters.
+	Plan adapter.PlanOptions
 }
 
 // PluginResult is what happened to one declared plugin.
@@ -228,7 +230,7 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 		Clients: chooseClients(entry.Clients, opts.Clients),
 		Scope:   chooseScope(entry.Scope, opts.Scope),
 	}
-	plans, err := adapterreg.PlanInstall(opts.Env, imported.Plugin, root, sel)
+	plans, err := adapterreg.PlanInstall(opts.Env, imported.Plugin, root, sel, opts.Plan)
 	if err != nil {
 		result.Err = err
 		return result

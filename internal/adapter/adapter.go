@@ -222,6 +222,9 @@ type Plan struct {
 	// the receipt written after a successful apply can drive an exact removal
 	// later. Without them, uninstall would have to guess from a naming
 	// convention and would eventually delete something a user wrote by hand.
+	// SecretNotes explain servers launched indirectly so secrets stay off disk.
+	SecretNotes []SecretNote `json:"secretNotes,omitempty"`
+
 	ConfigKeys    [][]string `json:"configKeys,omitempty"`
 	BlockSections []string   `json:"blockSections,omitempty"`
 	PackageDir    string     `json:"packageDir,omitempty"`
@@ -246,7 +249,7 @@ type Adapter interface {
 	Detect(env Env) []Installation
 	// Plan computes what installing p into inst would do. src is the plugin's
 	// source directory, needed when a client takes a whole package.
-	Plan(inst Installation, p *ir.Plugin, src *safepath.Root) (*Plan, error)
+	Plan(inst Installation, p *ir.Plugin, src *safepath.Root, opts PlanOptions) (*Plan, error)
 	// PlanRemove computes what removing a plugin by name would do.
 	PlanRemove(inst Installation, pluginName string) (*Plan, error)
 }

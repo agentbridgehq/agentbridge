@@ -145,6 +145,9 @@ func (d *JSONDoc) Set(keys []string, value any) error {
 	}
 
 	indent := d.indentFor(keys)
+	if indent == "" {
+		indent = depthIndent(len(keys))
+	}
 
 	// Encode the value pre-indented for its final depth. hujson preserves the
 	// formatting inside a patch value, so this is what makes an added entry
@@ -216,7 +219,13 @@ func (d *JSONDoc) indentInserted(keys []string) error {
 		return nil
 	}
 	if len(obj.Members[idx].Name.BeforeExtra) == 0 {
-		obj.Members[idx].Name.BeforeExtra = hujson.Extra(siblingIndent(obj, idx))
+		obj.Members[idx].Name.BeforeExtra = hujson.Extra(siblingIndent(obj, idx, len(keys)))
+	}
+	// A container that had no members has no closing-brace whitespace either,
+	// so without this the braces pile up on one line as `}}}`. Only an empty
+	// extra is filled in; a container the user already formatted keeps its own.
+	if len(obj.AfterExtra) == 0 && len(obj.Members) > 0 {
+		obj.AfterExtra = hujson.Extra("\n" + depthIndent(len(keys)-1))
 	}
 	// The space after the colon, which the patch machinery also omits.
 	if len(obj.Members[idx].Value.BeforeExtra) == 0 {
@@ -227,7 +236,13 @@ func (d *JSONDoc) indentInserted(keys []string) error {
 
 // siblingIndent picks the whitespace to put before a member, preferring an
 // existing sibling's so the file keeps its own indentation style.
-func siblingIndent(obj *hujson.Object, idx int) []byte {
+//
+// depth is how many levels down the new member sits, used only when there is no
+// sibling to learn from — a file this tool is creating from nothing. Falling
+// back to a bare newline there produced valid but unreadable output, with every
+// level flush left and the closing braces collapsed onto one line, which fails
+// the same standard applied to files we edit: what we add has to be legible.
+func siblingIndent(obj *hujson.Object, idx, depth int) []byte {
 	for i := idx - 1; i >= 0; i-- {
 		if ws := trailingWhitespaceLine(obj.Members[i].Name.BeforeExtra); ws != nil {
 			return ws
@@ -238,10 +253,15 @@ func siblingIndent(obj *hujson.Object, idx int) []byte {
 			return ws
 		}
 	}
-	// An object whose members are all on one line, or an empty one. A newline
-	// with no indent is still an improvement on none at all, and the closing
-	// brace's own extra keeps the result well-formed.
-	return []byte("\n")
+	return []byte("\n" + depthIndent(depth))
+}
+
+// depthIndent is the conventional two-space indent for a given nesting level.
+func depthIndent(depth int) string {
+	if depth < 0 {
+		return ""
+	}
+	return strings.Repeat("  ", depth)
 }
 
 // trailingWhitespaceLine extracts the newline-plus-indent at the end of an
@@ -335,6 +355,31 @@ func (d *JSONDoc) Keys(keys []string) ([]string, error) {
 		out = append(out, k)
 	}
 	return out, nil
+}
+
+// StringAt returns the string value at a key path, or an error if it is absent
+// or not a string.
+func (d *JSONDoc) StringAt(keys []string) (string, error) {
+	current, err := d.decode()
+	if err != nil {
+		return "", err
+	}
+	node := any(current)
+	for _, k := range keys {
+		obj, ok := node.(map[string]any)
+		if !ok {
+			return "", fmt.Errorf("%s: %s is not an object", d.path, strings.Join(keys, "."))
+		}
+		node, ok = obj[k]
+		if !ok {
+			return "", fmt.Errorf("%s: %s not found", d.path, strings.Join(keys, "."))
+		}
+	}
+	s, ok := node.(string)
+	if !ok {
+		return "", fmt.Errorf("%s: %s is not a string", d.path, strings.Join(keys, "."))
+	}
+	return s, nil
 }
 
 // decode returns the document's data as plain Go values, for existence checks.

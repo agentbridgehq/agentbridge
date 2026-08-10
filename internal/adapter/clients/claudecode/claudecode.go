@@ -92,7 +92,7 @@ func (a *Adapter) Detect(env adapter.Env) []adapter.Installation {
 }
 
 // Plan implements adapter.Adapter.
-func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Root) (*adapter.Plan, error) {
+func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Root, opts adapter.PlanOptions) (*adapter.Plan, error) {
 	plan := &adapter.Plan{Installation: inst, PluginName: p.Name}
 
 	target := filepath.Join(inst.PackageDir, p.Name)
@@ -134,7 +134,8 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	servers := adapter.SortServers(p.MCPServers)
 	plan.Fidelity.MCPServers.Total = len(servers)
 	if len(servers) > 0 {
-		mcp, carried, err := buildMCP(servers, &plan.Fidelity)
+		mcp, carried, notes, err := buildMCP(servers, opts, &plan.Fidelity, filepath.Join(target, ".mcp.json"))
+		plan.SecretNotes = append(plan.SecretNotes, notes...)
 		if err != nil {
 			return nil, err
 		}
@@ -222,11 +223,19 @@ func buildManifest(p *ir.Plugin) ([]byte, error) {
 
 // buildMCP writes .mcp.json, translating the portable placeholders back into
 // the spellings Claude Code expands.
-func buildMCP(servers []ir.MCPServer, f *adapter.Fidelity) ([]byte, int, error) {
+func buildMCP(servers []ir.MCPServer, opts adapter.PlanOptions, f *adapter.Fidelity, configPath string) ([]byte, int, []adapter.SecretNote, error) {
 	out := map[string]any{}
 	carried := 0
+	var notes []adapter.SecretNote
 
 	for _, s := range servers {
+		prepared, n, allowed := adapter.PrepareSecrets(s, opts, f, configPath)
+		if !allowed {
+			continue
+		}
+		notes = append(notes, n...)
+		s = prepared
+
 		entry := map[string]any{}
 
 		switch s.Transport {
@@ -280,9 +289,9 @@ func buildMCP(servers []ir.MCPServer, f *adapter.Fidelity) ([]byte, int, error) 
 
 	raw, err := json.MarshalIndent(map[string]any{"mcpServers": out}, "", "  ")
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
-	return append(raw, '\n'), carried, nil
+	return append(raw, '\n'), carried, notes, nil
 }
 
 // toClaudePath converts a plugin-relative command into the placeholder form
