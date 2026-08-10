@@ -441,7 +441,10 @@ func convertServer(root *safepath.Root, name string, raw json.RawMessage, ds *di
 
 	switch transport {
 	case ir.TransportStdio:
-		importer.CheckReservedEnv(name, srv.Env, ds)
+		// Claude Code has no reserved-name rule of its own, so this is a
+		// portability problem rather than an invalid entry: drop the name and
+		// say why, instead of discarding a server that works today.
+		importer.StripReservedEnv(name, srv.Env, ds)
 		if !importer.CheckStdioCommand(root, name, srv.Command, ds) {
 			return nil, false
 		}
@@ -450,6 +453,9 @@ func convertServer(root *safepath.Root, name string, raw json.RawMessage, ds *di
 		}
 	case ir.TransportStreamableHTTP, ir.TransportSSE:
 		if !importer.CheckServerURL(name, srv.URL, ds) {
+			return nil, false
+		}
+		if !importer.CheckHeaders(name, srv.Headers, ds) {
 			return nil, false
 		}
 	}
@@ -538,10 +544,19 @@ func rewritePlaceholders(srv *ir.MCPServer, ds *diag.Diagnostics) {
 	for k, v := range srv.Env {
 		srv.Env[k] = rewrite(v)
 	}
-	for k, v := range srv.Headers {
-		srv.Headers[k] = rewrite(v)
-	}
 	srv.Cwd = rewrite(srv.Cwd)
+
+	// Headers are deliberately not rewritten. Claude Code expands placeholders
+	// in headers; Agent Plugins 7.2.1 forbids any expansion in url, header
+	// names or header values. Translating the spelling would produce a
+	// portable manifest whose header is a literal "${PLUGIN_ROOT}" string sent
+	// over the wire, so the value is left alone and the gap is reported.
+	for k, v := range srv.Headers {
+		if strings.Contains(v, placeholderRoot) || strings.Contains(v, placeholderData) {
+			ds.AddComponent(diag.Warning, diag.CodeComponentUnsupport, MCPPath, srv.Name,
+				"header %s contains a Claude Code placeholder; Agent Plugins performs no expansion in headers, so this cannot be expressed portably", k)
+		}
+	}
 
 	if replaced {
 		ds.AddComponent(diag.Info, diag.CodeMCPPlaceholderRewrit, MCPPath, srv.Name,

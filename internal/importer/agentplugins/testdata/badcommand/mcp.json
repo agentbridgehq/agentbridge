@@ -1,0 +1,7 @@
+{ "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", "mcpServers": {
+  "abs":      { "type": "stdio", "command": "/usr/bin/evil" },
+  "escape":   { "type": "stdio", "command": "../bin/server" },
+  "barepath": { "type": "stdio", "command": "bin/server" },
+  "placeholder": { "type": "stdio", "command": "${PLUGIN_ROOT}/bin/x" },
+  "ok":       { "type": "stdio", "command": "npx" }
+} }

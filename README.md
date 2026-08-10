@@ -67,6 +67,7 @@ Microsoft, OpenAI, Amazon and Cursor will each manage plugins for **their own** 
 | 07 | [Open questions](docs/07-open-questions.md) | Decisions to make, each with a recommendation |
 | 08 | [Technology stack](docs/08-tech-stack.md) | Language choice, libraries, infrastructure, license hygiene, hiring |
 | 09 | [UI & surfaces](docs/09-ui-and-surfaces.md) | What the web UI is for, who uses it, screens, and what stays out of it |
+| 10 | [Spec compliance](docs/10-spec-compliance.md) | Requirement-by-requirement audit against Agent Plugins v1.0.0, and where we are deliberately not a client |
 
 ## Implementation
 

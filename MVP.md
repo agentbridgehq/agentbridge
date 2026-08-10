@@ -2,7 +2,18 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0, M1 and M2 complete. M3 (sources and fetch) is next.**
+Last updated: 2026-08-10 · Overall status: **M0, M1 and M2 complete, audited against the canonical spec. M3 (sources and fetch) is next.**
+
+**Spec conformance audit (2026-08-10).** Implementation and docs were checked
+requirement-by-requirement against the canonical
+[`agentplugins/agent-plugins-spec`](https://github.com/agentplugins/agent-plugins-spec)
+`spec/1.0.0.md`. Our embedded schemas are byte-identical to upstream. Ten gaps
+were found and closed; full matrix in
+[docs/10-spec-compliance.md](docs/10-spec-compliance.md). The pattern is worth
+carrying forward: **every gap was a rule JSON Schema cannot express**, and one —
+a non-object `extensions` field — was a case where obeying the published schema
+literally made us *non-conformant*, because the normative text says to report
+and ignore it. §5.2 and §7.2.1 both state the spec text governs over the schema.
 
 ---
 

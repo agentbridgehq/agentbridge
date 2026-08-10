@@ -214,7 +214,10 @@ func convert(root *safepath.Root, name, file string, raw json.RawMessage, ds *di
 
 	switch transport {
 	case ir.TransportStdio:
-		importer.CheckReservedEnv(name, srv.Env, ds)
+		// A pasted fragment follows no dialect's rules, so a reserved name is
+		// a portability problem to report rather than grounds to drop a server
+		// the user is clearly already using.
+		importer.StripReservedEnv(name, srv.Env, ds)
 		if !importer.CheckStdioCommand(root, name, srv.Command, ds) {
 			return nil, false
 		}
@@ -223,6 +226,9 @@ func convert(root *safepath.Root, name, file string, raw json.RawMessage, ds *di
 		}
 	case ir.TransportStreamableHTTP, ir.TransportSSE:
 		if !importer.CheckServerURL(name, srv.URL, ds) {
+			return nil, false
+		}
+		if !importer.CheckHeaders(name, srv.Headers, ds) {
 			return nil, false
 		}
 	}

@@ -1,0 +1,6 @@
+{ "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", "mcpServers": {
+  "userinfo": { "type": "streamable-http", "url": "https://user:pw@api.example/mcp" },
+  "fragment": { "type": "streamable-http", "url": "https://api.example/mcp#frag" },
+  "ok":       { "type": "streamable-http", "url": "https://api.example/mcp" },
+  "loopback": { "type": "streamable-http", "url": "http://localhost:8080/mcp" }
+} }

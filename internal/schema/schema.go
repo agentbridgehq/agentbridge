@@ -203,6 +203,21 @@ func pluginVariant(raw []byte, openAdditionalProperties bool) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("preparing plugin schema: no properties object")
 	}
+
+	if openAdditionalProperties {
+		// Spec 5.2 and 8.1: a non-object `extensions` field is one of exactly
+		// two non-fatal schema violations. "If extensions is not an object,
+		// the client MUST report and ignore the field and continue loading
+		// components." Leaving the type constraint in the loader schema would
+		// make it fatal, so the loader accepts any shape and the importer
+		// reports and drops a non-object. Strict validation keeps the
+		// constraint, since a plugin author does want to hear about it.
+		if _, had := props["extensions"]; !had {
+			return nil, fmt.Errorf("preparing plugin schema: no extensions property")
+		}
+		props["extensions"] = true
+	}
+
 	name, ok := props["name"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("preparing plugin schema: no name property")

@@ -28,7 +28,7 @@ Ordered by how much downstream work they block. Each has a recommendation so not
 
 | # | Question |
 |---|---|
-| D13 | If the TSC announces an official registry, do we become its best client, or differentiate away from distribution entirely? (Pre-commit to: differentiate toward governance.) |
+| D13 | **Now partly answered.** `FUTURE_CONSIDERATIONS.md` in the spec repo records permissions, provenance, secret handling, **enterprise controls**, audit-trail standardization, dependency resolution and a conformance test suite as possible future work — explicitly uncommitted, but that is the TSC's stated thinking. Pre-commit to: **implement each the day it stabilizes**, and compete on products rather than formats. A spec body can standardize a policy file, an event schema, a signature envelope; it does not ship a fleet inventory, a scanner, a threat corpus, or an auditor-facing evidence pack, and it will not do so across competing clients. See [00 §5](00-research-agent-plugins.md). |
 | D14 | If Anthropic adopts Agent Plugins, how much of the Claude Code adapter's value evaporates? (Some — but fleet inventory and scanning are unaffected. Don't over-index on the adapter as the moat.) |
 | D15 | Do we ever ship first-party plugins? (Risk: competing with the ecosystem we serve. Recommendation: reference/demo only.) |
 | D16 | Do we support non-coding agent platforms (support, ops, finance)? Larger TAM, different buyer, dilutes focus. Not before Phase 4. |

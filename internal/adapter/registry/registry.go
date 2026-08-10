@@ -219,6 +219,12 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 		return err
 	}
 
+	// Spec 9.1: PLUGIN_DATA must exist and be writable before a plugin
+	// subprocess starts. The target client will not create it, so we do.
+	if err := adapter.EnsurePluginData(PluginDataDir(env, p.Name)); err != nil {
+		return fmt.Errorf("creating plugin data directory: %w", err)
+	}
+
 	for _, plan := range plans {
 		if err := adapter.Apply(plan); err != nil {
 			return fmt.Errorf("%s (%s): %w", plan.Installation.Client.Name, plan.Installation.Scope, err)

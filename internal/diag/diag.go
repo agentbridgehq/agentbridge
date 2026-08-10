@@ -47,6 +47,8 @@ const (
 	CodeManifestInvalidName   = "manifest.invalid_name"
 	CodeManifestSchemaMissing = "manifest.schema_field_missing"
 	CodeVersionMismatch       = "manifest.version_mismatch"
+	CodeManifestBadExtensions = "manifest.extensions_not_object"
+	CodeUnsupportedSpecVer    = "manifest.unsupported_spec_version"
 
 	// Skills.
 	CodeSkillMissingFile     = "skill.missing_skill_md"
@@ -55,6 +57,8 @@ const (
 	CodeSkillNoName          = "skill.no_name"
 	CodeSkillDuplicate       = "skill.duplicate_name"
 	CodeSkillFlatCommand     = "skill.flat_command_file"
+	CodeSkillNotRegularFile  = "skill.not_a_regular_file"
+	CodeSkillsNotDirectory   = "skill.location_not_a_directory"
 
 	// MCP servers.
 	CodeMCPInvalidJSON       = "mcp.invalid_json"
@@ -67,6 +71,11 @@ const (
 	CodeMCPPlaceholderRewrit = "mcp.placeholder_rewritten"
 	CodeMCPCommandRewritten  = "mcp.command_rewritten"
 	CodeMCPCwdUncontained    = "mcp.cwd_not_contained"
+	CodeMCPInvalidCommand    = "mcp.invalid_command"
+	CodeMCPInvalidURLForm    = "mcp.invalid_url_form"
+	CodeMCPInvalidHeader     = "mcp.invalid_header"
+	CodeMCPDuplicateHeader   = "mcp.duplicate_header_name"
+	CodeMCPNotRegularFile    = "mcp.not_a_regular_file"
 
 	// Paths and containment.
 	CodePathEscape     = "path.escapes_plugin_root"

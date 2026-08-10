@@ -1,6 +1,18 @@
 # 00 — Research: The Agent Plugins Standard (v1.0.0)
 
-*Source: https://agent-plugins.org — spec, plugin-author guides, client-implementer guides, conformance checklist. Read 2026-08-10. Spec status: Working Draft, v1.0.0.*
+*Sources: the canonical repository [`agentplugins/agent-plugins-spec`](https://github.com/agentplugins/agent-plugins-spec)
+(`spec/1.0.0.md`, `schemas/1.0.0/*.json`, `GOVERNANCE.md`, `FUTURE_CONSIDERATIONS.md`)
+and the documentation site https://agent-plugins.org. Read 2026-08-10.*
+
+*Spec status: **Published**, v1.0.0. Not a working draft — the normative text is
+final for this version, and §10.1 requires any schema change to ship as a new
+specification release. Our per-requirement audit is in [10 — Spec compliance](10-spec-compliance.md).*
+
+**Authority rule worth knowing before reading anything else:** §5.2 and §7.2.1
+both state that the **specification text governs** where it conflicts with the
+published JSON Schema. This is not a formality. Several requirements cannot be
+expressed in JSON Schema at all, and in one case — a non-object `extensions`
+field — following the schema literally makes a client *non-conformant*.
 
 ## 1. What it is
 
@@ -58,7 +70,51 @@ Discovery only. Agent Plugins says: skills are immediate child directories of `s
 - Schema identifiers are immutable; breaking changes ship as new spec releases.
 - Plugin `version` SHOULD be SemVer.
 
-### 2.6 Conformance checklist (condensed)
+### 2.6 Failure boundary ladder (§4.1)
+
+When a path fails containment, the client must apply the **narrowest applicable**
+boundary. This ladder is the clearest statement in the spec of its whole
+philosophy — a plugin should degrade, not die:
+
+| Failing path | Boundary |
+|---|---|
+| `plugin.json` outside the root | reject the plugin |
+| A fixed component location outside the root | that component type is invalid |
+| A discovered `SKILL.md` outside the root | skip that skill |
+| An MCP `command` or `cwd` failing containment | that server entry is invalid |
+| Any other package path outside the root | deny access to that path |
+
+### 2.7 Runtime contract (§9.1)
+
+Easy to miss, and the part that matters most for a bridge. A client launching a
+plugin subprocess MUST:
+
+- provide `PLUGIN_ROOT` and `PLUGIN_DATA` in the environment;
+- **create** `PLUGIN_DATA` before launch, make it writable, and **preserve it
+  across plugin updates** (it MAY be deleted on uninstall);
+- overlay the configured `env` on its chosen base environment, then set the two
+  reserved names **last**, so they cannot be overridden.
+
+A plugin may not depend on any other ambient variable, except the platform
+executable search used to resolve a bare `command`.
+
+### 2.8 Explicit anti-secret rules
+
+The spec states twice, normatively, that the format is not a secret mechanism:
+
+- §9.2 — "Configured `env` values are visible package data... Plugins MUST NOT
+  embed credentials or other secrets in `env`."
+- §7.2.1 — "Header values are visible package data, not a portable secret
+  mechanism. Plugins MUST NOT embed credentials or other secrets in `headers`."
+
+Also §7.2.1: a `url` MUST NOT contain user information. Together these mean
+there is *no* portable way to give an MCP server a credential in v1.0.0 —
+which is stated outright: "Agent Plugins v1 defines no OAuth configuration or
+portable credential-reference fields." Every plugin needing a credential today
+is therefore either non-conformant or relying on client-specific behavior. See
+[05 §3](05-security-and-trust.md) and M5.
+
+### 2.9 Conformance checklist (condensed)
 
 | Area | Requirement |
 |---|---|
@@ -95,9 +151,42 @@ This is the entire commercial opportunity. Confirmed absent from v1.0.0:
 4. **`$schema` must not be fetched at load time.** Clients pin locally-known rules. So spec upgrades roll out at client-release speed, unevenly. Version skew across a developer's machine is guaranteed.
 5. **The spec is 4 days old.** Tooling, conventions and defaults are unset. This is the shortest window this opportunity will ever have.
 
-## 5. Open questions to track upstream
+## 5. What the TSC says it may do next
 
-- Will the TSC take on a registry, or explicitly disclaim it? (Watch the public proposal repo.)
-- Will signing/provenance land in 1.1, or be delegated to registries?
+`FUTURE_CONSIDERATIONS.md` in the spec repo is non-normative and explicitly
+uncommitted — "none of these items is required for conformance or committed for
+inclusion in a future release" — but it is the clearest available signal of
+direction, and several items land directly on our commercial surface:
+
+| Recorded consideration | Overlap with us |
+|---|---|
+| **Permission and approval UX** — manifest permission declarations, client-enforced capability restrictions, graduated trust levels | Our capability inference becomes a *declaration* to verify against, which is strictly better |
+| **Provenance verification** — signatures, attestation chains, publisher trust policies | Directly our M8/Phase 2. A standard here helps us; we should implement it early and loudly |
+| **Secret handling** — a `secrets` field, client-mediated injection, scoping, rotation | Overlaps M5. Worth tracking closely so our secret-reference syntax can converge rather than compete |
+| **Enterprise controls** — allow/blocklists, org-scoped registries with approval workflows, centralized overrides, compliance reporting | **The most direct overlap with the commercial thesis.** See below |
+| **Audit-trail standardization** — event schema for install/enable/update/uninstall, SIEM forwarding | Helps us: a standard event schema makes our audit export portable |
+| **Dependency resolution** — a `dependencies` field with version constraints | Affects the lockfile design in M4 |
+| **Plugin testing and validation** — a standard linter, conformance test suites | Overlaps our conformance harness. A published suite would be a gift, not a threat |
+
+The enterprise-controls item deserves a clear-eyed read rather than alarm. A spec
+body can standardize a *format* — a policy file, an event schema, a signature
+envelope. It does not ship a fleet inventory, a scanner, a threat corpus, or an
+auditor-facing evidence pack, and it certainly does not do so across competing
+clients. The strategic response is therefore the opposite of defensive:
+**implement each of these the day it stabilizes**, and compete on the parts that
+are products rather than formats. Tracked as [D13](07-open-questions.md).
+
+## 6. Open questions to track upstream
+
+- Will the TSC take on a registry, or explicitly disclaim it? Notably,
+  `FUTURE_CONSIDERATIONS.md` mentions "organization-scoped plugin registries"
+  but no public one.
+- Provenance is on the list but uncommitted. Does it land in 1.1, or get
+  delegated to registries?
 - Does Anthropic adopt, ignore, or fork?
-- Does the `CompatibleClients` matrix on agent-plugins.org become authoritative and machine-readable? (Today it renders from a component; there is no published feed.)
+- Does the `CompatibleClients` matrix on agent-plugins.org become authoritative
+  and machine-readable? (Today it renders from a component; there is no
+  published feed — which is why the harness must measure it.)
+- Governance: the TSC is defined by a Technical Charter with core maintainers
+  from Amazon, Cursor, Microsoft, OpenAI and Vercel, with public proposals and
+  open participation. That is a real avenue for us, and cheap to use.

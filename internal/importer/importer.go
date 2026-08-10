@@ -108,6 +108,23 @@ func IsDir(root *safepath.Root, rel string) bool {
 	return err == nil && info.IsDir()
 }
 
+// IsRegularFile reports whether a plugin-relative path resolves to a regular
+// file.
+//
+// Spec 6.2 and 7.1 both turn on this distinction: a fixed component location
+// that exists but is the wrong filesystem kind makes that component type
+// invalid rather than merely absent, and a SKILL.md that is not a regular file
+// is not a skill. Checking the kind explicitly gives a diagnostic that says so,
+// instead of a read error two layers down.
+func IsRegularFile(root *safepath.Root, rel string) bool {
+	abs, err := root.Resolve(rel)
+	if err != nil {
+		return false
+	}
+	info, err := os.Stat(abs)
+	return err == nil && info.Mode().IsRegular()
+}
+
 // DiscoverDirSkills reads skills laid out as immediate child directories of
 // skillsDir, each containing SKILL.md.
 //
@@ -128,12 +145,26 @@ func DiscoverDirSkills(root *safepath.Root, skillsDir string) ([]ir.Skill, map[s
 			"skills directory is not inside the plugin root: %v", err)
 		return nil, bodies, ds
 	}
-	entries, err := os.ReadDir(abs)
+	info, err := os.Stat(abs)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// A missing component location is explicitly acceptable.
+			// Spec 6.2: a missing component location is not an error.
 			return nil, bodies, ds
 		}
+		ds.Add(diag.Error, diag.CodePathUnreadable, skillsDir,
+			"skills were not loaded: %v", err)
+		return nil, bodies, ds
+	}
+	if !info.IsDir() {
+		// Spec 6.2: present but the wrong filesystem kind makes the component
+		// type invalid, while other component types continue loading.
+		ds.Add(diag.Error, diag.CodeSkillsNotDirectory, skillsDir,
+			"skills were not loaded: %s exists but is not a directory", skillsDir)
+		return nil, bodies, ds
+	}
+
+	entries, err := os.ReadDir(abs)
+	if err != nil {
 		ds.Add(diag.Error, diag.CodePathUnreadable, skillsDir,
 			"cannot read skills directory: %v", err)
 		return nil, bodies, ds
@@ -154,6 +185,13 @@ func DiscoverDirSkills(root *safepath.Root, skillsDir string) ([]ir.Skill, map[s
 		if !Exists(root, entryRel) {
 			ds.Add(diag.Warning, diag.CodeSkillMissingFile, dirRel,
 				"directory has no SKILL.md and was not loaded as a skill")
+			continue
+		}
+		// Spec 7.1: the skill is the directory containing a path named exactly
+		// SKILL.md "that resolves to a regular file".
+		if !IsRegularFile(root, entryRel) {
+			ds.Add(diag.Error, diag.CodeSkillNotRegularFile, entryRel,
+				"skill was skipped: SKILL.md is not a regular file")
 			continue
 		}
 		s, body, sds := loadSkill(root, entryRel, ir.SkillDirectory, dirRel, e.Name())

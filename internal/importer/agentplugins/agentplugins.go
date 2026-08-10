@@ -77,16 +77,43 @@ func (i *Importer) Import(root *safepath.Root) (*importer.Result, error) {
 		return nil, fmt.Errorf("%s: top level must be a JSON object", ManifestPath)
 	}
 
-	// Schema violations are fatal: the conformance rules require rejecting a
-	// plugin whose required fields are missing or malformed, or which violates
-	// a type constraint.
+	// Spec 5.2: a client selects its validation rules from `$schema`, and if it
+	// does not support the declared version it "MUST reject the plugin and
+	// SHOULD report the unsupported version". Checking first turns what would
+	// otherwise be an opaque const-mismatch into a message that names the
+	// version we do support.
+	if declared, ok := obj["$schema"].(string); ok && declared != schema.PluginSchemaID {
+		return nil, fmt.Errorf("%s: unsupported Agent Plugins version: $schema is %q, this build supports %s (%s)",
+			ManifestPath, declared, schema.SpecVersion, schema.PluginSchemaID)
+	}
+
+	// Schema violations are otherwise fatal: spec 5.2 and 11.3 require
+	// rejecting a plugin whose required fields are missing or malformed, or
+	// which violates a type constraint, with exactly two exceptions handled
+	// below (unknown top-level fields, and a non-object `extensions`).
 	if err := schema.ValidatePluginManifest(decoded); err != nil {
 		return nil, fmt.Errorf("%s: %w", ManifestPath, err)
+	}
+
+	// Spec 8.1: "If `extensions` is not an object, the client MUST report and
+	// ignore the field and continue loading components." It is one of only two
+	// non-fatal schema violations, so it is detected here rather than left to
+	// the schema, which would make it fatal.
+	extensionsUsable := true
+	if v, present := obj["extensions"]; present {
+		if _, isObject := v.(map[string]any); !isObject {
+			extensionsUsable = false
+			ds.Add(diag.Warning, diag.CodeManifestBadExtensions, ManifestPath,
+				"extensions is not an object and was ignored")
+		}
 	}
 
 	var m manifest
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return nil, fmt.Errorf("%s: %w", ManifestPath, err)
+	}
+	if !extensionsUsable {
+		m.Extensions = nil
 	}
 
 	// The name pattern is enforced here rather than by the schema; see
@@ -141,16 +168,35 @@ func (i *Importer) Import(root *safepath.Root) (*importer.Result, error) {
 }
 
 type manifest struct {
-	Schema      string                     `json:"$schema"`
-	Name        string                     `json:"name"`
-	Version     string                     `json:"version"`
-	Description string                     `json:"description"`
-	Author      *manifestAuthor            `json:"author"`
-	Homepage    string                     `json:"homepage"`
-	Repository  string                     `json:"repository"`
-	License     string                     `json:"license"`
-	Keywords    []string                   `json:"keywords"`
-	Extensions  map[string]json.RawMessage `json:"extensions"`
+	Schema      string          `json:"$schema"`
+	Name        string          `json:"name"`
+	Version     string          `json:"version"`
+	Description string          `json:"description"`
+	Author      *manifestAuthor `json:"author"`
+	Homepage    string          `json:"homepage"`
+	Repository  string          `json:"repository"`
+	License     string          `json:"license"`
+	Keywords    []string        `json:"keywords"`
+	Extensions  extensionMap    `json:"extensions"`
+}
+
+// extensionMap decodes the `extensions` field tolerantly.
+//
+// Spec 8.1 makes a non-object `extensions` non-fatal, so decoding must not fail
+// on one. Strict decoding here would turn a violation the specification
+// explicitly says to report-and-ignore into a rejected plugin. The importer
+// detects and reports the bad shape separately; this type's only job is to not
+// blow up first.
+type extensionMap map[string]json.RawMessage
+
+func (e *extensionMap) UnmarshalJSON(b []byte) error {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
+		*e = nil
+		return nil
+	}
+	*e = m
+	return nil
 }
 
 type manifestAuthor struct {
@@ -169,6 +215,14 @@ func loadMCP(root *safepath.Root, manifestSchema string) ([]ir.MCPServer, diag.D
 	var ds diag.Diagnostics
 
 	if !importer.Exists(root, MCPPath) {
+		// Spec 6.2: a missing fixed location is not an error.
+		return nil, ds
+	}
+	if !importer.IsRegularFile(root, MCPPath) {
+		// Spec 6.2: present but the wrong filesystem kind makes this component
+		// type invalid while others continue loading.
+		ds.Add(diag.Error, diag.CodeMCPNotRegularFile, MCPPath,
+			"MCP configuration was not loaded: %s exists but is not a regular file", MCPPath)
 		return nil, ds
 	}
 
@@ -179,6 +233,16 @@ func loadMCP(root *safepath.Root, manifestSchema string) ([]ir.MCPServer, diag.D
 		return nil, ds
 	}
 	_ = raw
+
+	if obj, ok := decoded.(map[string]any); ok {
+		if declared, ok := obj["$schema"].(string); ok && declared != schema.MCPSchemaID {
+			// Spec 7.2.2 rule 2: an unsupported or mismatched version disables
+			// MCP for the plugin and continues with other component types.
+			ds.Add(diag.Error, diag.CodeUnsupportedSpecVer, MCPPath,
+				"MCP configuration was not loaded: $schema is %q, this build supports %s", declared, schema.MCPSchemaID)
+			return nil, ds
+		}
+	}
 
 	if err := schema.ValidateMCPEnvelope(decoded); err != nil {
 		ds.Add(diag.Error, diag.CodeMCPSchemaFailed, MCPPath,
@@ -257,13 +321,20 @@ func loadMCP(root *safepath.Root, manifestSchema string) ([]ir.MCPServer, diag.D
 func validateServer(root *safepath.Root, srv *ir.MCPServer, ds *diag.Diagnostics) bool {
 	switch srv.Transport {
 	case ir.TransportStdio:
-		importer.CheckReservedEnv(srv.Name, srv.Env, ds)
+		// Spec 9.2: a reserved env name makes the server entry invalid, not
+		// merely questionable.
+		if !importer.CheckReservedEnv(srv.Name, srv.Env, ds) {
+			return false
+		}
 		if !importer.CheckStdioCommand(root, srv.Name, srv.Command, ds) {
 			return false
 		}
 		return importer.CheckCwd(root, srv.Name, srv.Cwd, ds)
 	case ir.TransportStreamableHTTP, ir.TransportSSE:
-		return importer.CheckServerURL(srv.Name, srv.URL, ds)
+		if !importer.CheckServerURL(srv.Name, srv.URL, ds) {
+			return false
+		}
+		return importer.CheckHeaders(srv.Name, srv.Headers, ds)
 	default:
 		ds.AddComponent(diag.Error, diag.CodeMCPServerInvalid, MCPPath, srv.Name,
 			"server was skipped: unknown transport %q", srv.Transport)
