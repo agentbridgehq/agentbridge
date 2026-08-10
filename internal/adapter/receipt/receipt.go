@@ -12,6 +12,8 @@
 package receipt
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -49,7 +51,16 @@ type Entry struct {
 	// line-oriented formats.
 	BlockSections []string `json:"blockSections,omitempty"`
 	// PackageDir is a directory installed wholesale, removed on uninstall.
-	PackageDir  string    `json:"packageDir,omitempty"`
+	PackageDir string `json:"packageDir,omitempty"`
+	// Managed names the manifest scope that declared this plugin, empty for an
+	// ad-hoc install.
+	//
+	// This is what lets `sync` converge without destroying anything: it may
+	// remove a plugin that a manifest used to declare and no longer does, and
+	// it must never remove one a user installed by hand. Without the
+	// distinction, sync would either leave orphans behind or delete work the
+	// user did deliberately.
+	Managed     string    `json:"managed,omitempty"`
 	InstalledAt time.Time `json:"installedAt"`
 }
 
@@ -60,6 +71,30 @@ func (e Entry) Key() string { return e.Plugin + "\x00" + e.Client + "\x00" + e.S
 type Store struct {
 	path    string
 	entries map[string]Entry
+	// baseline is the digest of the file as last read or written.
+	//
+	// The store is a whole-file document, so a Save writes back everything the
+	// instance knows. An instance that was loaded before some other write —
+	// another process, or simply an older instance still held in memory —
+	// would therefore erase receipts it never saw, and the plugins they
+	// described would become unremovable with nothing to indicate why. Saving
+	// checks the baseline still holds and refuses rather than clobbering.
+	baseline string
+}
+
+func digestOf(raw []byte) string {
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+// currentDigest returns the digest of the file on disk, or the empty string if
+// it is absent.
+func (s *Store) currentDigest() string {
+	raw, err := os.ReadFile(s.path)
+	if err != nil {
+		return ""
+	}
+	return digestOf(raw)
 }
 
 // Open loads the receipt store, creating an empty one if absent.
@@ -78,6 +113,7 @@ func Open(dir string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.baseline = digestOf(raw)
 
 	var entries []Entry
 	if err := json.Unmarshal(raw, &entries); err != nil {
@@ -141,6 +177,11 @@ func (s *Store) Save() error {
 		return err
 	}
 
+	if now := s.currentDigest(); now != s.baseline {
+		return fmt.Errorf("%s changed on disk since it was read; "+
+			"another agentbridge run may be in progress. Re-run the command", s.path)
+	}
+
 	entries := s.All()
 	raw, err := json.MarshalIndent(entries, "", "  ")
 	if err != nil {
@@ -166,7 +207,11 @@ func (s *Store) Save() error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, s.path)
+	if err := os.Rename(tmpName, s.path); err != nil {
+		return err
+	}
+	s.baseline = digestOf(raw)
+	return nil
 }
 
 func sortEntries(out []Entry) {

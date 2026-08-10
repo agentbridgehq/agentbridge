@@ -220,6 +220,9 @@ type Provenance struct {
 	Source string
 	// TreeDigest is the content address of the installed package.
 	TreeDigest string
+	// Managed names the manifest scope that declared this plugin, empty for an
+	// ad-hoc install.
+	Managed string
 }
 
 // ApplyInstall executes plans and records receipts.
@@ -250,6 +253,7 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 			Digest:        digest,
 			Source:        prov.Source,
 			TreeDigest:    prov.TreeDigest,
+			Managed:       prov.Managed,
 			ConfigPath:    plan.Installation.ConfigPath,
 			ConfigKeys:    plan.ConfigKeys,
 			BlockSections: plan.BlockSections,

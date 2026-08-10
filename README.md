@@ -87,6 +87,8 @@ make licenses # dependency license policy check
 ./agentbridge install ./some-plugin      # install into every detected client
 ./agentbridge install github.com/org/repo@v1.2.0#plugins/db   # pinned, from git
 ./agentbridge remove  some-plugin        # remove exactly what was installed
+./agentbridge sync                       # make this machine match agentbridge.yaml + .lock
+./agentbridge update --dry-run           # re-resolve, and show what would change
 ./agentbridge list                       # what agentbridge has installed, and where from
 ./agentbridge cache --clear              # drop fetched packages
 ```
@@ -124,6 +126,29 @@ Clients: Claude Code, Cursor, VS Code / Copilot, Codex, Gemini CLI.
 | [`internal/adapter/receipt`](internal/adapter/receipt) | What was written where, so uninstall is exact rather than pattern-matched |
 | [`internal/validate`](internal/validate) | Author-facing conformance checking, with a spec citation on every finding |
 | [`internal/source`](internal/source) | Reference parsing, git fetch pinned to a commit, tree digests, and a cache that re-verifies what it serves |
+| [`internal/lockfile`](internal/lockfile) | `agentbridge.yaml` (intent) and `agentbridge.lock` (what it resolved to), plus scope precedence |
+| [`internal/workspace`](internal/workspace) | Convergence: sync, update, prune |
+
+**What M4 established.** The lock is a security artifact, not a build artifact.
+Its most important line is `capabilities`, and `update --dry-run` leads with the
+delta:
+
+```
+  ~ acme.db                  ca0a9d4c2d1d
+      version 1.0.0 -> 1.1.0
+      !! gains capability: network
+      + skill report
+      + server telemetry
+```
+
+A plugin is not only code but instruction text handed to an agent with tool
+access, so a version bump that grants it the network is a different event from
+one that does not — and without a line saying so, that difference is invisible
+in a pull request.
+
+`sync` converges rather than accumulates, and its removals are bounded by
+ownership: it may take back a plugin a manifest used to declare, and never one a
+developer installed by hand.
 
 **What M3 established.** The specification says a plugin is "a directory rooted
 at a single filesystem location" and nothing at all about how that directory

@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0–M3 complete, audited against the canonical spec. M4 (lockfile and resolution) is next.**
+Last updated: 2026-08-10 · Overall status: **M0–M4 complete, audited against the canonical spec. M5 (secrets) is next.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -235,11 +235,44 @@ serves rather than trusting its own contents.
 
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
-| M4-1 | `agentbridge.yaml` schema (declared intent) | Documented and versioned | ⬜ |
-| M4-2 | `agentbridge.lock` schema | Digests, source refs, per-client install plan; human-reviewable diff | ⬜ |
-| M4-3 | Scopes: project vs. user, with precedence | Documented, tested | ⬜ |
-| M4-4 | `sync` — make machine match lockfile | Idempotent; converges from any starting state | ⬜ |
-| M4-5 | `update` — re-resolve and rewrite lock | Shows what changed before writing | ⬜ |
+| M4-1 | `agentbridge.yaml` schema (declared intent) | Documented and versioned | ✅ |
+| M4-2 | `agentbridge.lock` schema | Digests, source refs, per-client install plan; human-reviewable diff | ✅ |
+| M4-3 | Scopes: project vs. user, with precedence | Documented, tested | ✅ |
+| M4-4 | `sync` — make machine match lockfile | Idempotent; converges from any starting state | ✅ |
+| M4-5 | `update` — re-resolve and rewrite lock | Shows what changed before writing | ✅ |
+
+**The lock is the security artifact, not the build artifact.** Its most
+important line is `capabilities`. A plugin is not only code but instruction text
+handed to an agent with tool access, so "what changed when we bumped this
+version" is a security question. `update --dry-run` therefore reports the
+capability delta first:
+
+```
+  ~ acme.db                  ca0a9d4c2d1d
+      version 1.0.0 -> 1.1.0
+      !! gains capability: network
+      + skill report
+      + server telemetry
+```
+
+That is the reviewable-diff story from [03 §5](docs/03-architecture.md) working
+end to end: a version bump that grants an agent the ability to reach the network
+is a different event from one that does not, and without this the difference is
+invisible.
+
+**Convergence is bounded by ownership.** `sync` may remove a plugin a manifest
+used to declare and no longer does, and must never touch one a developer
+installed by hand — a sync that deletes someone's own work is a tool nobody runs
+twice. Receipts therefore record which manifest scope declared each install, and
+prune only considers those.
+
+**Two bugs the tests caught, both worth remembering.** An emptied manifest
+produced zero entries, and a sync that keyed everything off the entry list then
+never opened that lock — leaving it listing a plugin nobody declared any more.
+And the receipt store is a whole-file document: an instance loaded before
+another write would erase receipts it never saw, making those plugins
+unremovable with nothing to say why. Saving now checks the file has not changed
+since it was read and refuses rather than clobbering.
 
 ### M5 — Secrets · P0 · ~1 week
 
