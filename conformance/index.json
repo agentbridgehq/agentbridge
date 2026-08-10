@@ -1,0 +1,224 @@
+{
+  "spec": "1.0.0",
+  "description": "Conformance cases for Agent Plugins 1.0.0. Each `plugin` path is an ordinary plugin package; `expect` states what a conformant client must do with it, and `observe` says what to look for in a client that cannot be driven programmatically.",
+  "license": "Apache-2.0",
+  "cases": [
+    {
+      "id": "001-minimal-manifest",
+      "title": "A manifest with only the required fields loads",
+      "section": "5.3",
+      "requirement": "MUST",
+      "plugin": "cases/001-minimal-manifest/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 0,
+        "mcpServers": 0
+      },
+      "observe": "The plugin loads. It contributes nothing, which is valid.\n"
+    },
+    {
+      "id": "002-unknown-top-level-field",
+      "title": "An unknown top-level field is reported and ignored",
+      "section": "5.2",
+      "requirement": "MUST",
+      "plugin": "cases/002-unknown-top-level-field/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 1
+      },
+      "observe": "The plugin loads and its skill is available. The client should report the unknown field somewhere; it must not reject the plugin.\n"
+    },
+    {
+      "id": "003-non-object-extensions",
+      "title": "A non-object extensions field is reported and ignored",
+      "section": "8.1",
+      "requirement": "MUST",
+      "plugin": "cases/003-non-object-extensions/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 1
+      },
+      "observe": "The plugin loads. This is the second of only two non-fatal schema violations, and the published schema would make it fatal — a client validating against the schema alone gets this wrong.\n"
+    },
+    {
+      "id": "004-missing-required-name",
+      "title": "A manifest without a name is rejected",
+      "section": "5.3",
+      "requirement": "MUST",
+      "plugin": "cases/004-missing-required-name/plugin",
+      "expect": {
+        "loads": false
+      },
+      "observe": "The plugin does not load at all. No component of it should be available.\n"
+    },
+    {
+      "id": "005-invalid-name-consecutive-hyphens",
+      "title": "A name with consecutive hyphens is rejected",
+      "section": "5.5",
+      "requirement": "MUST",
+      "plugin": "cases/005-invalid-name-consecutive-hyphens/plugin",
+      "expect": {
+        "loads": false
+      },
+      "observe": "The plugin does not load. Note that acme-.tools would be valid: only doubled hyphens and doubled periods are forbidden.\n"
+    },
+    {
+      "id": "006-unsupported-spec-version",
+      "title": "A plugin targeting an unsupported version is rejected",
+      "section": "5.2",
+      "requirement": "MUST",
+      "plugin": "cases/006-unsupported-spec-version/plugin",
+      "expect": {
+        "loads": false
+      },
+      "observe": "The plugin does not load, and the client should report the unsupported version.\n"
+    },
+    {
+      "id": "007-skills-immediate-children-only",
+      "title": "Skills are immediate children of skills/",
+      "section": "7.1",
+      "requirement": "MUST",
+      "plugin": "cases/007-skills-immediate-children-only/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 2
+      },
+      "observe": "Exactly two skills are available: `alpha` and `beta`. The skill nested at skills/group/deep/ must NOT appear — clients must not search deeper descendants.\n"
+    },
+    {
+      "id": "008-skill-directory-without-skill-md",
+      "title": "A directory without SKILL.md is skipped",
+      "section": "7.1",
+      "requirement": "MUST",
+      "plugin": "cases/008-skill-directory-without-skill-md/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 1
+      },
+      "observe": "One skill is available. The directory skills/notaskill/ is ignored without failing the plugin.\n"
+    },
+    {
+      "id": "009-no-components",
+      "title": "A plugin with no components is valid",
+      "section": "6.2",
+      "requirement": "MUST",
+      "plugin": "cases/009-no-components/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 0,
+        "mcpServers": 0
+      },
+      "observe": "The plugin loads. A missing component location is not an error.\n"
+    },
+    {
+      "id": "010-mcp-invalid-entry-isolated",
+      "title": "One malformed server does not affect the others",
+      "section": "7.2.2",
+      "requirement": "MUST",
+      "plugin": "cases/010-mcp-invalid-entry-isolated/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 1,
+        "mcpServers": 1
+      },
+      "observe": "The server `good` is available and the skill loads. The server `bad` (no command) is skipped and should be reported.\n"
+    },
+    {
+      "id": "011-mcp-version-mismatch",
+      "title": "A version mismatch disables MCP but not the plugin",
+      "section": "10.1",
+      "requirement": "MUST",
+      "plugin": "cases/011-mcp-version-mismatch/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 1,
+        "mcpServers": 0
+      },
+      "observe": "The skill is available. No MCP server from this plugin is available, and the client should report the mismatch.\n"
+    },
+    {
+      "id": "012-mcp-command-escapes-root",
+      "title": "A command escaping the plugin root is invalid",
+      "section": "4.1",
+      "requirement": "MUST",
+      "plugin": "cases/012-mcp-command-escapes-root/plugin",
+      "expect": {
+        "loads": true,
+        "mcpServers": 0
+      },
+      "observe": "No server is available. The command ../bin/server escapes the package and must not be launched — the specification calls this example out explicitly.\n"
+    },
+    {
+      "id": "013-mcp-insecure-url",
+      "title": "Plain HTTP to a non-loopback host is invalid",
+      "section": "7.2.1",
+      "requirement": "MUST",
+      "plugin": "cases/013-mcp-insecure-url/plugin",
+      "expect": {
+        "loads": true,
+        "mcpServers": 1
+      },
+      "observe": "Only the loopback server is available. The remote plain-HTTP server must be refused; HTTP is permitted only to localhost or a loopback IP.\n"
+    },
+    {
+      "id": "014-mcp-reserved-env",
+      "title": "A reserved env name invalidates the server",
+      "section": "9.2",
+      "requirement": "MUST",
+      "plugin": "cases/014-mcp-reserved-env/plugin",
+      "expect": {
+        "loads": true,
+        "mcpServers": 1
+      },
+      "observe": "Only `fine` is available. A server setting PLUGIN_ROOT or PLUGIN_DATA is invalid; the client supplies both.\n"
+    },
+    {
+      "id": "015-mcp-cwd-escapes-root",
+      "title": "A cwd escaping the plugin root is invalid",
+      "section": "7.2.1",
+      "requirement": "MUST",
+      "plugin": "cases/015-mcp-cwd-escapes-root/plugin",
+      "expect": {
+        "loads": true,
+        "mcpServers": 0
+      },
+      "observe": "No server is available. A ${PLUGIN_ROOT}-rooted cwd must stay inside the plugin root after resolution.\n"
+    },
+    {
+      "id": "016-extension-namespace-preserved",
+      "title": "A foreign extension namespace is ignored without validation",
+      "section": "8.1",
+      "requirement": "MUST",
+      "plugin": "cases/016-extension-namespace-preserved/plugin",
+      "expect": {
+        "loads": true,
+        "skills": 1
+      },
+      "observe": "The plugin loads and the skill is available. The client must ignore com.example.other entirely — it must not validate its contents, however malformed they look.\n"
+    },
+    {
+      "id": "017-mcp-empty-servers",
+      "title": "An empty mcpServers object is valid",
+      "section": "7.2.1",
+      "requirement": "MUST",
+      "plugin": "cases/017-mcp-empty-servers/plugin",
+      "expect": {
+        "loads": true,
+        "mcpServers": 0
+      },
+      "observe": "The plugin loads with no MCP servers and no error.\n"
+    },
+    {
+      "id": "018-mcp-all-transports",
+      "title": "All three transports are accepted",
+      "section": "7.2.1",
+      "requirement": "SHOULD",
+      "plugin": "cases/018-mcp-all-transports/plugin",
+      "expect": {
+        "loads": true,
+        "mcpServers": 3
+      },
+      "observe": "A client supporting all transports offers three servers. A client supporting only some MUST skip the others and keep the rest — record which it accepted.\n"
+    }
+  ]
+}

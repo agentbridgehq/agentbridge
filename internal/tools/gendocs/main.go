@@ -43,6 +43,17 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("wrote docs/clients.md")
+
+	index, err := conformance.Index("conformance/cases")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gendocs: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile("conformance/index.json", index, 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "gendocs: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("wrote conformance/index.json")
 }
 
 // Render builds the page.

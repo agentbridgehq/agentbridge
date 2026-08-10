@@ -38,11 +38,19 @@ agentbridge conformance
 Against any other client, by hand:
 
 ```bash
-agentbridge conformance --list
+agentbridge conformance --list                     # the corpus as a checklist
+agentbridge conformance --record cursor > results/cursor-1.x.yaml
 ```
 
-Each case prints the plugin directory and what to look for. Install the plugin
-into your client the way a user would, then check the observation note.
+`--record` writes one entry per case with every outcome pre-set to
+`unmeasured` and the observation note inline, so a measurement session is
+editing one word per case rather than authoring YAML. Step-by-step instructions
+per client are in [PROTOCOL.md](PROTOCOL.md).
+
+Without this tool at all: [`index.json`](index.json) describes every case in
+machine-readable form — id, section, requirement, plugin path, expected
+behaviour — so a runner can be written in any language against plain plugin
+directories.
 
 ## What a case looks like
 
