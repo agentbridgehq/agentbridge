@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **M0–M5 complete, audited against the canonical spec. M6 (commands) is largely landed; M7–M9 remain.**
+Last updated: 2026-08-10 · Overall status: **M0–M6 complete, audited against the canonical spec. M7–M9 remain.**
 
 **Spec conformance audit (2026-08-10).** Implementation and docs were checked
 requirement-by-requirement against the canonical
@@ -320,13 +320,13 @@ name-matching misses.
 
 | ID | Command | Acceptance criteria | Status |
 |---|---|---|---|
-| M6-1 | `install <source>` | Installs to all detected clients or `--client` subset | ⬜ |
-| M6-2 | `list` | What's installed, where, at what version | ⬜ |
-| M6-3 | `remove` | Clean removal across clients | ⬜ |
-| M6-4 | `sync` / `update` | Per M4 | ⬜ |
+| M6-1 | `install <source>` | Installs to all detected clients or `--client` subset | ✅ |
+| M6-2 | `list` | What's installed, where, at what version | ✅ |
+| M6-3 | `remove` | Clean removal across clients | ✅ |
+| M6-4 | `sync` / `update` | Per M4 | ✅ |
 | M6-5 | `validate` | Spec conformance for plugin authors + practical warnings the spec doesn't cover | ✅ ³ |
-| M6-6 | `doctor` | Explains why a plugin did nothing in client X — the ecosystem's most common question | ⬜ |
-| M6-7 | `--json` output on every command | Scriptable from day one | ⬜ |
+| M6-6 | `doctor` | Explains why a plugin did nothing in client X — the ecosystem's most common question | ✅ |
+| M6-7 | `--json` output on every command | Scriptable from day one | ✅ |
 
 ³ Landed early, during the spec-alignment review: it is the author-side of
 conformance and it wired up a strict validator that otherwise had no caller.
@@ -334,6 +334,34 @@ Every finding cites the clause it comes from. It is the only place the
 author-binding MUST NOTs get reported — §9.2 and §7.2.1 forbid credentials in
 `env` values and headers, and no *client* can enforce that, because by the time
 a client sees them they are already package data.
+
+**`doctor` is the command the positioning rests on.** The specification permits
+a conformant client to support *neither* skills nor MCP servers (§11.1, §11.2),
+component locations are fixed so a plugin either lands or silently does not, and
+every client spells its configuration differently. "I installed it, why is
+nothing happening in X?" is therefore the ecosystem's most common question, and
+nothing else answers it.
+
+The checks are deliberately not a health dashboard. Each exists because it is a
+real reason a plugin appears installed and does nothing — a client with no
+documented skills location, entries another tool removed after installation, a
+deleted package, a command that is not on PATH, a referenced secret that was
+never stored — and each carries the specific next action. **A check that cannot
+say what to do next has not earned its place**, and there is a test asserting
+every failure carries a fix.
+
+One check was written and then removed before shipping: comparing an installed
+package against its recorded tree digest. That digest addresses the *source*
+package, and an installed copy legitimately differs — the Claude Code adapter
+writes a manifest on top of the copied tree — so it would have reported every
+such install as modified. A check that always fires trains people to ignore the
+ones that matter.
+
+**Ergonomics.** `agentbridge install ./plugin --dry-run` previously ignored the
+flag and installed for real, because the standard library's flag parser stops at
+the first non-flag argument. That is the worst kind of failure: the command
+appears to work and does the opposite of what was asked. Flags may now appear on
+either side of the argument.
 
 ### M7 — Fidelity reporting · P0 · ~0.5 week
 

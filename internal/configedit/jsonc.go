@@ -382,6 +382,39 @@ func (d *JSONDoc) StringAt(keys []string) (string, error) {
 	return s, nil
 }
 
+// StringSliceAt returns the array of strings at a key path, or nil if it is
+// absent or not an array of strings.
+func (d *JSONDoc) StringSliceAt(keys []string) ([]string, error) {
+	current, err := d.decode()
+	if err != nil {
+		return nil, err
+	}
+	node := any(current)
+	for _, k := range keys {
+		obj, ok := node.(map[string]any)
+		if !ok {
+			return nil, nil
+		}
+		node, ok = obj[k]
+		if !ok {
+			return nil, nil
+		}
+	}
+	arr, ok := node.([]any)
+	if !ok {
+		return nil, nil
+	}
+	out := make([]string, 0, len(arr))
+	for _, v := range arr {
+		s, ok := v.(string)
+		if !ok {
+			return nil, nil
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
 // decode returns the document's data as plain Go values, for existence checks.
 // Comments and trailing commas are removed from the clone only; the document
 // being edited is untouched.

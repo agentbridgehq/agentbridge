@@ -83,6 +83,7 @@ make licenses # dependency license policy check
 ./agentbridge clients                    # agent clients detected on this machine
 ./agentbridge inspect  ./some-plugin     # load a plugin, show its normalized form
 ./agentbridge validate ./some-plugin     # check it against Agent Plugins v1.0.0
+./agentbridge doctor                     # why isn't this plugin doing anything?
 ./agentbridge install ./some-plugin --dry-run   # exact diffs, writes nothing
 ./agentbridge install ./some-plugin      # install into every detected client
 ./agentbridge install github.com/org/repo@v1.2.0#plugins/db   # pinned, from git
@@ -131,6 +132,23 @@ Clients: Claude Code, Cursor, VS Code / Copilot, Codex, Gemini CLI.
 | [`internal/lockfile`](internal/lockfile) | `agentbridge.yaml` (intent) and `agentbridge.lock` (what it resolved to), plus scope precedence |
 | [`internal/workspace`](internal/workspace) | Convergence: sync, update, prune |
 | [`internal/secrets`](internal/secrets) | Secret references, OS keychain, credential detection |
+| [`internal/doctor`](internal/doctor) | Why a plugin appears installed and does nothing |
+
+**What M6 established.** `doctor` is the command the positioning rests on. A
+conformant client may support *neither* skills nor MCP servers, component
+locations are fixed so a plugin either lands or silently does not, and every
+client spells its config differently — so "why is nothing happening in X?" is
+inevitable, and nothing else in the ecosystem answers it:
+
+```
+  xx acme.db → cursor    entries this plugin installed are no longer in the configuration
+       missing: mcpServers.acme.db.db
+       → something removed them after installation; run `agentbridge sync` to restore
+```
+
+Every check exists because it is a real reason a plugin does nothing, and every
+one carries the next action. A check that cannot say what to do next has not
+earned its place — there is a test asserting it.
 
 **What M5 established.** The specification is blunt about the problem and
 offers nothing for it: §9.2 and §7.2.1 say `env` values and headers are *visible
