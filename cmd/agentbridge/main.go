@@ -271,6 +271,8 @@ func install(args []string) error {
 	refresh := fs.Bool("refresh", false, "ignore any cached copy and fetch again")
 	allowPlaintext := fs.Bool("allow-plaintext-secrets", false, "write credential-looking values into client configs as-is")
 	allowFlagged := fs.Bool("allow-flagged-content", false, "install even when the content scan reports high-severity findings")
+	var classify classifierFlags
+	registerClassifierFlags(fs, &classify)
 	save := fs.Bool("save", false, "record the reference in agentbridge.yaml and the lock")
 	saveTo := fs.String("save-to", "project", "which manifest --save writes to: project or user")
 	positional, err := parseFlags(fs, args)
@@ -331,7 +333,11 @@ func install(args []string) error {
 	if err := adapterreg.CheckNameConflict(store, result.Plugin.Name, resolved.Identity()); err != nil {
 		return err
 	}
-	if err := scanGate(src, result.Plugin, *allowFlagged, *asJSON); err != nil {
+	model, err := classify.build(*offline)
+	if err != nil {
+		return err
+	}
+	if err := scanGate(src, result.Plugin, model, *allowFlagged, *asJSON); err != nil {
 		return err
 	}
 

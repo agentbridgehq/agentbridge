@@ -24,6 +24,7 @@ type syncFlags struct {
 	scope        string
 	asJSON       bool
 	allowFlagged bool
+	classify     classifierFlags
 }
 
 // syncCmd makes the machine match what the manifests declare.
@@ -37,6 +38,7 @@ func syncCmd(args []string) error {
 	fs.StringVar(&opts.scope, "scope", "", "user or project")
 	fs.BoolVar(&opts.asJSON, "json", false, "machine-readable output")
 	fs.BoolVar(&opts.allowFlagged, "allow-flagged-content", false, "install even when the content scan reports high-severity findings")
+	registerClassifierFlags(fs, &opts.classify)
 	if _, err := parseFlags(fs, args); err != nil {
 		return err
 	}
@@ -52,6 +54,7 @@ func updateCmd(args []string) error {
 	fs.StringVar(&opts.scope, "scope", "", "user or project")
 	fs.BoolVar(&opts.asJSON, "json", false, "machine-readable output")
 	fs.BoolVar(&opts.allowFlagged, "allow-flagged-content", false, "install even when the content scan reports high-severity findings")
+	registerClassifierFlags(fs, &opts.classify)
 	if _, err := parseFlags(fs, args); err != nil {
 		return err
 	}
@@ -89,6 +92,11 @@ func runSync(fs *flag.FlagSet, opts syncFlags) error {
 		return err
 	}
 
+	model, err := opts.classify.build(opts.offline)
+	if err != nil {
+		return err
+	}
+
 	result, err := workspace.Sync(context.Background(), res, store, workspace.Options{
 		Env:          env,
 		Update:       update,
@@ -99,6 +107,7 @@ func runSync(fs *flag.FlagSet, opts syncFlags) error {
 		Scope:        adapter.Scope(opts.scope),
 		Plan:         planOptions(false),
 		AllowFlagged: opts.allowFlagged,
+		Classifier:   model,
 	})
 	if err != nil {
 		return err

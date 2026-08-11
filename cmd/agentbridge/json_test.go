@@ -2,6 +2,8 @@ package main_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,6 +58,13 @@ type result struct {
 // writes the developer's real configuration.
 func run(t *testing.T, args ...string) result {
 	t.Helper()
+	return runWithEnv(t, nil, args...)
+}
+
+// runWithEnv is run with extra environment, for the settings that are
+// configured that way rather than by flag.
+func runWithEnv(t *testing.T, extra []string, args ...string) result {
+	t.Helper()
 
 	home := t.TempDir()
 	// One client, so install and sync have somewhere to write.
@@ -66,6 +75,7 @@ func run(t *testing.T, args ...string) result {
 	cmd := exec.Command(binary, args...)
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(os.Environ(), "HOME="+home, "USERPROFILE="+home)
+	cmd.Env = append(cmd.Env, extra...)
 
 	var out, errBuf strings.Builder
 	cmd.Stdout = &out
@@ -293,4 +303,88 @@ func truncate(s string) string {
 		return s[:max] + "…"
 	}
 	return s
+}
+
+// The model pass must stay off unless asked, from the CLI's point of view.
+//
+// internal/scanner proves the library default; this proves the binary a user
+// actually runs, which is the claim docs/telemetry.md makes. A future edit that
+// defaults --classify to true, or picks an endpoint, fails here.
+func TestClassifierIsOffByDefault(t *testing.T) {
+	var contacted bool
+	watcher := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contacted = true
+	}))
+	defer watcher.Close()
+
+	// The endpoint is configured in the environment, so the only thing keeping
+	// it unused is that nobody asked for it.
+	got := runWithEnv(t, []string{
+		"AGENTBRIDGE_CLASSIFIER_ENDPOINT=" + watcher.URL,
+		"AGENTBRIDGE_CLASSIFIER_KEY=test",
+	}, "scan", abs(t, "../../internal/scanner/testdata/hostile"), "--json", "--fail-on", "never")
+
+	if contacted {
+		t.Error("the endpoint was contacted without --classify")
+	}
+
+	var report struct {
+		Classifier string `json:"classifier"`
+		Findings   []struct {
+			Source string `json:"source"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(got.stdout), &report); err != nil {
+		t.Fatalf("stdout: %v", err)
+	}
+	if report.Classifier != "" {
+		t.Errorf("a classifier ran by default: %q", report.Classifier)
+	}
+	for _, f := range report.Findings {
+		if f.Source == "model" {
+			t.Error("a model finding appeared without --classify")
+		}
+	}
+}
+
+// Asking for the model pass with no endpoint must fail loudly. Choosing a
+// destination on the user's behalf is the one thing a tool like this must never
+// do, and silently skipping the pass they asked for is the other.
+func TestClassifyWithoutAnEndpointFails(t *testing.T) {
+	got := run(t, "scan", abs(t, "../../internal/scanner/testdata/benign"), "--classify")
+
+	if got.exit == 0 {
+		t.Fatal("--classify with no endpoint succeeded")
+	}
+	if !strings.Contains(got.stderr, "endpoint") {
+		t.Errorf("the error does not say what is missing: %s", got.stderr)
+	}
+}
+
+// --classify and --offline contradict each other, and the tool must say so
+// rather than quietly honouring one of them.
+func TestClassifyAndOfflineConflict(t *testing.T) {
+	got := runWithEnv(t, []string{"AGENTBRIDGE_CLASSIFIER_ENDPOINT=https://models.example.com/v1"},
+		"scan", abs(t, "../../internal/scanner/testdata/benign"), "--classify", "--offline")
+
+	if got.exit == 0 {
+		t.Fatal("--classify --offline succeeded")
+	}
+	if !strings.Contains(got.stderr, "offline") {
+		t.Errorf("the error does not name the conflict: %s", got.stderr)
+	}
+}
+
+// Plugin text is the payload. A plaintext remote endpoint would put it on the
+// wire for anyone to read.
+func TestClassifierRejectsAPlaintextRemoteEndpoint(t *testing.T) {
+	got := runWithEnv(t, []string{"AGENTBRIDGE_CLASSIFIER_ENDPOINT=http://models.example.com/v1"},
+		"scan", abs(t, "../../internal/scanner/testdata/benign"), "--classify")
+
+	if got.exit == 0 {
+		t.Fatal("a plaintext remote classifier endpoint was accepted")
+	}
+	if !strings.Contains(got.stderr, "https") {
+		t.Errorf("the error does not name the problem: %s", got.stderr)
+	}
 }

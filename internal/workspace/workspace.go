@@ -57,6 +57,9 @@ type Options struct {
 	Scope   adapter.Scope
 	// Plan carries install-time secret policy into the adapters.
 	Plan adapter.PlanOptions
+	// Classifier, when set, adds a model pass to the content scan. Nil means
+	// the scan is local and deterministic, which is the default everywhere.
+	Classifier scanner.Classifier
 	// AllowFlagged installs a plugin whose instruction text the scanner rates
 	// high severity.
 	//
@@ -270,7 +273,7 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 	// what blocks is a finding that is *new* rather than one already reviewed.
 	// Re-reporting an accepted finding on every sync would make the override
 	// flag routine, and a routine override stops being a decision.
-	if report, err := scanner.Scan(root, imported.Plugin); err == nil {
+	if report, err := scanner.ScanWith(ctx, root, imported.Plugin, opts.Classifier); err == nil {
 		result.Scan = report
 		delta := report.Against(baselineFor(lock, entry.Source))
 		result.Delta = &delta

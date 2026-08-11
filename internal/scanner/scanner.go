@@ -10,9 +10,13 @@
 //
 // What this is and is not:
 //
-//   - It is a **local, offline heuristic scanner**. No network, no model, no
-//     account. That is what makes it usable in the environments where it
-//     matters most, and it is enforced by internal/privacy.
+//   - It is a **local, offline heuristic scanner by default**. No network, no
+//     model, no account — that is what makes it usable in the environments
+//     where it matters most, and internal/privacy enforces it.
+//   - There is an **optional model pass** (see classify.go) which is off unless
+//     a caller supplies a classifier, sends nothing anywhere until then, and
+//     talks only to an endpoint the user configured. It can only ever *add*
+//     findings; it cannot clear one the rules produced.
 //   - It is **not** a verdict. Every rule here can be triggered by legitimate
 //     content — a security plugin discussing prompt injection will match the
 //     prompt-injection rules. Findings are evidence for a person, not grounds
@@ -27,6 +31,7 @@
 package scanner
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -85,6 +90,18 @@ func ParseSeverity(s string) (Severity, error) {
 	return "", fmt.Errorf("unknown severity %q: use high, medium, low or info", s)
 }
 
+// Source records what produced a finding.
+type Source string
+
+const (
+	// SourceRule is a deterministic match. Re-running produces it again.
+	SourceRule Source = "rule"
+	// SourceModel is a model's judgement. It is evidence of a different kind:
+	// it reaches phrasing no pattern anticipated, and it is not reproducible.
+	// A reader weighing a finding needs to know which of the two they have.
+	SourceModel Source = "model"
+)
+
 // Finding is one thing worth a person's attention.
 type Finding struct {
 	RuleID   string   `json:"ruleId"`
@@ -100,7 +117,14 @@ type Finding struct {
 	// characters so that printing a finding cannot itself smuggle an escape
 	// sequence into a terminal.
 	Excerpt string `json:"excerpt,omitempty"`
+	// Source is "rule" for a pattern match and "model" for a classifier
+	// judgement. Empty means rule, so every finding written before the
+	// classifier existed reads correctly.
+	Source Source `json:"source,omitempty"`
 }
+
+// FromModel reports whether a model produced this finding.
+func (f Finding) FromModel() bool { return f.Source == SourceModel }
 
 // Report is the outcome of scanning one plugin.
 type Report struct {
@@ -109,6 +133,13 @@ type Report struct {
 	// Scanned counts the files examined, so an empty report can be told apart
 	// from a scan that found nothing to read.
 	Scanned int `json:"filesScanned"`
+	// Classifier names the model pass, when one ran. Empty means the report is
+	// entirely deterministic.
+	Classifier string `json:"classifier,omitempty"`
+	// ClassifierErrors records files the model pass could not judge. Recorded
+	// for the same reason as Unread: a classifier that failed on the one file
+	// carrying the injection must not be read as having cleared it.
+	ClassifierErrors []string `json:"classifierErrors,omitempty"`
 	// Unread lists files that belong to a skill and could not be opened.
 	//
 	// Recorded rather than skipped, because "no findings" and "no findings in
@@ -164,8 +195,28 @@ func (r *Report) AtLeast(min Severity) []Finding {
 // under different rules — they are code the agent may run rather than text it
 // reads, so the interesting question shifts from "what is this telling the
 // model" to "what would this do".
+//
+// It takes no classifier and cannot be given one. Everything in the CLI calls
+// this, so the offline, deterministic scan is what happens unless a caller goes
+// out of its way to ask for more — a default expressed in the type signature
+// rather than in a flag some later edit could invert.
 func Scan(root *safepath.Root, p *ir.Plugin) (*Report, error) {
+	return ScanWith(context.Background(), root, p, nil)
+}
+
+// ScanWith runs the local rules and, when given a classifier, a model pass over
+// the same instruction text.
+//
+// The model pass is strictly additive. It appends findings; it cannot remove or
+// downgrade one the rules produced. That is what makes it safe to feed
+// attacker-chosen text to a model and act on the answer: the worst a successful
+// injection achieves is that the model says nothing, which loses its opinion
+// and gains the attacker no authority over the deterministic findings.
+func ScanWith(ctx context.Context, root *safepath.Root, p *ir.Plugin, classifier Classifier) (*Report, error) {
 	report := &Report{Plugin: p.Name}
+	if classifier != nil {
+		report.Classifier = classifier.Describe()
+	}
 
 	for _, skill := range p.Skills {
 		files, err := skillFiles(root, skill)
@@ -191,6 +242,20 @@ func Scan(root *safepath.Root, p *ir.Plugin) (*Report, error) {
 				continue
 			}
 			report.Findings = append(report.Findings, scanInstructions(rel, content)...)
+
+			// Instruction text only. A bundled script is code, and asking a
+			// model whether shell is hostile is a different question with a
+			// much worse false-positive rate.
+			if classifier == nil {
+				continue
+			}
+			found, err := classifier.Classify(ctx, rel, content)
+			if err != nil {
+				report.ClassifierErrors = append(report.ClassifierErrors,
+					fmt.Sprintf("%s: %v", rel, err))
+				continue
+			}
+			report.Findings = append(report.Findings, found...)
 		}
 	}
 

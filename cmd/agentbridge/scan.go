@@ -13,6 +13,7 @@ import (
 	"github.com/agentbridge/agentbridge/internal/ir"
 	"github.com/agentbridge/agentbridge/internal/safepath"
 	"github.com/agentbridge/agentbridge/internal/scanner"
+	"github.com/agentbridge/agentbridge/internal/secrets"
 	"github.com/agentbridge/agentbridge/internal/source"
 )
 
@@ -32,6 +33,8 @@ func scanCmd(args []string) error {
 	failOn := fs.String("fail-on", "high", "exit non-zero when a finding reaches this severity, or `never`")
 	rulesFlag := fs.Bool("rules", false, "print the rule catalogue and exit")
 	offline := fs.Bool("offline", false, "never access the network; only pinned, cached references resolve")
+	var classify classifierFlags
+	registerClassifierFlags(fs, &classify)
 
 	positional, err := parseFlags(fs, args)
 	if err != nil {
@@ -73,7 +76,11 @@ func scanCmd(args []string) error {
 		return err
 	}
 
-	report, err := scanner.Scan(root, result.Plugin)
+	model, err := classify.build(*offline)
+	if err != nil {
+		return err
+	}
+	report, err := scanner.ScanWith(context.Background(), root, result.Plugin, model)
 	if err != nil {
 		return err
 	}
@@ -110,6 +117,92 @@ func scanCmd(args []string) error {
 	return nil
 }
 
+// classifierFlags are the model-pass options, shared by scan, install and sync.
+//
+// Flags plus environment rather than a field in agentbridge.yaml, deliberately:
+// the manifest is committed and shared by a team, while "which endpoint may see
+// our plugin text" is a per-machine, per-policy decision. One developer pointing
+// at a model on their laptop and another at a corporate gateway is the normal
+// case, and a committed file would make it a merge conflict.
+type classifierFlags struct {
+	enabled  bool
+	endpoint string
+	model    string
+	canBlock bool
+}
+
+// defaultClassifierModel is a default for the *model name* only. There is
+// deliberately no default endpoint: the model is a parameter, the destination is
+// a decision.
+const defaultClassifierModel = "claude-sonnet-5"
+
+func registerClassifierFlags(fs *flag.FlagSet, c *classifierFlags) {
+	fs.BoolVar(&c.enabled, "classify", false,
+		"also ask a model about the instruction text; sends it to the endpoint you configure")
+	fs.StringVar(&c.endpoint, "classifier-endpoint", os.Getenv("AGENTBRIDGE_CLASSIFIER_ENDPOINT"),
+		"URL of an Anthropic-compatible API, which may be a model on this machine")
+	fs.StringVar(&c.model, "classifier-model", envOr("AGENTBRIDGE_CLASSIFIER_MODEL", defaultClassifierModel),
+		"model to ask")
+	fs.BoolVar(&c.canBlock, "classify-can-block", false,
+		"let a model finding reach high severity and stop an install")
+}
+
+// classifierSecretName is where `agentbridge secret set` puts the API key, so
+// the key lives in the OS credential store like every other credential this
+// tool handles rather than in a config file or a shell profile.
+const classifierSecretName = "classifier-key"
+
+// build returns a classifier, or nil when the model pass is off.
+//
+// Refusing rather than silently skipping is the whole contract here in both
+// directions: asking for --classify with no endpoint is an error, and asking
+// for it with --offline is an error. A security tool that quietly does less
+// than it was told to is the thing this project keeps finding and fixing.
+func (c classifierFlags) build(offline bool) (scanner.Classifier, error) {
+	if !c.enabled {
+		return nil, nil
+	}
+	if offline {
+		return nil, fmt.Errorf("--classify needs the network and --offline forbids it; " +
+			"drop one of them rather than letting the scan quietly do less than you asked")
+	}
+
+	key, err := classifierKey()
+	if err != nil {
+		return nil, err
+	}
+	return scanner.NewAPIClassifier(scanner.Config{
+		Endpoint: c.endpoint,
+		Model:    c.model,
+		APIKey:   key,
+		CanBlock: c.canBlock,
+	})
+}
+
+// classifierKey reads the API key from the credential store, then the
+// environment.
+//
+// The store first, because that is where this tool tells everyone else to put
+// credentials and it would be poor form to exempt its own. The environment
+// second, because CI has no keychain.
+func classifierKey() (string, error) {
+	if key, err := secrets.Open().Get(classifierSecretName); err == nil && key != "" {
+		return key, nil
+	}
+	if key := os.Getenv("AGENTBRIDGE_CLASSIFIER_KEY"); key != "" {
+		return key, nil
+	}
+	// Not an error: a model on localhost usually needs no key at all.
+	return "", nil
+}
+
+func envOr(name, fallback string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return fallback
+}
+
 // refusal is what a --json consumer receives when the gate stops an install.
 //
 // It carries the findings themselves rather than a message about them, because
@@ -136,8 +229,8 @@ type refusal struct {
 // instead. `scan` and `validate` both emit their findings as JSON *and* exit
 // non-zero, and an install refused on exactly those findings must not be the
 // one command that hands a script an empty pipe.
-func scanGate(root *safepath.Root, p *ir.Plugin, allow, quiet bool) error {
-	report, err := scanner.Scan(root, p)
+func scanGate(root *safepath.Root, p *ir.Plugin, model scanner.Classifier, allow, quiet bool) error {
+	report, err := scanner.ScanWith(context.Background(), root, p, model)
 	if err != nil {
 		// A scan that cannot run must not block an install: this is an advisory
 		// layer, and failing closed on a read error would make it the most
@@ -154,6 +247,12 @@ func scanGate(root *safepath.Root, p *ir.Plugin, allow, quiet bool) error {
 	if !report.Complete() && !quiet {
 		fmt.Fprintf(os.Stderr, "note: %d file(s) could not be read, so the content scan is incomplete: %s\n",
 			len(report.Unread), strings.Join(report.Unread, ", "))
+	}
+	// Same rule for the model pass: a classifier that failed on the one file
+	// carrying the injection has not cleared it.
+	if len(report.ClassifierErrors) > 0 && !quiet {
+		fmt.Fprintf(os.Stderr, "note: the model pass failed on %d file(s): %s\n",
+			len(report.ClassifierErrors), strings.Join(report.ClassifierErrors, "; "))
 	}
 
 	high := report.AtLeast(scanner.High)
@@ -203,6 +302,7 @@ func printScan(r *scanner.Report, sarifPath string) {
 	if len(r.Findings) == 0 {
 		fmt.Printf("  nothing found in %d file(s)\n\n", r.Scanned)
 		printUnread(r)
+		printClassifier(r)
 		fmt.Printf("  This is a heuristic scan of instruction text, not a proof of safety.\n")
 		fmt.Printf("  It cannot tell you whether a plugin does something harmful in a way\n")
 		fmt.Printf("  it does not describe.\n")
@@ -214,7 +314,14 @@ func printScan(r *scanner.Report, sarifPath string) {
 	}
 
 	for _, f := range r.Findings {
-		fmt.Printf("  %s  %-34s %s\n", marker[f.Severity], location(f), f.Title)
+		// A model finding is a different kind of evidence from a pattern match:
+		// it reaches phrasing no rule anticipated, and it is not reproducible.
+		// A reader deciding what to do needs to know which they are holding.
+		kind := ""
+		if f.FromModel() {
+			kind = "  [model]"
+		}
+		fmt.Printf("  %s  %-34s %s%s\n", marker[f.Severity], location(f), f.Title, kind)
 		fmt.Printf("        %s\n", f.Message)
 		if f.Excerpt != "" {
 			fmt.Printf("        > %s\n", f.Excerpt)
@@ -234,6 +341,7 @@ func printScan(r *scanner.Report, sarifPath string) {
 
 	fmt.Println()
 	printUnread(r)
+	printClassifier(r)
 
 	// The limits belong next to the results, not in documentation nobody opens
 	// while looking at a finding.
@@ -254,6 +362,21 @@ func printUnread(r *scanner.Report) {
 	fmt.Printf("  ! %d file(s) could not be read, so this scan is incomplete:\n", len(r.Unread))
 	for _, f := range r.Unread {
 		fmt.Printf("      %s\n", f)
+	}
+	fmt.Println()
+}
+
+// printClassifier reports the model pass: that it ran, and anywhere it did not.
+//
+// A classifier that failed on the one file carrying the injection has not
+// cleared it, so its failures are as much a part of the result as its findings.
+func printClassifier(r *scanner.Report) {
+	if r.Classifier == "" {
+		return
+	}
+	fmt.Printf("  model pass: %s\n", r.Classifier)
+	for _, e := range r.ClassifierErrors {
+		fmt.Printf("  ! the model could not judge %s\n", e)
 	}
 	fmt.Println()
 }

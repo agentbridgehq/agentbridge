@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-11 · Overall status: **Every milestone that is code is implemented, tested and three-times audited — including M11 (skill content scanner) and M3-5 (OCI registry source), both pulled forward from Phase 2.**
+Last updated: 2026-08-11 · Overall status: **Every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
 
 **What remains is not code.** Three things, and none can be finished by writing Go:
 
@@ -11,10 +11,6 @@ Last updated: 2026-08-11 · Overall status: **Every milestone that is code is im
 | **M10-2** — measure the six target clients (§6) | Installing each client and watching it, by hand. The corpus, the protocol and the results template are built and ship in the binary. |
 | **M8** — cut a first release | The pipeline is written and CI-validated on every pull request, but has never run. Nothing is signed because nothing is published. |
 | **D-02 / M9-4** — name verification, then launch | Deliberately out of scope for now at the user's direction. |
-
-M11-11 (LLM classifier) is the only unbuilt implementation item, and it is
-correctly Phase 2: it would break the offline guarantee that `internal/privacy`
-enforces.
 
 **Third full review (2026-08-11).** Docs and implementation re-checked after
 M11 and M3-5, then every status marker in this file re-checked against the code
@@ -714,11 +710,19 @@ Originally scheduled for Phase 2 and pulled forward, because it is the only part
 | M11-8 | Blocking gate on `install` and `sync` | High findings stop it; `--allow-flagged-content` to proceed | ✅ |
 | M11-9 | **A benign fixture that produces zero findings** | The calibration property, asserted by test | ✅ |
 | M11-10 | Diff-based re-scan on version bump | Report what changed in the text, not only that it changed | ✅ |
-| M11-11 | LLM classifier for phrasing no regex reaches | Phase 2 — the local heuristic is the floor, not the ceiling | ⬜ |
+| M11-11 | LLM classifier for phrasing no regex reaches | Opt-in; local rules remain the floor | ✅ ⁷ |
 
 **M11-10 is the item that makes the gate survivable.** A scan on its own answers "what is in this plugin?". At update time the useful question is different — *what is in it that was not in the version I approved?* — and threat T5, a plugin that was clean when reviewed and gains an injected instruction three commits later, is only visible in the second. It is invisible to a lockfile alone: the digest changes honestly, because the author really did edit the file.
 
 So a locked plugin records the findings accepted when it was locked, and only what is **new** can block. That cuts both ways and both matter: a plugin with one permanently awkward sentence stops demanding an override flag every week — so the override keeps meaning something — while a bump that introduces an instruction to conceal activity stops a sync that would otherwise have looked like an ordinary version change. The acceptance lives in `agentbridge.lock` rather than in local state because "we looked at this and decided it was fine" belongs in a pull request, not on one person's laptop.
+
+⁷ **M11-11 was twice deferred here as "it would break the offline guarantee", and building it is what showed that framing to be wrong.** The guarantee is not "this binary contains no HTTP client" — it is *every address this tool reaches is one you supplied, and nothing leaves your machine unless you ask*. Both survive intact:
+
+- **Off unless asked, structurally.** `scanner.Scan` takes no classifier and cannot be handed one; only `ScanWith` runs a model. That is a default expressed in a type signature rather than a flag some later edit could invert, and a test runs the real binary with an endpoint configured in the environment to prove nothing is contacted without `--classify`.
+- **No default endpoint.** The privacy scan forbids any absolute URL in that file, so there is nowhere in the code for a destination to live. The user names the host exactly as they name a git remote. A model on `localhost` is a first-class option, which means the air-gapped case keeps both the pass and the guarantee.
+- **What is sent is documented** in [telemetry.md](docs/telemetry.md): the skill bodies and `references/`, one request per file, and nothing else — not scripts, not `mcp.json`, not configuration, not anything about the machine.
+
+The interesting design problem was not the API call but **the classifier reading text an attacker wrote, and being asked about it.** The plugin's own words can address the model. Four constraints make that unprofitable rather than merely discouraged: a model finding can only ever be *added* — it can never clear or downgrade one the rules produced, so injection buys silence rather than authority; a quoted span absent from the file is a fabrication and is dropped; an unrecognised category has no rule, no rationale and no remedy, so it cannot be reported as one; and severity is assigned by us from a confidence label rather than taken from the reply. Model findings are also capped below the blocking threshold unless `--classify-can-block`, because one hallucinated High that stops a legitimate deploy teaches a team to pass `--allow-flagged-content` by reflex — which switches off the *regex* findings too, and those are the ones with evidence behind them.
 
 **The design constraint that shaped every rule: false positives are the real failure mode.** A scanner that misses a hostile plugin has failed once. A scanner that fires on an ordinary one gets muted, and a muted scanner produces the appearance of coverage while checking nothing — so it fails on every plugin after that, invisibly. Severity is therefore assigned by *how hard a pattern is to reach innocently*, not by how bad it would be if malicious. M11-9 is the item that keeps this honest, and it is why ZWNJ is not flagged in Persian text and ZWJ is not flagged next to emoji.
 

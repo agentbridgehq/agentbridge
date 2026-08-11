@@ -54,10 +54,23 @@ const devToolPrefix = "internal/tools/"
 // A blanket ban is only worth giving up for something stronger, and the
 // stronger property is below: TestFetchersDeriveEveryHostFromTheReference
 // checks that these files contain no hardcoded destination at all, so the only
-// host they can reach is the one written in the reference the user typed.
+// host they can reach is the one written in the reference — or, for the
+// classifier, the endpoint — that the user supplied.
 // TestNoCallsToOperatedInfrastructure continues to apply to them unchanged.
+//
+// The classifier (M11-11) is the second entry and the more consequential one,
+// because it sends the *contents* of a plugin rather than fetching them. Three
+// things keep it inside the promise this project makes:
+//
+//   - It is off unless a caller passes a classifier, which scanner.Scan cannot
+//     do — TestClassifierIsOffByDefault asserts the CLI leaves it off.
+//   - It has no default endpoint. The user names the host, exactly as they name
+//     a git remote or a registry, and this file's no-hardcoded-URL rule holds
+//     it to that.
+//   - What it sends, and to whom, is documented in docs/telemetry.md.
 var networkAllowed = map[string]bool{
-	"internal/source/oci.go": true,
+	"internal/source/oci.go":       true,
+	"internal/scanner/classify.go": true,
 }
 
 // sourceFiles walks the packages that ship in the binary.

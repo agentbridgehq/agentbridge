@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/agentbridge/agentbridge/internal/importer/registry"
+	"github.com/agentbridge/agentbridge/internal/ir"
 	"github.com/agentbridge/agentbridge/internal/safepath"
 	"github.com/agentbridge/agentbridge/internal/scanner"
 )
@@ -356,4 +357,14 @@ func mustWrite(t *testing.T, dir, rel, content string) {
 	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// openPlugin loads a plugin for tests that need the IR rather than a report.
+func openPlugin(t *testing.T, dir string) (*ir.Plugin, error) {
+	t.Helper()
+	result, err := registry.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	return result.Plugin, nil
 }

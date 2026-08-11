@@ -5,7 +5,10 @@ reporting, no version check, no analytics, and no account. The CLI makes no
 network requests to any infrastructure we operate — not on install, not on
 first run, not ever.
 
-This is a short document because there is nothing to enumerate.
+Every address this tool can reach is one you supplied: a git remote, a registry
+in an `oci://` reference, or — only if you ask for it — a model endpoint you
+configure. There is no destination compiled into the binary, and a test fails
+the build if one appears.
 
 ## What the tool does reach
 
@@ -15,6 +18,7 @@ This is a short document because there is nothing to enumerate.
 | Installing from a registry | The registry host in the `oci://` reference you gave | You |
 | Obtaining an anonymous pull token | The auth host that registry names in its challenge | That registry |
 | Downloading a layer | The CDN that registry redirects to | That registry |
+| **`scan --classify`** (off by default) | The model endpoint you configure | You |
 | Nothing else | — | — |
 
 Fetching a plugin from a repository shells out to `git` against the remote named
@@ -56,6 +60,38 @@ credentials you never mentioned. A private registry is therefore not supported
 yet — that is a real limitation, and the alternative would be a tool that
 quietly starts using credentials against hosts you did not name.
 
+## The model pass, which is the one that sends your content
+
+Everything above *fetches*. `agentbridge scan --classify` is different in kind:
+it **sends the text of your plugin's skills** to a model, so it deserves its own
+section rather than a row in a table.
+
+It is **off by default and cannot turn itself on.** The function the whole CLI
+calls, `scanner.Scan`, takes no classifier and cannot be given one; only
+`ScanWith` can run a model pass, and only when handed a configured client.
+That is a property of the type signature rather than a flag, and
+[a test](../cmd/agentbridge/json_test.go) runs the real binary with an endpoint
+configured in the environment and asserts nothing is contacted without
+`--classify`.
+
+When you do enable it:
+
+| | |
+|---|---|
+| **What is sent** | The contents of `SKILL.md` and the files under `references/`. One request per file. |
+| **What is not sent** | Bundled scripts, `mcp.json`, your configuration, your lockfile, file paths outside the plugin, anything about your machine. |
+| **Where** | The endpoint in `--classifier-endpoint` or `AGENTBRIDGE_CLASSIFIER_ENDPOINT`. **There is no default** — agentbridge will not choose a destination for you, and errors if you ask for the pass without naming one. |
+| **Credentials** | The API key comes from the OS credential store (`agentbridge secret set classifier-key`) or `AGENTBRIDGE_CLASSIFIER_KEY`. It is never written to a config file, and never appears in output — the endpoint is redacted to scheme and host, in case its path carries a token. |
+
+The endpoint must be HTTPS unless it is on this machine, so **a model running
+locally is a first-class option**: point `--classifier-endpoint` at
+`http://localhost:11434/...` and the air-gapped, send-nothing property is fully
+preserved while still getting the pass. `--classify` together with `--offline`
+is an error rather than a silent skip.
+
+If your plugin text is confidential, this is a decision to take deliberately —
+which is exactly why it is not a default.
+
 Everything else works offline. The Agent Plugins JSON Schemas are embedded in
 the binary rather than fetched — the specification requires this ("Clients MUST
 NOT retrieve a schema while loading a plugin", §5.2) and it is also what makes
@@ -68,12 +104,14 @@ The claim is enforced by tests in
 if any package that ships in the binary:
 
 - constructs an HTTP client or makes an HTTP, TCP, WebSocket or gRPC call —
-  except `internal/source/oci.go`, named explicitly in an allow-list of exact
-  filenames so a second file cannot quietly join it;
-- **contains any absolute URL in that one exempt file**, which is what keeps
-  "only hosts you named" true rather than merely intended. A hardcoded host is
-  how a version check or a failure report arrives, and permitting HTTP without
-  this check would leave the door open;
+  except `internal/source/oci.go` and `internal/scanner/classify.go`, named
+  explicitly in an allow-list of exact filenames so a third file cannot quietly
+  join them;
+- **contains any absolute URL in either exempt file**, which is what keeps "only
+  hosts you named" true rather than merely intended. A hardcoded host is how a
+  version check or a failure report arrives, and permitting HTTP without this
+  check would leave the door open. It is why the classifier has no default
+  endpoint: there is nowhere in the code for one to live;
 - references a hostname on a domain we operate — this applies to the OCI client
   too, unchanged;
 - stops embedding the schemas.
@@ -92,8 +130,8 @@ You can also check for yourself:
 grep -rn "net/http" internal/ cmd/ --include="*.go"
 ```
 
-The results are the OCI registry client and a header-name validity check that
-touches no network.
+The results are the OCI registry client, the optional model pass, and a
+header-name validity check that touches no network.
 
 ## What is stored locally
 
