@@ -43,6 +43,23 @@ var networkCalls = regexp.MustCompile(
 // graph that none of this reaches the binary.
 const devToolPrefix = "internal/tools/"
 
+// networkAllowed names the files permitted to open a connection.
+//
+// Until M3-5 the answer was "none": fetching shelled out to git, and the scan
+// above was a blanket ban. Pulling from an OCI registry cannot be delegated to
+// a subprocess the same way, so this is a real relaxation and is treated as
+// one — the list is exact filenames rather than a directory, so a second file
+// cannot quietly join it.
+//
+// A blanket ban is only worth giving up for something stronger, and the
+// stronger property is below: TestFetchersDeriveEveryHostFromTheReference
+// checks that these files contain no hardcoded destination at all, so the only
+// host they can reach is the one written in the reference the user typed.
+// TestNoCallsToOperatedInfrastructure continues to apply to them unchanged.
+var networkAllowed = map[string]bool{
+	"internal/source/oci.go": true,
+}
+
 // sourceFiles walks the packages that ship in the binary.
 func sourceFiles(t *testing.T) map[string]string {
 	t.Helper()
@@ -79,13 +96,53 @@ func sourceFiles(t *testing.T) map[string]string {
 // it without a data-flow review.
 func TestCLIMakesNoNetworkCalls(t *testing.T) {
 	for path, content := range sourceFiles(t) {
+		if networkAllowed[relativeToRepo(path)] {
+			continue
+		}
 		if m := networkCalls.FindString(content); m != "" {
 			t.Errorf("%s contains a network call (%s).\n"+
-				"The CLI is documented as making none: fetching a plugin shells out to git against a "+
-				"remote the user named, and nothing else opens a connection. If this is deliberate, "+
-				"update docs/telemetry.md and this test together — never one without the other.", path, m)
+				"The CLI opens a connection in exactly one place — the OCI client in "+
+				"internal/source/oci.go, against the registry named in the reference — and shells out "+
+				"to git for everything else. If this is deliberate, update docs/telemetry.md, "+
+				"networkAllowed and this test together — never one without the others.", path, m)
 		}
 	}
+}
+
+// The fetchers may reach the network, but only where the user pointed them.
+//
+// This is what replaces the blanket ban, and it is the property that actually
+// matters: a hardcoded host in a fetcher is how a "check for updates" or a
+// "report a failed pull" arrives, and neither would be caught by a rule that
+// merely permits HTTP in this file. Every destination must be assembled from
+// the reference, so the set of hosts the CLI can contact is exactly the set the
+// user typed.
+func TestFetchersDeriveEveryHostFromTheReference(t *testing.T) {
+	// Any absolute URL literal. The scheme-relative form is enough to catch a
+	// hardcoded destination however it is spelled.
+	literal := regexp.MustCompile(`"[a-zA-Z][a-zA-Z0-9+.-]*://[^"]*"`)
+
+	for path, content := range sourceFiles(t) {
+		if !networkAllowed[relativeToRepo(path)] {
+			continue
+		}
+		for _, m := range literal.FindAllString(content, -1) {
+			// Media types and the reference scheme itself are not
+			// destinations; a host is what this is looking for.
+			if strings.HasPrefix(m, `"application/`) || m == `"oci://"` {
+				continue
+			}
+			t.Errorf("%s contains the absolute URL %s.\n"+
+				"A fetcher must derive every destination from the reference it was given, so the only "+
+				"hosts this tool can contact are the ones the user named.", path, m)
+		}
+	}
+}
+
+// relativeToRepo turns a walk path into the repository-relative form used by
+// networkAllowed, so the list reads as filenames rather than as walk artifacts.
+func relativeToRepo(path string) string {
+	return strings.TrimPrefix(filepath.ToSlash(path), "../../")
 }
 
 // Reaching a service we run is the specific failure this guards against. A

@@ -220,21 +220,26 @@ func fetchCommit(ctx context.Context, url, sha, dir string) error {
 	return nil
 }
 
-// gitSubdir returns the plugin directory inside a checkout, rejecting any path
-// that escapes it.
-func gitSubdir(checkout, subdir string) (string, error) {
+// packageSubdir returns the plugin directory inside a fetched tree, rejecting
+// any path that escapes it.
+//
+// Shared by both fetchers: the monorepo-of-plugins layout is the same problem
+// whether the tree arrived from a git checkout or an unpacked artifact, and the
+// fixed component locations in the specification make it otherwise impossible
+// to express.
+func packageSubdir(tree, subdir string) (string, error) {
 	if subdir == "" {
-		return checkout, nil
+		return tree, nil
 	}
-	target := filepath.Join(checkout, filepath.FromSlash(subdir))
+	target := filepath.Join(tree, filepath.FromSlash(subdir))
 
-	rel, err := filepath.Rel(checkout, target)
+	rel, err := filepath.Rel(tree, target)
 	if err != nil || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("subdirectory %q escapes the repository", subdir)
+		return "", fmt.Errorf("subdirectory %q escapes the package", subdir)
 	}
 	info, err := os.Stat(target)
 	if err != nil {
-		return "", fmt.Errorf("subdirectory %q not found in the repository", subdir)
+		return "", fmt.Errorf("subdirectory %q not found in the package", subdir)
 	}
 	if !info.IsDir() {
 		return "", fmt.Errorf("subdirectory %q is not a directory", subdir)

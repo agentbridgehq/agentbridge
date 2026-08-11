@@ -27,14 +27,20 @@ type Resolved struct {
 // suitable for recording in a lockfile. A branch or tag in the original
 // reference is replaced by the commit it resolved to.
 func (r Resolved) Pinned() string {
-	if r.Ref.Kind != KindGit {
-		return r.Ref.Raw
+	switch r.Ref.Kind {
+	case KindGit, KindOCI:
+		// The same form for both: the URL, the immutable identifier the
+		// reference resolved to, and the subdirectory. For OCI that identifier
+		// is a manifest digest, which is exactly the syntax a registry already
+		// uses — `oci://ghcr.io/org/plugin@sha256:…` is a valid reference that
+		// resolves to precisely these bytes.
+		pinned := r.Ref.URL + "@" + r.Commit
+		if r.Ref.Subdir != "" {
+			pinned += "#" + r.Ref.Subdir
+		}
+		return pinned
 	}
-	pinned := r.Ref.URL + "@" + r.Commit
-	if r.Ref.Subdir != "" {
-		pinned += "#" + r.Ref.Subdir
-	}
-	return pinned
+	return r.Ref.Raw
 }
 
 // Identity names *what* a plugin came from, with the revision removed.
@@ -44,13 +50,33 @@ func (r Resolved) Pinned() string {
 // is the distinction needed to tell an upgrade apart from two different plugins
 // that happen to claim the same name.
 func (r Resolved) Identity() string {
-	if r.Ref.Kind != KindGit {
-		return r.Dir
+	switch r.Ref.Kind {
+	case KindGit, KindOCI:
+		if r.Ref.Subdir == "" {
+			return r.Ref.URL
+		}
+		return r.Ref.URL + "#" + r.Ref.Subdir
 	}
-	if r.Ref.Subdir == "" {
-		return r.Ref.URL
+	return r.Dir
+}
+
+// ShortID renders the immutable identifier a reference resolved to, short
+// enough to read.
+//
+// Kind-aware because the identifiers are not the same shape: a git commit is
+// bare hex, while an OCI digest carries its algorithm, so truncating both to
+// twelve characters produces `sha256:75296` — which looks like a corrupted
+// hash rather than a shortened one.
+func (r Resolved) ShortID() string {
+	switch r.Ref.Kind {
+	case KindOCI:
+		return shortDigest(r.Commit)
+	case KindGit:
+		if len(r.Commit) > 12 {
+			return r.Commit[:12]
+		}
 	}
-	return r.Ref.URL + "#" + r.Ref.Subdir
+	return r.Commit
 }
 
 // Options control resolution.
@@ -75,6 +101,8 @@ func Resolve(ctx context.Context, ref Ref, opts Options) (*Resolved, error) {
 		return resolveLocal(ref, opts)
 	case KindGit:
 		return resolveGit(ctx, ref, opts)
+	case KindOCI:
+		return resolveOCI(ctx, ref, opts)
 	default:
 		return nil, fmt.Errorf("unsupported source kind %q", ref.Kind)
 	}
@@ -182,7 +210,7 @@ func resolveGit(ctx context.Context, ref Ref, opts Options) (*Resolved, error) {
 	if err := fetchCommit(ctx, ref.URL, commit, checkout); err != nil {
 		return nil, err
 	}
-	pkg, err := gitSubdir(checkout, ref.Subdir)
+	pkg, err := packageSubdir(checkout, ref.Subdir)
 	if err != nil {
 		return nil, err
 	}

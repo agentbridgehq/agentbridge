@@ -29,8 +29,16 @@ it. See [RELEASING.md](RELEASING.md).
 ```bash
 agentbridge clients                              # what is on this machine
 agentbridge install github.com/org/repo@v1.2.0   # into every client, pinned
+agentbridge install oci://ghcr.io/org/plugin:v1  # or from a container registry
 agentbridge doctor                               # why is nothing happening?
 ```
+
+A registry is worth pointing at because your organization almost certainly
+already runs one: it is already mirrored into the air-gapped network, already
+scanned and signed, already has an answer to who may push. A tag resolves to a
+manifest digest before anything downloads, so the protocol enforces the pin
+rather than us. Pulls are anonymous — agentbridge will not reach for Docker
+credentials you never mentioned.
 
 Every install prints a fidelity report — per client, what was carried and what
 was not, with a reason and a stable code for each:
@@ -244,6 +252,7 @@ make licenses # dependency license policy check
 ./agentbridge install ./some-plugin --dry-run   # exact diffs, writes nothing
 ./agentbridge install ./some-plugin      # install into every detected client
 ./agentbridge install github.com/org/repo@v1.2.0#plugins/db   # pinned, from git
+./agentbridge install oci://ghcr.io/org/plugin:v1.2.0   # from an OCI registry
 ./agentbridge remove  some-plugin        # remove exactly what was installed
 ./agentbridge sync                       # make this machine match agentbridge.yaml + .lock
 ./agentbridge update --dry-run           # re-resolve, and show what would change

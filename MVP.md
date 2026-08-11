@@ -253,13 +253,62 @@ that case.
 | M3-2 | Git source, pinned to resolved commit SHA | Tag/branch resolves to an immutable SHA in the lock | ✅ |
 | M3-3 | Digest computation + verification | Content-addressed; tamper detected on re-fetch | ✅ |
 | M3-4 | Local content cache | Offline re-install works | ✅ |
-| M3-5 | OCI source | **P1** — defer if it costs schedule | ⬜ ⁴ |
+| M3-5 | OCI source | **P1** — defer if it costs schedule | ✅ ⁴ |
 
-⁴ Deferred as planned. Git covers the way plugins are actually distributed
-today, and OCI's real value — signing, mirroring, org-scoped registries — pairs
-with M8 rather than with fetching.
+⁴ Deferred as planned, then built once the rest of the MVP was done. The
+argument for it is not that anyone publishes plugins this way today — nobody
+does — but that every organization which has adopted containers *already* runs a
+registry, already mirrors it into air-gapped networks, already scans and signs
+what is in it, and already has an answer to who may push. A plugin distributed
+this way inherits all of that on the day it is published, and none of it is ours
+to operate. The registry is also content-addressed by construction: a tag
+resolves to a manifest digest before anything is downloaded, so the protocol
+enforces the pinning discipline instead of us.
 
-**Two design decisions in M3 worth recording.**
+`oci://ghcr.io/org/plugin:v1.2.0`, or `@sha256:…` to pin. The scheme is required
+rather than inferred, because `ghcr.io/org/plugin` is already a perfectly good
+*git* shorthand and choosing a protocol from the hostname would be a surprise
+that costs trust once.
+
+**This is where the project's no-network rule was spent, and it was spent
+deliberately.** Until now `internal/privacy` enforced a blanket ban on opening a
+connection: fetching shelled out to `git`, and nothing else reached out. A
+registry API cannot be delegated to a subprocess the same way, so the ban is now
+an allow-list of exact filenames — and it was only worth giving up for something
+stronger, so it was replaced with a narrower property: **the fetcher may contain
+no absolute URL at all**, so every destination is assembled from the reference
+and the set of hosts the CLI can contact is exactly the set the user typed. A
+runtime test drives a full pull against a fake registry and asserts the same
+thing from the outside. The one honest exception — a registry may direct the
+anonymous token request to an auth host of its choosing, as Docker Hub does — is
+documented in [telemetry.md](docs/telemetry.md) rather than left to be
+discovered.
+
+Pulling is **anonymous only**. Reading a developer's Docker credentials would
+mean the tool starts using credentials the user never mentioned, against hosts
+they did not name; a private registry therefore does not work yet, and that is
+the better failure.
+
+**The riskiest code in the project is the layer unpacker**, and it is worth
+saying why plainly: it writes attacker-chosen filenames, with attacker-chosen
+contents, to a path on the user's machine, in a process that will shortly hand
+the result to an agent holding their credentials. Only regular files and
+directories are created — symlinks, hardlinks, devices and FIFOs are dropped,
+not followed — permissions are normalized so no artifact can ask for setuid,
+duplicate entries are refused, and totals are bounded so a small download cannot
+become a full disk.
+
+Writing the traversal check surfaced the classic version of that bug in our own
+code: `filepath.Clean("/../escaped.txt")` returns `/escaped.txt`, because Clean
+treats `..` above the root as meaningless and silently drops it. A check applied
+*after* cleaning therefore never sees the traversal it was written to catch.
+Nothing escaped — the paths were contained — but a hostile archive was being
+quietly rewritten into something harmless-looking and unpacked without
+complaint, which is not an acceptable outcome for an artifact that is malformed
+at best. Every path element is now inspected before anything is cleaned. The
+test that found it was written first and failed on all five inputs.
+
+**Two further design decisions in M3 worth recording.**
 
 *Git is invoked as a subprocess, not through a library* — a reversal of the plan
 in [08 §3](docs/08-tech-stack.md), and the reason is authentication. A pure-Go

@@ -35,6 +35,8 @@ const (
 	KindLocal Kind = "local"
 	// KindGit is a git repository.
 	KindGit Kind = "git"
+	// KindOCI is an artifact in a container registry.
+	KindOCI Kind = "oci"
 )
 
 // Ref is a parsed plugin reference.
@@ -46,11 +48,15 @@ type Ref struct {
 	// Path is the directory, for a local reference.
 	Path string `json:"path,omitempty"`
 
-	// URL is the normalized remote, for a git reference.
+	// URL is the normalized remote, for a git reference. For an OCI reference
+	// it is `oci://registry/repository`, without the tag or digest.
 	URL string `json:"url,omitempty"`
 	// Rev is the requested branch, tag or commit. Empty means the remote's
-	// default branch.
+	// default branch. For an OCI reference it is the tag.
 	Rev string `json:"rev,omitempty"`
+	// Digest pins an OCI reference to an exact manifest, as `sha256:…`. When
+	// set it wins over Rev, which becomes a hint about where it came from.
+	Digest string `json:"digest,omitempty"`
 	// Subdir is the plugin's location within the repository, for the
 	// monorepo-of-plugins layout that the fixed component locations make
 	// otherwise impossible to express.
@@ -74,6 +80,8 @@ var hostPrefixed = regexp.MustCompile(`^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+/.+`)
 //	https://github.com/org/repo@v1.2.0    git, pinned to a tag
 //	github.com/org/repo@main#plugins/db   git, branch and subdirectory
 //	git@github.com:org/repo.git@v1.2.0    git over SSH
+//	oci://ghcr.io/org/plugin:v1.2.0       an artifact in a container registry
+//	oci://ghcr.io/org/plugin@sha256:…     pinned to an exact manifest
 //
 // A bare `org/repo` is deliberately *not* treated as a GitHub shorthand. It is
 // a perfectly ordinary relative path, and silently turning a user's local
@@ -90,6 +98,14 @@ func ParseRef(raw string) (Ref, error) {
 
 	if isLocalPath(trimmed) {
 		return Ref{Raw: raw, Kind: KindLocal, Path: trimmed}, nil
+	}
+
+	// Handed off before the git parsing below, because OCI spells things
+	// differently in a way the git splitter cannot be taught: a tag is
+	// introduced by `:` and a digest by `@`, so `ghcr.io/org/p@sha256:abc`
+	// contains both separators in the wrong order for splitRev to read.
+	if strings.HasPrefix(trimmed, ociScheme) {
+		return parseOCIRef(raw, trimmed)
 	}
 
 	base, subdir := splitSubdir(trimmed)

@@ -107,10 +107,12 @@ Usage:
   agentbridge version                  Print the version and target spec version
   agentbridge secret set|list|rm|scan  Keep credentials out of client configs
 
-A <ref> is a local directory or a repository:
+A <ref> is a local directory, a repository, or a registry artifact:
   ./plugins/db                          a directory on this machine
   github.com/org/repo@v1.2.0            pinned to a tag
   https://github.com/org/repo@main#plugins/db   branch and subdirectory
+  oci://ghcr.io/org/plugin:v1.2.0       an OCI registry, resolved to a digest
+  oci://ghcr.io/org/plugin@sha256:…     pinned to an exact manifest
 
 Common flags:
   --dry-run          Show exactly what would change, write nothing
@@ -289,10 +291,7 @@ func install(args []string) error {
 	dir := resolved.Dir
 
 	if !*asJSON && resolved.Ref.Kind != source.KindLocal {
-		origin := resolved.Commit
-		if len(origin) > 12 {
-			origin = origin[:12]
-		}
+		origin := resolved.ShortID()
 		via := "fetched"
 		if resolved.FromCache {
 			via = "cached"
