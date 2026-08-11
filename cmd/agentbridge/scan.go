@@ -110,6 +110,19 @@ func scanCmd(args []string) error {
 	return nil
 }
 
+// refusal is what a --json consumer receives when the gate stops an install.
+//
+// It carries the findings themselves rather than a message about them, because
+// the thing a CI script wants is the list it must decide about, and re-running
+// the scan to obtain it would be running the tool twice to learn one answer.
+type refusal struct {
+	Plugin   string            `json:"plugin"`
+	Refused  bool              `json:"refused"`
+	Reason   string            `json:"reason"`
+	Findings []scanner.Finding `json:"findings"`
+	Remedy   string            `json:"remedy"`
+}
+
 // scanGate runs the scanner as part of an install.
 //
 // The decision to make this blocking rather than advisory: a warning printed
@@ -118,6 +131,11 @@ func scanCmd(args []string) error {
 // says how to proceed anyway — the same shape as --allow-plaintext-secrets, and
 // for the same reason. Anything below High prints a single line, because a
 // scanner that pages someone over a Medium is one that gets bypassed by habit.
+// The `quiet` argument is the --json flag: in that mode nothing may be written
+// to stdout except the JSON document, so a refusal is reported by the caller
+// instead. `scan` and `validate` both emit their findings as JSON *and* exit
+// non-zero, and an install refused on exactly those findings must not be the
+// one command that hands a script an empty pipe.
 func scanGate(root *safepath.Root, p *ir.Plugin, allow, quiet bool) error {
 	report, err := scanner.Scan(root, p)
 	if err != nil {
@@ -128,6 +146,14 @@ func scanGate(root *safepath.Root, p *ir.Plugin, allow, quiet bool) error {
 			fmt.Fprintf(os.Stderr, "note: content scan did not run: %v\n", err)
 		}
 		return nil
+	}
+
+	// A gap in coverage is worth a line even when the scan is otherwise clean:
+	// it is the difference between "this looks fine" and "the parts I could
+	// read look fine", and only the reader can judge which matters.
+	if !report.Complete() && !quiet {
+		fmt.Fprintf(os.Stderr, "note: %d file(s) could not be read, so the content scan is incomplete: %s\n",
+			len(report.Unread), strings.Join(report.Unread, ", "))
 	}
 
 	high := report.AtLeast(scanner.High)
@@ -143,6 +169,19 @@ func scanGate(root *safepath.Root, p *ir.Plugin, allow, quiet bool) error {
 			fmt.Printf("  %d high-severity content finding(s), installed anyway (--allow-flagged-content)\n\n", len(high))
 		}
 		return nil
+	}
+
+	if quiet {
+		if jsonErr := emitJSON(refusal{
+			Plugin:   p.Name,
+			Refused:  true,
+			Reason:   "high-severity content findings",
+			Findings: high,
+			Remedy:   "read them with `agentbridge scan <ref>`, then pass --allow-flagged-content to accept",
+		}); jsonErr != nil {
+			return jsonErr
+		}
+		return fmt.Errorf("%d high-severity content finding(s) in %s", len(high), p.Name)
 	}
 
 	var b strings.Builder
@@ -163,6 +202,7 @@ func printScan(r *scanner.Report, sarifPath string) {
 
 	if len(r.Findings) == 0 {
 		fmt.Printf("  nothing found in %d file(s)\n\n", r.Scanned)
+		printUnread(r)
 		fmt.Printf("  This is a heuristic scan of instruction text, not a proof of safety.\n")
 		fmt.Printf("  It cannot tell you whether a plugin does something harmful in a way\n")
 		fmt.Printf("  it does not describe.\n")
@@ -192,11 +232,30 @@ func printScan(r *scanner.Report, sarifPath string) {
 	}
 	fmt.Println()
 
+	fmt.Println()
+	printUnread(r)
+
 	// The limits belong next to the results, not in documentation nobody opens
 	// while looking at a finding.
-	fmt.Printf("\n  Findings are evidence, not verdicts: every rule here can be triggered by\n")
+	fmt.Printf("  Findings are evidence, not verdicts: every rule here can be triggered by\n")
 	fmt.Printf("  legitimate content. Read the excerpt before concluding anything, and run\n")
 	fmt.Printf("  `agentbridge scan --rules` for what each rule means.\n")
+}
+
+// printUnread reports files the scan could not open.
+//
+// "Nothing found" and "nothing found in the parts I could read" are different
+// claims, and printing the first while meaning the second is how a scanner
+// comes to be trusted for coverage it does not have.
+func printUnread(r *scanner.Report) {
+	if r.Complete() {
+		return
+	}
+	fmt.Printf("  ! %d file(s) could not be read, so this scan is incomplete:\n", len(r.Unread))
+	for _, f := range r.Unread {
+		fmt.Printf("      %s\n", f)
+	}
+	fmt.Println()
 }
 
 // location renders where a finding is, omitting a line number for findings

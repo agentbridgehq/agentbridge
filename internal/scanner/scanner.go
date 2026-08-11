@@ -109,7 +109,20 @@ type Report struct {
 	// Scanned counts the files examined, so an empty report can be told apart
 	// from a scan that found nothing to read.
 	Scanned int `json:"filesScanned"`
+	// Unread lists files that belong to a skill and could not be opened.
+	//
+	// Recorded rather than skipped, because "no findings" and "no findings in
+	// the parts I could read" are different claims and only one of them is
+	// true. This is the same rule the adapters follow for components they
+	// cannot carry: never drop anything in silence. It is also the shape an
+	// attacker would reach for — a scanner that quietly ignores one
+	// unreadable file is a scanner you disable by making a file unreadable.
+	Unread []string `json:"unreadFiles,omitempty"`
 }
+
+// Complete reports whether every file belonging to a skill was examined. A
+// report that is not complete cannot support "nothing was found".
+func (r *Report) Complete() bool { return len(r.Unread) == 0 }
 
 // Count returns the number of findings at a severity.
 func (r *Report) Count(s Severity) int {
@@ -162,10 +175,12 @@ func Scan(root *safepath.Root, p *ir.Plugin) (*Report, error) {
 		for _, rel := range files {
 			abs, err := root.Resolve(rel)
 			if err != nil {
+				report.Unread = append(report.Unread, rel)
 				continue
 			}
 			raw, err := os.ReadFile(abs)
 			if err != nil {
+				report.Unread = append(report.Unread, rel)
 				continue
 			}
 			report.Scanned++
@@ -182,6 +197,7 @@ func Scan(root *safepath.Root, p *ir.Plugin) (*Report, error) {
 	report.Findings = append(report.Findings, scanServers(p)...)
 
 	sortFindings(report.Findings)
+	sort.Strings(report.Unread)
 	return report, nil
 }
 

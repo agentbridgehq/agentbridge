@@ -7,9 +7,12 @@ each client received and what it dropped.
 
 Apache-2.0 · by Masih Moloodian · [LICENSE](LICENSE) · [NOTICE](NOTICE)
 
-> **Status: pre-release.** Every milestone through M8 is implemented and tested
-> ([MVP.md](MVP.md)), but no release has been cut and the release pipeline has
-> never run. The install commands below will work once it has.
+> **Status: pre-release.** Every implementation milestone is done and tested
+> ([MVP.md](MVP.md)) — through M11, including the skill content scanner and the
+> OCI registry source. What remains is not code: no release has been cut, the
+> release pipeline has never run, and no third-party client has been measured
+> against the conformance corpus. The install commands below will work once a
+> release exists.
 
 ## Install
 

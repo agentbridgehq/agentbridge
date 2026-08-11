@@ -14,6 +14,7 @@ This is a short document because there is nothing to enumerate.
 | Installing from a repository | The git remote in the reference you gave | You |
 | Installing from a registry | The registry host in the `oci://` reference you gave | You |
 | Obtaining an anonymous pull token | The auth host that registry names in its challenge | That registry |
+| Downloading a layer | The CDN that registry redirects to | That registry |
 | Nothing else | — | — |
 
 Fetching a plugin from a repository shells out to `git` against the remote named
@@ -21,18 +22,32 @@ in the reference you typed.
 
 Fetching from an OCI registry is the one place the CLI opens a connection
 itself, because the registry API cannot be delegated to a subprocess the way
-`git` can. Every destination is built from the reference: the host in
-`oci://ghcr.io/org/plugin:v1` is the only host contacted, and
+`git` can. Every destination it *originates* is built from the reference — the
+host in `oci://ghcr.io/org/plugin:v1` and nothing else — and
 [`internal/privacy`](../internal/privacy/privacy_test.go) fails the build if the
-fetcher contains any hardcoded URL at all.
+fetcher contains any hardcoded URL at all. There is no address in this tool that
+you did not supply.
 
-The one exception is worth stating plainly rather than leaving as a surprise.
-Registries answer an unauthenticated request with a challenge naming where to
-get a pull token, and that is routinely a *different* host — Docker Hub answers
-for `registry-1.docker.io` from `auth.docker.io`. So a registry can direct one
-request to a host you did not type. That request carries no credentials and no
-identity, but it does tell that host which repository this machine is pulling.
-It must be HTTPS; agentbridge refuses a plaintext realm.
+**Two exceptions, both of which a registry chooses and neither of which you
+type.** They are stated here rather than left to be discovered:
+
+1. **The token endpoint.** Registries answer an unauthenticated request with a
+   challenge naming where to get a pull token, and that is routinely a different
+   host — Docker Hub answers for `registry-1.docker.io` from `auth.docker.io`.
+2. **The blob CDN.** No large registry serves layers itself. Both ghcr.io and
+   Docker Hub answer a blob request with a redirect, so downloading a plugin
+   means contacting whichever CDN they nominate.
+
+Neither request carries credentials or any identity — the pull is anonymous, and
+`net/http` strips the authorization header on a cross-host redirect, so the pull
+token does not reach the CDN. Both do tell that host which plugin this machine
+is fetching.
+
+What is enforced in both cases is the transport: a realm must be HTTPS, and a
+redirect may never *downgrade* an HTTPS pull to plain HTTP. The layer digest
+would catch substituted content either way, but a plaintext request tells anyone
+on the path exactly which plugin is being installed and invites them to answer
+first. Redirect chains are capped at five.
 
 AgentBridge pulls **anonymously only**. It does not read your Docker
 credentials, your keychain, or `~/.docker/config.json`, and a registry that

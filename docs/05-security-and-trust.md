@@ -44,11 +44,22 @@ T11 deserves emphasis: the spec mandates that clients not inspect foreign namesp
 
 ## 3. Control layers
 
+This section describes the intended architecture, and **each layer marks what is
+built** — because a security document that lists design intentions in the same
+voice as shipped controls is the kind of document that gets quoted back at you
+in an incident review. Only §3.1 and §3.2 contain anything that exists today.
+
 ### 3.1 At acquisition (fetch)
-- Content-addressed by digest; lockfile pins.
-- Signature verification (Sigstore/cosign), in-toto provenance attestations.
+
+**Shipped:**
+- Content-addressed by digest; lockfile pins. A tag or branch resolves to an immutable identifier — a git commit, or an OCI manifest digest — before anything is fetched, and that identifier is what gets recorded.
+- Cache entries re-verify their tree digest on reuse, so a poisoned cache is an error rather than a silent compromise.
+- OCI blobs are digest-verified as they stream, and the transport may not be downgraded by a redirect.
+
+**Not yet built:**
+- **Signature verification of plugins** (Sigstore/cosign), in-toto provenance attestations. Worth being exact about, because it is easy to misread: *our own release binaries* are cosign-signed with SLSA provenance (M8), and `install.sh` verifies them. Nothing verifies a signature on a **plugin** — no such verification exists in the CLI today.
 - Source policy: allow-list of registries/orgs; `--require-signed`.
-- Namespace/typosquat checks against known-good corpus.
+- Namespace/typosquat checks against a known-good corpus.
 - Resolution order that makes dependency confusion impossible (internal scope always wins; never fall back to public for a scoped name).
 
 ### 3.2 At analysis (scan)
@@ -59,6 +70,7 @@ T11 deserves emphasis: the spec mandates that clients not inspect foreign namesp
 - **Reference files and scripts are read, not just `SKILL.md`.** A client loads `references/` into context exactly like the skill body, while a reviewer opens `SKILL.md` and stops. Scripts are read under different rules — remote-execution pipelines and destructive commands — because they are code the agent may run rather than text it reads.
 - **MCP analysis.** Credential literals in `env` (graded by detection confidence) and remote egress endpoints. Deliberately thin, because transport security, command form, working-directory containment and reserved environment names are already *rejected at load time* by the importer; re-reporting them would produce findings for configurations that can never reach a client.
 - **Blocking at install and at sync.** A high-severity finding stops the install and says how to proceed anyway (`--allow-flagged-content`), the same shape as `--allow-plaintext-secrets`. Sync is gated too — the interesting case is not the first install but the plugin that was clean when reviewed and gained an injected instruction three commits later, which is precisely what a lockfile cannot catch: the digest changes honestly and the *content* is the problem.
+- **Diff-based re-scan on version bump — T5 is only catchable at update time.** A locked plugin records the findings accepted when it was locked; the next scan is compared against that record and split into new, unchanged and resolved, and only what is *new* blocks. This is the thing a lockfile structurally cannot do: the digest changes honestly when a plugin gains an injected instruction, because the author really did edit the file. `update` leads with `!! gains content finding: …` next to the capability change, and the accepted set lives in `agentbridge.lock` — committed and reviewed — so "we looked at this and decided it was fine" is a line in a pull request rather than a decision made once on a laptop. Making only *new* findings block is also what makes a blocking gate survivable: a plugin with one permanently awkward sentence would otherwise demand an override on every sync, and an override passed by habit is not a decision.
 - **SARIF 2.1.0 output** (`--sarif <file>`), with `security-severity` so it can gate a pull request. Findings appear where a security team already looks.
 - **Local and offline.** No network, no model, no account — enforced by `internal/privacy`.
 
@@ -66,26 +78,31 @@ T11 deserves emphasis: the spec mandates that clients not inspect foreign namesp
 
 **Known limits, stated rather than hidden.** A plugin genuinely *about* prompt injection will match the prompt-injection rules. Instruction text can be rephrased to evade any fixed pattern. Findings are evidence for a person, not grounds for a machine to block silently.
 
-- **Diff-based re-scan on version bump — T5 is only catchable at update time.** A locked plugin records the findings accepted when it was locked; the next scan is compared against that record and split into new, unchanged and resolved, and only what is *new* blocks. This is the thing a lockfile structurally cannot do: the digest changes honestly when a plugin gains an injected instruction, because the author really did edit the file. `update` leads with `!! gains content finding: …` next to the capability change, and the accepted set lives in `agentbridge.lock` — committed and reviewed — so "we looked at this and decided it was fine" is a line in a pull request rather than a decision made once on a laptop.
-
-  Making only *new* findings block is also what makes a blocking gate survivable. A plugin with one permanently awkward sentence would otherwise demand an override on every sync, and an override passed by habit is not a decision.
-
 **Not yet built:**
 - LLM classifier for phrasing no regex reaches (the local heuristic layer is the floor, not the ceiling).
 - Package reputation for a server's `command`.
 
 ### 3.3 At install (policy)
+
+**Shipped:**
+- Plaintext secrets refused by default; `${secret:…}` references resolved from the OS credential store at launch time, never written into a client config.
+- Capability inference surfaced on install and in the lock diff, so a version bump that grants `exec` or `network` is visible as a distinct event.
+
+**Not yet built:**
 - Policy-as-code, evaluated by the CLI already on the machine: allow/deny by source, signer, capability, risk score, license.
 - Approval workflow for exceptions (Jira/ServiceNow hook).
-- Plaintext secrets refused by default; secret refs resolved from keychain/vault/gateway.
+- Vault and gateway secret backends. Only the OS credential store exists.
 
-### 3.4 At runtime (gateway)
+### 3.4 At runtime (gateway) — **none of this is built**
 - Per-tool allow/deny and argument-level policy.
-- Secrets injected at call time, never written to client config.
+- Secrets injected at call time, never written to client config. *(The injection half exists — `agentbridge run` — but there is no gateway and no policy around it.)*
 - Egress allow-list per server.
 - Full tool-call audit with redaction; anomaly detection over time.
 
-### 3.5 Continuously (fleet)
+### 3.5 Continuously (fleet) — **none of this is built**
+
+It requires a server, and there is deliberately none in Phase 1.
+
 - Inventory + drift detection.
 - Retroactive alerting: when a plugin is later found malicious, we know exactly which machines have it and which version.
 - Kill switch: policy update that quarantines an artifact fleet-wide.

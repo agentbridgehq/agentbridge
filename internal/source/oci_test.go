@@ -39,6 +39,9 @@ type fakeRegistry struct {
 	// exchange that every real registry performs.
 	requireAuth bool
 	tokenIssued bool
+	// redirectBlobsTo makes blob requests answer with a 307, as every real
+	// registry does — they hand blobs off to a CDN.
+	redirectBlobsTo string
 }
 
 func newFakeRegistry(t *testing.T) *fakeRegistry {
@@ -90,6 +93,10 @@ func (r *fakeRegistry) handle(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
 		w.Write(raw)
 	case strings.HasPrefix(req.URL.Path, prefix+"blobs/"):
+		if r.redirectBlobsTo != "" {
+			http.Redirect(w, req, r.redirectBlobsTo+req.URL.Path, http.StatusTemporaryRedirect)
+			return
+		}
 		digest := strings.TrimPrefix(req.URL.Path, prefix+"blobs/")
 		raw, ok := r.blobs[digest]
 		if !ok {
@@ -646,8 +653,13 @@ func TestRefusesDuplicateEntries(t *testing.T) {
 
 // ---------------------------------------------------------------- destinations
 
-// The only host this can reach is the one in the reference. Asserted at
-// runtime, not only by the static check in internal/privacy.
+// Every request this *originates* goes to the host in the reference. Asserted
+// at runtime, not only by the static check in internal/privacy.
+//
+// "Originates" is the exact claim, and the qualifier is load-bearing: a
+// registry may redirect a blob elsewhere, which is how ghcr.io and Docker Hub
+// actually serve layers. That is the registry's choice rather than a
+// destination this tool holds, and it is documented in docs/telemetry.md.
 func TestContactsOnlyTheHostInTheReference(t *testing.T) {
 	reg := newFakeRegistry(t)
 	reg.requireAuth = true
@@ -688,4 +700,50 @@ func TestRequiresHTTPSForRemoteRegistries(t *testing.T) {
 	if strings.Contains(err.Error(), "http://") {
 		t.Errorf("a remote registry was contacted over plain HTTP: %v", err)
 	}
+}
+
+// Registries do not serve blobs themselves. ghcr.io and Docker Hub both answer
+// a blob request with a redirect to a CDN, so following one is not optional —
+// but the destination is chosen by the registry, not by the user, and that is
+// worth pinning down rather than inheriting from net/http's defaults.
+func TestFollowsBlobRedirectsButNotIntoPlaintext(t *testing.T) {
+	t.Run("https-equivalent redirect is followed", func(t *testing.T) {
+		cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		defer cdn.Close()
+
+		reg := newFakeRegistry(t)
+		content := tarGz(t, pluginFiles())
+		layer := reg.putLayer(content, "application/vnd.oci.image.layer.v1.tar+gzip")
+		reg.publish("v1.0.0", layer)
+
+		// Serve the blob from the CDN instead, and redirect to it.
+		cdn.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(content)
+		})
+		reg.redirectBlobsTo = cdn.URL
+
+		if _, err := resolveOCI(t, reg.ref(":v1.0.0"), source.Options{}); err != nil {
+			t.Errorf("a redirected blob should still be fetched: %v", err)
+		}
+	})
+
+	t.Run("content is still verified after a redirect", func(t *testing.T) {
+		cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(tarGz(t, map[string]string{"plugin.json": `{"name":"evil.swap","version":"9"}`}))
+		}))
+		defer cdn.Close()
+
+		reg := newFakeRegistry(t)
+		layer := reg.putLayer(tarGz(t, pluginFiles()), "application/vnd.oci.image.layer.v1.tar+gzip")
+		reg.publish("v1.0.0", layer)
+		reg.redirectBlobsTo = cdn.URL
+
+		_, err := resolveOCI(t, reg.ref(":v1.0.0"), source.Options{})
+		if err == nil {
+			t.Fatal("a redirect to substituted content was accepted")
+		}
+		if !strings.Contains(err.Error(), "digest") {
+			t.Errorf("error = %v, want a digest mismatch", err)
+		}
+	})
 }

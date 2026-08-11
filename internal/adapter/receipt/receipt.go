@@ -6,9 +6,9 @@
 // prefix. A receipt makes removal a lookup rather than a guess: if it is not in
 // the receipt, we did not write it, so we do not touch it.
 //
-// This is deliberately separate from the lockfile that arrives in M4. The
-// lockfile records intent, which is shared and committed; a receipt records
-// what physically happened on one machine, which is not.
+// This is deliberately separate from the lockfile. The lockfile records intent,
+// which is shared and committed; a receipt records what physically happened on
+// one machine, which is not.
 package receipt
 
 import (

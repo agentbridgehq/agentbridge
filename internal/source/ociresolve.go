@@ -21,9 +21,14 @@ func resolveOCI(ctx context.Context, ref Ref, opts Options) (*Resolved, error) {
 		return nil, fmt.Errorf("a cache is required to resolve %s", ref.Raw)
 	}
 
+	// One client for the whole resolution, so the pull token obtained to read
+	// the manifest is reused for the blobs rather than re-exchanged per
+	// request.
+	client := newRegistryClient()
+
 	digest := ref.Digest
 	if digest == "" {
-		resolved, err := resolveOCITag(ctx, ref, opts)
+		resolved, err := resolveOCITag(ctx, client, ref, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +63,7 @@ func resolveOCI(ctx context.Context, ref Ref, opts Options) (*Resolved, error) {
 	}
 	defer os.RemoveAll(unpacked)
 
-	if err := pullArtifact(ctx, ref, digest, unpacked); err != nil {
+	if err := pullArtifact(ctx, client, ref, digest, unpacked); err != nil {
 		return nil, err
 	}
 	pkg, err := packageSubdir(unpacked, ref.Subdir)
@@ -87,7 +92,7 @@ func resolveOCI(ctx context.Context, ref Ref, opts Options) (*Resolved, error) {
 // installed yesterday should not be told to go and find its digest by hand. A
 // tag that has since moved therefore resolves to what it meant when it was last
 // seen, which is the honest meaning of offline.
-func resolveOCITag(ctx context.Context, ref Ref, opts Options) (string, error) {
+func resolveOCITag(ctx context.Context, client *registryClient, ref Ref, opts Options) (string, error) {
 	if opts.Offline {
 		cached := opts.Cache.LookupRevision(ref.URL, ref.Rev)
 		if cached == "" {
@@ -97,7 +102,6 @@ func resolveOCITag(ctx context.Context, ref Ref, opts Options) (string, error) {
 		return cached, nil
 	}
 
-	client := newRegistryClient()
 	raw, digest, err := client.fetchManifest(ctx, ref, ref.Rev)
 	if err != nil {
 		return "", err
@@ -105,7 +109,7 @@ func resolveOCITag(ctx context.Context, ref Ref, opts Options) (string, error) {
 
 	// An index names other manifests rather than layers, so it has to be
 	// followed before there is anything to unpack.
-	if resolvedDigest, ok, err := followIndex(ctx, client, ref, raw); err != nil {
+	if resolvedDigest, ok, err := followIndex(ref, raw); err != nil {
 		return "", err
 	} else if ok {
 		digest = resolvedDigest
@@ -125,7 +129,7 @@ func resolveOCITag(ctx context.Context, ref Ref, opts Options) (string, error) {
 // have to guess at — and guessing which variant of an agent's instructions to
 // install is not a decision to take silently. One entry is followed; more than
 // one is an error that says what to do.
-func followIndex(ctx context.Context, client *registryClient, ref Ref, raw []byte) (string, bool, error) {
+func followIndex(ref Ref, raw []byte) (string, bool, error) {
 	var index manifest
 	if err := json.Unmarshal(raw, &index); err != nil {
 		return "", false, fmt.Errorf("registry returned an unreadable manifest: %w", err)
@@ -143,9 +147,7 @@ func followIndex(ctx context.Context, client *registryClient, ref Ref, raw []byt
 }
 
 // pullArtifact downloads and unpacks the layers of one manifest.
-func pullArtifact(ctx context.Context, ref Ref, digest, dst string) error {
-	client := newRegistryClient()
-
+func pullArtifact(ctx context.Context, client *registryClient, ref Ref, digest, dst string) error {
 	raw, actual, err := client.fetchManifest(ctx, ref, digest)
 	if err != nil {
 		return err

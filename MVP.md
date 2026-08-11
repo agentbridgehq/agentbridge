@@ -4,6 +4,58 @@
 
 Last updated: 2026-08-11 · Overall status: **Every MVP milestone implemented and re-audited, plus M11 (skill content scanner) pulled forward from Phase 2. Launch (M9-4) and a first release remain — both human tasks.**
 
+**Third full review (2026-08-11).** Docs and implementation re-checked after
+M11 and M3-5. The corpus passes 18/18, every documentation link resolves, and
+the claimed counts match the code. Six defects found and fixed, five of them
+documentation drifting away from the code it describes:
+
+1. **`telemetry.md` was quietly wrong about which hosts get contacted.** It said
+   the registry named in the reference was the only one. It is not: no large
+   registry serves blobs itself, so a pull follows a **redirect to a CDN** the
+   registry chooses. Following it is not optional — refusing would break ghcr.io
+   and Docker Hub — so the doc now states it, next to the token-realm exception
+   it already carried. The audit also closed a real gap while confirming this:
+   nothing stopped a registry redirecting an HTTPS pull to plain HTTP. The
+   digest would still catch substituted content, but the request would go out in
+   the clear, telling anyone on the path which plugin is being installed.
+   Downgrades are now refused and chains capped at five.
+
+2. **`install --json` wrote zero bytes when the scanner blocked it.** `scan` and
+   `validate` both emit their findings as JSON *and* exit non-zero; `install`
+   refused on exactly those findings and handed a script an empty pipe. It now
+   emits the blocking findings as a refusal document.
+
+3. **The CLI had no tests at all.** Every test lived under `internal/`, so the
+   `--json` contract — a documented promise since M6-7 — was enforced by
+   nothing, which is how both this defect and the `sync --json` one before it
+   survived. `cmd/agentbridge/json_test.go` now builds the binary and asserts
+   the contract across thirteen commands, including exit codes and a clean
+   stdout. Verified by reintroducing the defect and watching it fail.
+
+4. **`docs/05` described unbuilt controls in the same voice as shipped ones.**
+   §3.2 had been rewritten to split shipped from not-yet during M11; §3.1 and
+   §3.3–3.5 had not, so "Signature verification (Sigstore/cosign)" read as
+   existing. It does not: *our own release binaries* are signed, and nothing
+   verifies a signature on a **plugin**. Every layer now marks its status.
+
+5. **The scanner silently skipped files it could not read.** "Nothing found" and
+   "nothing found in the parts I could read" are different claims. Making it an
+   error would have been worse — the install gate treats a scan error as
+   advisory, so one unreadable file would have switched the gate off entirely,
+   which is exactly what an attacker would arrange. It now records the gap and
+   says so.
+
+6. Two stale forward-looking claims, one of them **printed to every user** who
+   runs `agentbridge` with no arguments: "Lockfiles and secret handling arrive
+   in M4-M5." Both have been built for weeks.
+
+The recurring shape is worth naming: **five of the six were documentation that
+had been true when written.** Code drifts under prose silently, and only a
+deliberate re-read catches it — which is the argument for the enforced-
+documentation patterns used elsewhere here (the loss catalogue, the privacy
+test, the generated client table, and now the `--json` contract). Every one of
+those would have caught its own defect automatically.
+
 **The repository did not contain its own CLI (2026-08-11).** While committing
 M11, `git status` showed no change to files that had certainly been edited.
 `.gitignore` carried a bare `agentbridge` line, intended for the built binary at
@@ -276,13 +328,22 @@ connection: fetching shelled out to `git`, and nothing else reached out. A
 registry API cannot be delegated to a subprocess the same way, so the ban is now
 an allow-list of exact filenames — and it was only worth giving up for something
 stronger, so it was replaced with a narrower property: **the fetcher may contain
-no absolute URL at all**, so every destination is assembled from the reference
-and the set of hosts the CLI can contact is exactly the set the user typed. A
-runtime test drives a full pull against a fake registry and asserts the same
-thing from the outside. The one honest exception — a registry may direct the
-anonymous token request to an auth host of its choosing, as Docker Hub does — is
-documented in [telemetry.md](docs/telemetry.md) rather than left to be
-discovered.
+no absolute URL at all**, so every address it *originates* comes from the
+reference. A runtime test drives a full pull against a fake registry and asserts
+the same from the outside.
+
+Two destinations are chosen by the *registry* rather than by the user, and the
+third audit is what pinned the second one down. A registry may direct the
+anonymous token request to an auth host of its choosing, as Docker Hub does —
+that one was documented at the time. It also answers a blob request with a
+**redirect to a CDN**, because no large registry serves layers itself, so
+following one is not optional and `telemetry.md` was quietly wrong to imply the
+reference host was the only one contacted. Both are now stated there. The
+transport is enforced in both directions: a plaintext realm is refused, and a
+redirect may never downgrade an HTTPS pull to HTTP — the digest would catch
+substituted content either way, but a plaintext request tells anyone on the path
+which plugin is being installed and invites them to answer first. Chains are
+capped at five.
 
 Pulling is **anonymous only**. Reading a developer's Docker credentials would
 mean the tool starts using credentials the user never mentioned, against hosts

@@ -1,9 +1,13 @@
 // Command agentbridge is the AgentBridge CLI.
 //
-// At M2 it can load a plugin in any supported dialect and install it into every
-// agent client on the machine, reporting exactly what each client received and
-// what it could not take. The lockfile, source fetching and secret handling
-// that make this reproducible arrive in M3–M5. See MVP.md.
+// It loads a plugin in any supported dialect and installs it into every agent
+// client on the machine, reporting exactly what each client received and what
+// it could not take. Around that: pinned fetching from a repository or an OCI
+// registry, a reviewable lockfile, secrets held in the OS credential store, and
+// a scanner that reads the instruction text before it reaches an agent.
+//
+// What remains is not code — no release has been cut and no third-party client
+// has been measured. See MVP.md, and README's "What is not done".
 package main
 
 import (
@@ -106,6 +110,10 @@ Usage:
   agentbridge conformance [--list]     Run the Agent Plugins conformance corpus
   agentbridge version                  Print the version and target spec version
   agentbridge secret set|list|rm|scan  Keep credentials out of client configs
+  agentbridge run --secret K=name -- <cmd>   Launch a server with secrets injected
+
+The run command is written into client configs by install; you rarely type it.
+It is listed because you will see it in a config and want to know what it is.
 
 A <ref> is a local directory, a repository, or a registry artifact:
   ./plugins/db                          a directory on this machine
@@ -124,7 +132,8 @@ Common flags:
 
 Flags may appear before or after the argument. Every command supports --json.
 
-This is a pre-release build. Lockfiles and secret handling arrive in M4-M5.
+This is a pre-release build: no release has been cut and no third-party client
+has been measured against the conformance corpus. See MVP.md.
 `)
 }
 

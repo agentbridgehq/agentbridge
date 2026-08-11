@@ -85,9 +85,46 @@ func newRegistryClient() *registryClient {
 		// A timeout on the client rather than per request: an install that
 		// hangs forever against an unresponsive registry is indistinguishable
 		// from a broken tool.
-		http:   &http.Client{Timeout: registryTimeout},
+		http: &http.Client{
+			Timeout:       registryTimeout,
+			CheckRedirect: checkRedirect,
+		},
 		tokens: map[string]string{},
 	}
+}
+
+// maxRedirects is well under net/http's default of ten. A registry handing a
+// blob to a CDN takes one hop; a chain of five is not a registry doing its job.
+const maxRedirects = 5
+
+// checkRedirect governs where a registry may send us.
+//
+// Following redirects is not optional: no large registry serves blobs itself.
+// ghcr.io and Docker Hub both answer a blob request with a 307 to a CDN, so
+// refusing would mean the feature does not work against the two registries
+// anyone would actually use.
+//
+// What is not acceptable is a *downgrade*. Left to net/http's defaults, a
+// response from an https registry may redirect to plain http, and the client
+// will follow it. The digest check would still catch substituted content — but
+// the request itself would go out in the clear, telling anyone on the path
+// exactly which plugin this machine is installing, and inviting them to answer
+// first. So the transport may never get weaker than the one the reference asked
+// for.
+//
+// The authorization header is stripped by net/http on a cross-host redirect, so
+// the pull token does not travel to the CDN.
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxRedirects {
+		return fmt.Errorf("registry redirected more than %d times", maxRedirects)
+	}
+	origin := via[0]
+	if origin.URL.Scheme == "https" && req.URL.Scheme != "https" {
+		return fmt.Errorf("registry redirected %s to %s, which is not https; "+
+			"refusing to fetch a plugin over a connection anyone on the path can read",
+			origin.URL.Host, req.URL.Scheme+"://"+req.URL.Host)
+	}
+	return nil
 }
 
 // do issues a request, obtaining a token if the registry asks for one.
