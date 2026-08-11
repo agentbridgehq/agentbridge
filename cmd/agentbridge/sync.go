@@ -179,15 +179,11 @@ func printSync(r *workspace.Result, update, dryRun bool) {
 				plan.Fidelity.Skills, plan.Fidelity.MCPServers)
 		}
 
-		// Findings that did not block still belong in the output: the whole
-		// point of scanning on sync is that the content of a pinned plugin can
-		// change under a reader who is only watching versions.
-		if p.Scan != nil {
-			if n := len(p.Scan.AtLeast(scanner.Low)); n > 0 {
-				fmt.Printf("     ? %d content finding(s), worst %s — `agentbridge scan %s`\n",
-					n, p.Scan.Worst(), shortRef(p.Entry.Source))
-			}
-		}
+		// Findings that did not block still belong in the output, but what is
+		// worth a line is what *moved*. A plugin carrying the same two accepted
+		// findings every week is not news; one that gained a finding is, and
+		// printing both identically is how the news gets lost.
+		printScanDelta(p)
 	}
 
 	for _, name := range r.Pruned {
@@ -199,6 +195,17 @@ func printSync(r *workspace.Result, update, dryRun bool) {
 	switch {
 	case dryRun:
 		fmt.Printf("\nDry run: nothing was written.\n")
+	case r.Failed():
+		// A plugin that was refused leaves the lock untouched, so the diff is
+		// empty and the next case would report "Already up to date" — which is
+		// true of the lock and false of the machine. The error line above is
+		// easy to skim past when the summary under it reads as success.
+		failed := countFailed(r)
+		if failed == len(r.Plugins) {
+			fmt.Printf("\nNothing was changed: %d plugin(s) failed.\n", failed)
+		} else {
+			fmt.Printf("\n%d of %d plugin(s) failed; the rest were applied.\n", failed, len(r.Plugins))
+		}
 	case r.Diff.Empty() && len(r.Pruned) == 0:
 		fmt.Printf("\nAlready up to date.\n")
 	case update:
@@ -233,6 +240,23 @@ func printLockDiff(d lockfile.Diff) {
 		if gained := c.CapabilitiesGained(); len(gained) > 0 {
 			fmt.Printf("        !! gains capability: %s\n", strings.Join(gained, ", "))
 		}
+		// Printed immediately after the capability change and before the file
+		// list, because it answers the same question and is the one a lockfile
+		// alone cannot answer: the digest moving says the bytes changed, not
+		// that the plugin gained a sentence aimed at the agent.
+		for _, f := range c.FindingsGained() {
+			// `!!` is the alarm marker used for a gained capability, and it is
+			// reserved here for the same weight of event. A medium finding in a
+			// bump is worth seeing without being shouted.
+			marker := "!"
+			if f.Severity.AtLeast(scanner.High) {
+				marker = "!!"
+			}
+			fmt.Printf("        %s gains content finding: %s [%s]\n", marker, describeFinding(f), f.Severity)
+		}
+		for _, f := range c.FindingsResolved() {
+			fmt.Printf("        ok resolves finding: %s\n", describeFinding(f))
+		}
 		for _, s := range addedStrings(c.Before.Skills, c.After.Skills) {
 			fmt.Printf("        + skill %s\n", s)
 		}
@@ -240,6 +264,49 @@ func printLockDiff(d lockfile.Diff) {
 			fmt.Printf("        + server %s\n", s)
 		}
 	}
+}
+
+// printScanDelta reports what the content scan found that was not accepted
+// before, and what the plugin no longer has.
+//
+// Unchanged findings are counted, not listed. They were reviewed when the
+// plugin was locked, and re-printing them in full on every sync is exactly how
+// a security tool teaches people to stop reading its output.
+func printScanDelta(p workspace.PluginResult) {
+	if p.Delta == nil {
+		return
+	}
+
+	for _, f := range p.Delta.New {
+		marker := "?"
+		if f.Severity.AtLeast(scanner.High) {
+			marker = "!"
+		}
+		fmt.Printf("     %s new %s finding: %s (%s)\n", marker, f.Severity, f.Title, location(f))
+	}
+	for _, f := range p.Delta.Resolved {
+		fmt.Printf("     ok resolved: %s\n", describeFinding(f))
+	}
+
+	if len(p.Delta.New) > 0 {
+		fmt.Printf("       `agentbridge scan %s` for the text\n", shortRef(p.Entry.Source))
+	}
+	if n := len(p.Delta.Unchanged); n > 0 && len(p.Delta.New) > 0 {
+		fmt.Printf("       (%d further finding(s) unchanged since the locked version)\n", n)
+	}
+}
+
+// describeFinding renders a recorded finding by what it means rather than by
+// its rule id, which is a lookup key and not a sentence.
+func describeFinding(f scanner.Accepted) string {
+	title := f.Rule
+	if rule, ok := scanner.Lookup(f.Rule); ok {
+		title = rule.Title
+	}
+	if f.File != "" {
+		return fmt.Sprintf("%s (%s)", title, f.File)
+	}
+	return title
 }
 
 func addedStrings(before, after []string) []string {

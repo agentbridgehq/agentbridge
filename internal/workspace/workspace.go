@@ -22,8 +22,11 @@ package workspace
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/agentbridge/agentbridge/internal/adapter"
 	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
@@ -75,11 +78,32 @@ type PluginResult struct {
 	// Scan is the content scan for this plugin, reported whether or not it
 	// blocked the install.
 	Scan *scanner.Report
+	// Delta is that scan compared against the findings accepted when this
+	// plugin was last locked. Nil when the scan could not run.
+	Delta *scanner.Delta
 	// Err records a failure for this plugin alone. One plugin that cannot be
 	// resolved must not stop the rest, for the same reason the specification
 	// isolates component failures: a partially working machine beats a machine
 	// that refused to change at all.
 	Err error
+}
+
+// MarshalJSON renders the failure as text.
+//
+// Go's error interface marshals to `{}`, so without this a consumer of
+// `sync --json` cannot tell that a plugin failed, let alone why — which matters
+// more now that the most common failure is a content finding a script may well
+// want to act on.
+func (p PluginResult) MarshalJSON() ([]byte, error) {
+	type plain PluginResult // shadow the method, or this recurses forever
+	out := struct {
+		plain
+		Error string `json:"Error,omitempty"`
+	}{plain: plain(p)}
+	if p.Err != nil {
+		out.Error = p.Err.Error()
+	}
+	return json.Marshal(out)
 }
 
 // Result is the outcome of a sync.
@@ -241,11 +265,19 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 
 	// Scanned before planning: a plugin that will be refused should not produce
 	// a fidelity report describing an install that is not going to happen.
+	//
+	// Compared against what was accepted when this plugin was last locked, so
+	// what blocks is a finding that is *new* rather than one already reviewed.
+	// Re-reporting an accepted finding on every sync would make the override
+	// flag routine, and a routine override stops being a decision.
 	if report, err := scanner.Scan(root, imported.Plugin); err == nil {
 		result.Scan = report
-		if high := report.AtLeast(scanner.High); len(high) > 0 && !opts.AllowFlagged {
-			result.Err = fmt.Errorf("%d high-severity content finding(s): %s at %s:%d — run `agentbridge scan %s`",
-				len(high), high[0].Title, high[0].File, high[0].Line, entry.Source)
+		delta := report.Against(baselineFor(lock, entry.Source))
+		result.Delta = &delta
+
+		if fresh := delta.NewAtLeast(scanner.High); len(fresh) > 0 && !opts.AllowFlagged {
+			_, wasLocked := lock.FindBySource(entry.Source)
+			result.Err = newFindingError(fresh, entry.Source, wasLocked)
 			return result
 		}
 	}
@@ -266,6 +298,11 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 		result.Err = err
 		return result
 	}
+	// Reached only once the install is going ahead, so the record is of
+	// findings that were actually accepted rather than merely observed.
+	if result.Scan != nil {
+		result.Locked.Scan = scanner.NewBaseline(result.Scan.Findings)
+	}
 
 	if opts.DryRun {
 		return result
@@ -280,6 +317,46 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 		result.Err = err
 	}
 	return result
+}
+
+// baselineFor returns the findings accepted when this plugin was last locked.
+//
+// A plugin with no lock entry, or one locked by a build that did not record
+// findings, yields an empty baseline — so everything is new, which is the right
+// reading in both cases and matches what a gate with no history should do.
+func baselineFor(lock *lockfile.Lock, source string) scanner.Baseline {
+	if locked, ok := lock.FindBySource(source); ok {
+		return locked.Scan
+	}
+	return nil
+}
+
+// newFindingError explains a block in terms of what changed.
+//
+// The distinction it draws is the point of the whole comparison: "this plugin
+// contains an instruction override" is a fact about the plugin, while "this
+// plugin gained an instruction override since the version you approved" is an
+// event, and only the second one deserves to stop a sync. A reader who has
+// approved this plugin before needs to be told which of the two they are
+// looking at, because it changes what they should do about it.
+func newFindingError(fresh []scanner.Finding, source string, wasLocked bool) error {
+	var b strings.Builder
+	if wasLocked {
+		fmt.Fprintf(&b, "%d new high-severity content finding(s) since the locked version", len(fresh))
+	} else {
+		fmt.Fprintf(&b, "%d high-severity content finding(s)", len(fresh))
+	}
+	for _, f := range fresh {
+		fmt.Fprintf(&b, "\n      %s", f.Title)
+		if f.File != "" {
+			fmt.Fprintf(&b, " at %s", f.File)
+			if f.Line > 0 {
+				fmt.Fprintf(&b, ":%d", f.Line)
+			}
+		}
+	}
+	fmt.Fprintf(&b, "\n      run `agentbridge scan %s`, then --allow-flagged-content to accept", source)
+	return errors.New(b.String())
 }
 
 // lockEntry builds the record that makes a change reviewable.

@@ -545,8 +545,12 @@ Originally scheduled for Phase 2 and pulled forward, because it is the only part
 | M11-7 | SARIF 2.1.0 output | Valid document, `security-severity` set, rules resolve within the document | ✅ |
 | M11-8 | Blocking gate on `install` and `sync` | High findings stop it; `--allow-flagged-content` to proceed | ✅ |
 | M11-9 | **A benign fixture that produces zero findings** | The calibration property, asserted by test | ✅ |
-| M11-10 | Diff-based re-scan on version bump | Report what changed in the text, not only that it changed | ⬜ |
+| M11-10 | Diff-based re-scan on version bump | Report what changed in the text, not only that it changed | ✅ |
 | M11-11 | LLM classifier for phrasing no regex reaches | Phase 2 — the local heuristic is the floor, not the ceiling | ⬜ |
+
+**M11-10 is the item that makes the gate survivable.** A scan on its own answers "what is in this plugin?". At update time the useful question is different — *what is in it that was not in the version I approved?* — and threat T5, a plugin that was clean when reviewed and gains an injected instruction three commits later, is only visible in the second. It is invisible to a lockfile alone: the digest changes honestly, because the author really did edit the file.
+
+So a locked plugin records the findings accepted when it was locked, and only what is **new** can block. That cuts both ways and both matter: a plugin with one permanently awkward sentence stops demanding an override flag every week — so the override keeps meaning something — while a bump that introduces an instruction to conceal activity stops a sync that would otherwise have looked like an ordinary version change. The acceptance lives in `agentbridge.lock` rather than in local state because "we looked at this and decided it was fine" belongs in a pull request, not on one person's laptop.
 
 **The design constraint that shaped every rule: false positives are the real failure mode.** A scanner that misses a hostile plugin has failed once. A scanner that fires on an ordinary one gets muted, and a muted scanner produces the appearance of coverage while checking nothing — so it fails on every plugin after that, invisibly. Severity is therefore assigned by *how hard a pattern is to reach innocently*, not by how bad it would be if malicious. M11-9 is the item that keeps this honest, and it is why ZWNJ is not flagged in Persian text and ZWJ is not flagged next to emoji.
 

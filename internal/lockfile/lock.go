@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/agentbridge/agentbridge/internal/scanner"
 )
 
 // LockName is the file recording what the manifest resolved to.
@@ -58,6 +60,17 @@ type Locked struct {
 	// change worth seeing in a diff.
 	Skills  []string       `yaml:"skills,omitempty"`
 	Servers []LockedServer `yaml:"servers,omitempty"`
+
+	// Scan records the content findings that were accepted when this version
+	// was locked, so a later version can be compared against them rather than
+	// re-reported in full.
+	//
+	// It lives here, in a committed and reviewed file, because "we looked at
+	// this finding and decided it was fine" is a decision that belongs in a
+	// pull request rather than in one person's local state. A new entry
+	// appearing under `scan:` is the readable form of "this plugin gained an
+	// instruction it did not have when you approved it".
+	Scan scanner.Baseline `yaml:"scan,omitempty"`
 
 	// Clients restricts installation, mirroring the manifest entry.
 	Clients []string `yaml:"clients,omitempty"`
@@ -239,6 +252,44 @@ func (c Change) CapabilitiesGained() []string {
 		}
 	}
 	return gained
+}
+
+// FindingsGained returns content findings present after the change and not
+// before.
+//
+// This is the answer to the question a lockfile alone cannot answer. A digest
+// moving tells a reviewer the bytes changed; it does not tell them the plugin
+// gained a sentence directing the agent to read their credentials. Threat T5 is
+// only catchable here, at update time, by comparison.
+func (c Change) FindingsGained() []scanner.Accepted {
+	had := map[string]bool{}
+	for _, f := range c.Before.Scan {
+		had[f.ID] = true
+	}
+	var gained []scanner.Accepted
+	for _, f := range c.After.Scan {
+		if !had[f.ID] {
+			gained = append(gained, f)
+		}
+	}
+	return gained
+}
+
+// FindingsResolved returns findings the plugin no longer has. Worth showing
+// alongside what it gained: it is the evidence a maintainer fixed something,
+// and a diff that only ever reports bad news is one people learn to skim.
+func (c Change) FindingsResolved() []scanner.Accepted {
+	still := map[string]bool{}
+	for _, f := range c.After.Scan {
+		still[f.ID] = true
+	}
+	var resolved []scanner.Accepted
+	for _, f := range c.Before.Scan {
+		if !still[f.ID] {
+			resolved = append(resolved, f)
+		}
+	}
+	return resolved
 }
 
 // Empty reports whether nothing differs.

@@ -80,6 +80,23 @@ A plugin is not only code but instruction text handed to an agent with tool
 access, so a bump that grants it the network is a different event from one that
 does not. Commit `agentbridge.lock` and that difference shows up in review.
 
+The same line reports what the *text* gained:
+
+```
+  ~ acme.db                  50a4149c1551
+      !! gains capability: secrets
+      !! gains content finding: instruction to conceal activity (skills/query/SKILL.md) [high]
+      !! gains content finding: instruction to send data outward (skills/query/SKILL.md) [high]
+```
+
+A lockfile alone cannot tell you this. The digest changes honestly — the author
+really did edit the file — so a plugin that was clean when you reviewed it and
+gained an injected instruction three commits later looks exactly like an
+ordinary version bump. The lock records which findings you accepted, and only a
+**new** one blocks a sync. That cuts both ways: a plugin with one permanently
+awkward sentence stops demanding an override every week, so the override keeps
+meaning something.
+
 And because that instruction text is the part nothing else inspects, it is read
 before it is installed:
 

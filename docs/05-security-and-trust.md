@@ -66,9 +66,12 @@ T11 deserves emphasis: the spec mandates that clients not inspect foreign namesp
 
 **Known limits, stated rather than hidden.** A plugin genuinely *about* prompt injection will match the prompt-injection rules. Instruction text can be rephrased to evade any fixed pattern. Findings are evidence for a person, not grounds for a machine to block silently.
 
+- **Diff-based re-scan on version bump — T5 is only catchable at update time.** A locked plugin records the findings accepted when it was locked; the next scan is compared against that record and split into new, unchanged and resolved, and only what is *new* blocks. This is the thing a lockfile structurally cannot do: the digest changes honestly when a plugin gains an injected instruction, because the author really did edit the file. `update` leads with `!! gains content finding: …` next to the capability change, and the accepted set lives in `agentbridge.lock` — committed and reviewed — so "we looked at this and decided it was fine" is a line in a pull request rather than a decision made once on a laptop.
+
+  Making only *new* findings block is also what makes a blocking gate survivable. A plugin with one permanently awkward sentence would otherwise demand an override on every sync, and an override passed by habit is not a decision.
+
 **Not yet built:**
 - LLM classifier for phrasing no regex reaches (the local heuristic layer is the floor, not the ceiling).
-- **Diff-based re-scan on version bump** — T5 is only catchable at update time. Sync scans the new content, but does not yet report *what changed* between the locked version and the new one, which is the more readable signal.
 - Package reputation for a server's `command`.
 
 ### 3.3 At install (policy)
