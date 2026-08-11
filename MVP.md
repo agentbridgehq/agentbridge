@@ -2,14 +2,43 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-11 · Overall status: **Every MVP milestone implemented and re-audited, plus M11 (skill content scanner) pulled forward from Phase 2. Launch (M9-4) and a first release remain — both human tasks.**
+Last updated: 2026-08-11 · Overall status: **Every milestone that is code is implemented, tested and three-times audited — including M11 (skill content scanner) and M3-5 (OCI registry source), both pulled forward from Phase 2.**
+
+**What remains is not code.** Three things, and none can be finished by writing Go:
+
+| | Blocked on |
+|---|---|
+| **M10-2** — measure the six target clients (§6) | Installing each client and watching it, by hand. The corpus, the protocol and the results template are built and ship in the binary. |
+| **M8** — cut a first release | The pipeline is written and CI-validated on every pull request, but has never run. Nothing is signed because nothing is published. |
+| **D-02 / M9-4** — name verification, then launch | Deliberately out of scope for now at the user's direction. |
+
+M11-11 (LLM classifier) is the only unbuilt implementation item, and it is
+correctly Phase 2: it would break the offline guarantee that `internal/privacy`
+enforces.
 
 **Third full review (2026-08-11).** Docs and implementation re-checked after
-M11 and M3-5. The corpus passes 18/18, every documentation link resolves, and
-the claimed counts match the code. Six defects found and fixed, five of them
-documentation drifting away from the code it describes:
+M11 and M3-5, then every status marker in this file re-checked against the code
+it claims. The corpus passes 18/18, every documentation link resolves, and the
+claimed counts match. Nine defects found and fixed — and **two of the ✅ marks
+in this file were false**, which is the finding that matters most, because a
+status tracker nobody re-derives is just a list of intentions:
 
-1. **`telemetry.md` was quietly wrong about which hosts get contacted.** It said
+1. **M6-7 (`--json` on every command) was ✅ and untrue.** `cache` rejected the
+   flag outright; `version` printed prose. Both now emit JSON — and the
+   contract test no longer takes a hand-written list of commands, since a
+   hand-written list is precisely what let two of them go missing. It reads the
+   command names out of the dispatch switch, so a new command joins the
+   contract by existing rather than by being remembered.
+
+2. **M10-2 (manual client matrix) was ✅ and untrue**, and contradicted both §6
+   and README's own "what is not done". The apparatus exists; the run has not
+   happened. Marked 🟨.
+
+3. **`agentbridge conformance` did not work outside this repository** — see the
+   M10 note. The command exists specifically for client vendors, and a client
+   vendor is exactly who does not have `conformance/cases` on disk.
+
+4. **`telemetry.md` was quietly wrong about which hosts get contacted.** It said
    the registry named in the reference was the only one. It is not: no large
    registry serves blobs itself, so a pull follows a **redirect to a CDN** the
    registry chooses. Following it is not optional — refusing would break ghcr.io
@@ -20,41 +49,48 @@ documentation drifting away from the code it describes:
    the clear, telling anyone on the path which plugin is being installed.
    Downgrades are now refused and chains capped at five.
 
-2. **`install --json` wrote zero bytes when the scanner blocked it.** `scan` and
+5. **`install --json` wrote zero bytes when the scanner blocked it.** `scan` and
    `validate` both emit their findings as JSON *and* exit non-zero; `install`
    refused on exactly those findings and handed a script an empty pipe. It now
    emits the blocking findings as a refusal document.
 
-3. **The CLI had no tests at all.** Every test lived under `internal/`, so the
+6. **The CLI had no tests at all.** Every test lived under `internal/`, so the
    `--json` contract — a documented promise since M6-7 — was enforced by
    nothing, which is how both this defect and the `sync --json` one before it
    survived. `cmd/agentbridge/json_test.go` now builds the binary and asserts
    the contract across thirteen commands, including exit codes and a clean
    stdout. Verified by reintroducing the defect and watching it fail.
 
-4. **`docs/05` described unbuilt controls in the same voice as shipped ones.**
+7. **`docs/05` described unbuilt controls in the same voice as shipped ones.**
    §3.2 had been rewritten to split shipped from not-yet during M11; §3.1 and
    §3.3–3.5 had not, so "Signature verification (Sigstore/cosign)" read as
    existing. It does not: *our own release binaries* are signed, and nothing
    verifies a signature on a **plugin**. Every layer now marks its status.
 
-5. **The scanner silently skipped files it could not read.** "Nothing found" and
+8. **The scanner silently skipped files it could not read.** "Nothing found" and
    "nothing found in the parts I could read" are different claims. Making it an
    error would have been worse — the install gate treats a scan error as
    advisory, so one unreadable file would have switched the gate off entirely,
    which is exactly what an attacker would arrange. It now records the gap and
    says so.
 
-6. Two stale forward-looking claims, one of them **printed to every user** who
+9. Two stale forward-looking claims, one of them **printed to every user** who
    runs `agentbridge` with no arguments: "Lockfiles and secret handling arrive
    in M4-M5." Both have been built for weeks.
 
-The recurring shape is worth naming: **five of the six were documentation that
-had been true when written.** Code drifts under prose silently, and only a
-deliberate re-read catches it — which is the argument for the enforced-
-documentation patterns used elsewhere here (the loss catalogue, the privacy
-test, the generated client table, and now the `--json` contract). Every one of
-those would have caught its own defect automatically.
+**The recurring shape is worth naming.** Almost all of these were true when
+they were written. Code drifts under prose silently, and a status column drifts
+faster than either, because nothing recomputes it. The defence is the same one
+used elsewhere here — make the claim a property something checks: the loss
+catalogue, the privacy scan, the generated client table, and now the `--json`
+contract, which reads the command list out of the dispatch switch precisely
+because the hand-written version is what failed. A further test now asserts from
+the build graph that no first-party package ships without being covered by the
+privacy scan, which the new top-level `conformance` package would otherwise have
+escaped.
+
+Each of those would have caught its own defect on the commit that introduced it,
+without waiting for somebody to re-read the file.
 
 **The repository did not contain its own CLI (2026-08-11).** While committing
 M11, `git status` showed no change to files that had certainly been edited.
@@ -635,10 +671,32 @@ fetched even by accident.
 | ID | Item | Acceptance criteria | Status |
 |---|---|---|---|
 | M10-1 | Canonical test plugins (valid, partially-invalid, edge cases) | Covers each conformance rule in the spec | ✅ |
-| M10-2 | Manual matrix run across MVP target clients | Produces the honest per-client support table for M9-1 | ✅ |
-| M10-3 | Automated nightly runs | **P2** — Phase 2 | ✅ |
+| M10-2 | Manual matrix run across MVP target clients | Produces the honest per-client support table for M9-1 | 🟨 ⁵ |
+| M10-3 | Automated nightly runs | **P2** — Phase 2 | 🟨 ⁶ |
+
+⁵ **The apparatus is built; the run has not happened.** `agentbridge conformance
+--list` and `--record` produce a checklist and a results template,
+[PROTOCOL.md](conformance/PROTOCOL.md) says how to run it, and `results/` takes
+contributions. But `results/` contains only `agentbridge.json` — our own loader.
+No third-party client has been measured, which is why every row in §6 is ⬜ and
+why [clients.md](docs/clients.md) reports what we *write*, based on vendor
+documentation, rather than what a client does with it. This was marked ✅ on the
+strength of the mechanism existing; the acceptance criterion asks for the
+**table**, and there is no table. Marked 🟨 by the third audit.
+
+⁶ The nightly workflow is written and, like the release pipeline, has never run
+— there is no repository for it to run in. Written ≠ verified.
 
 Enough of M10 must exist to make the fidelity reports factually correct. Full automation is Phase 2.
+
+**The corpus ships in the binary** (`conformance/corpus.go`), which the third
+audit found it did not. `agentbridge conformance` read `conformance/cases`
+relative to the working directory, so the one command written specifically for
+people outside this repository — a client vendor checking their own
+implementation — worked only inside it. It now extracts the embedded copy into
+the cache, keyed by content digest, so `--list` still prints a durable path a
+vendor can point their client at. `--corpus` still overrides, because somebody
+editing the cases needs the ones on disk rather than the ones compiled in.
 
 ### M11 — Skill content scanner · P0 · ~1 week
 

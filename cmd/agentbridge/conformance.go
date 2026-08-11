@@ -6,6 +6,10 @@ import (
 	"os"
 	"strings"
 
+	// The embedded cases and the runner that executes them. Both paths end in
+	// "conformance", so the corpus is aliased to the package name it declares.
+	corpus "github.com/agentbridge/agentbridge/conformance"
+	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
 	"github.com/agentbridge/agentbridge/internal/conformance"
 )
 
@@ -16,18 +20,44 @@ import (
 // own implementation against the same cases we check ours against, without
 // adopting anything else here — that is what makes a compatibility matrix
 // something the ecosystem cites rather than something one vendor asserts.
+// corpusDir resolves where the cases live.
+//
+// The default is the copy built into the binary, extracted once into the cache.
+// It used to be `conformance/cases` relative to the working directory, which
+// meant the one command written for people outside this repository worked only
+// inside it — a vendor who installed agentbridge and ran `conformance` got a
+// file-not-found error.
+//
+// An explicit --corpus still wins, because someone editing the cases needs to
+// run the ones on disk rather than the ones compiled in last build.
+func corpusDir(flagValue string) (string, error) {
+	if flagValue != "" {
+		return flagValue, nil
+	}
+	env, err := currentEnv()
+	if err != nil {
+		return "", err
+	}
+	return corpus.Export(adapterreg.CacheDir(env))
+}
+
 func conformanceCmd(args []string) error {
 	fs := flag.NewFlagSet("conformance", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "machine-readable output")
 	list := fs.Bool("list", false, "print the corpus as a manual checklist")
 	record := fs.String("record", "", "print a results template for a client you are testing by hand")
-	dir := fs.String("corpus", "conformance/cases", "path to the case corpus")
+	corpusFlag := fs.String("corpus", "", "path to a case corpus; defaults to the one built into this binary")
 	if _, err := parseFlags(fs, args); err != nil {
 		return err
 	}
 
+	dir, err := corpusDir(*corpusFlag)
+	if err != nil {
+		return err
+	}
+
 	if *record != "" {
-		out, err := conformance.RecordTemplate(*dir, *record)
+		out, err := conformance.RecordTemplate(dir, *record)
 		if err != nil {
 			return err
 		}
@@ -35,10 +65,10 @@ func conformanceCmd(args []string) error {
 		return nil
 	}
 	if *list {
-		return listCases(*dir, *asJSON)
+		return listCases(dir, *asJSON)
 	}
 
-	report, err := conformance.RunSelf(*dir)
+	report, err := conformance.RunSelf(dir)
 	if err != nil {
 		return err
 	}

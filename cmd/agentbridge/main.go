@@ -80,8 +80,7 @@ func run(args []string) error {
 	case "clients":
 		return clients(args[1:])
 	case "version", "--version", "-v":
-		fmt.Printf("agentbridge %s (Agent Plugins %s)\n", version, schema.SpecVersion)
-		return nil
+		return versionCmd(args[1:])
 	case "help", "-h", "--help":
 		usage()
 		return nil
@@ -471,6 +470,7 @@ func list(args []string) error {
 func cacheCmd(args []string) error {
 	fs := flag.NewFlagSet("cache", flag.ContinueOnError)
 	clear := fs.Bool("clear", false, "remove every cached package")
+	asJSON := fs.Bool("json", false, "machine-readable output")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -485,10 +485,38 @@ func cacheCmd(args []string) error {
 		if err := c.Clear(); err != nil {
 			return err
 		}
+		if *asJSON {
+			return emitJSON(map[string]any{"root": c.Root(), "cleared": true})
+		}
 		fmt.Printf("Cleared %s\n", c.Root())
 		return nil
 	}
+	if *asJSON {
+		return emitJSON(map[string]any{"root": c.Root(), "cleared": false})
+	}
 	fmt.Printf("%s\n", c.Root())
+	return nil
+}
+
+// versionCmd reports the build and the specification it targets.
+//
+// The spec version is part of the answer, not decoration: "which agentbridge"
+// and "which Agent Plugins" are different questions, and a machine deciding
+// whether a package will load needs the second one.
+func versionCmd(args []string) error {
+	fs := flag.NewFlagSet("version", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if *asJSON {
+		return emitJSON(map[string]string{
+			"version":     version,
+			"specVersion": schema.SpecVersion,
+		})
+	}
+	fmt.Printf("agentbridge %s (Agent Plugins %s)\n", version, schema.SpecVersion)
 	return nil
 }
 

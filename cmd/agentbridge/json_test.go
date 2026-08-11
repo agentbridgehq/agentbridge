@@ -103,6 +103,11 @@ func TestJSONCommandsEmitOnlyJSON(t *testing.T) {
 		{"clients", []string{"clients", "--json"}},
 		{"list", []string{"list", "--json"}},
 		{"losses", []string{"losses", "--json"}},
+		{"cache", []string{"cache", "--json"}},
+		{"version", []string{"version", "--json"}},
+		{"conformance", []string{"conformance", "--json"}},
+		{"secret list", []string{"secret", "list", "--json"}},
+		{"update", []string{"update", "--json"}},
 		{"inspect", []string{"inspect", benign, "--json"}},
 		{"validate", []string{"validate", benign, "--json"}},
 		{"validate a package with violations", []string{"validate", hostile, "--json"}},
@@ -211,6 +216,74 @@ func TestJSONModeKeepsStdoutClean(t *testing.T) {
 		if strings.Contains(got.stdout, prose) {
 			t.Errorf("stdout contains prose %q in --json mode:\n%s", prose, truncate(got.stdout))
 		}
+	}
+}
+
+// M6-7 says "--json output on every command". The list above is hand-written,
+// which is how `cache` and `version` came to be missing it while the milestone
+// was marked done — the table only tested what somebody remembered to add.
+//
+// This reads the command names out of the dispatch switch instead, so a new
+// command joins the contract by existing rather than by being remembered.
+func TestEveryCommandIsCoveredByTheJSONContract(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The commands that legitimately have no JSON to emit.
+	exempt := map[string]bool{
+		// Prints usage text; there is no result to serialize.
+		"help": true, "-h": true, "--help": true,
+		// Aliases of commands tested under their primary name.
+		"uninstall": true, "--version": true, "-v": true,
+		// Executes another program and forwards its streams verbatim. A JSON
+		// wrapper would corrupt the output of the thing being launched, which
+		// is the entire point of the command.
+		"run": true,
+
+		// These need an argument, so running them bare is a usage error rather
+		// than a --json gap. Each is covered with real arguments in the table
+		// above; exempting them here only skips the argument-less form.
+		"inspect": true, "validate": true, "scan": true, "secret": true,
+		"install": true, "sync": true, "remove": true,
+	}
+
+	inSwitch := false
+	var missing []string
+	for _, line := range strings.Split(string(source), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "switch args[0]") {
+			inSwitch = true
+			continue
+		}
+		if inSwitch && trimmed == "}" {
+			break
+		}
+		if !inSwitch || !strings.HasPrefix(trimmed, "case ") {
+			continue
+		}
+		for _, name := range strings.Split(strings.TrimPrefix(trimmed, "case "), ",") {
+			name = strings.Trim(strings.TrimSpace(strings.TrimSuffix(name, ":")), `"`)
+			if name == "" || exempt[name] {
+				continue
+			}
+			got := run(t, name, "--json")
+			if strings.TrimSpace(got.stdout) == "" {
+				missing = append(missing, name+" (wrote nothing)")
+				continue
+			}
+			var any any
+			if err := json.Unmarshal([]byte(got.stdout), &any); err != nil {
+				missing = append(missing, name+" (not JSON)")
+			}
+		}
+	}
+
+	if len(missing) > 0 {
+		t.Errorf("commands without a working --json: %s\n"+
+			"M6-7 claims every command supports it. Implement it, or add the command to "+
+			"`exempt` with a reason.", strings.Join(missing, ", "))
 	}
 }
 

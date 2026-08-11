@@ -65,7 +65,11 @@ func sourceFiles(t *testing.T) map[string]string {
 	t.Helper()
 	out := map[string]string{}
 
-	for _, root := range []string{"../../internal", "../../cmd"} {
+	// Every directory holding Go that reaches the binary. `conformance` is a
+	// top-level package rather than an internal one because the corpus is meant
+	// to be imported by client vendors — which also means it would have sat
+	// outside this scan had it not been added here deliberately.
+	for _, root := range []string{"../../internal", "../../cmd", "../../conformance"} {
 		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -175,6 +179,47 @@ func TestShippedBinaryExcludesDevTools(t *testing.T) {
 			t.Errorf("the agentbridge binary depends on %s.\n"+
 				"Development tools are excluded from the network scan on the grounds that they are "+
 				"not shipped. Importing one from the CLI turns that exclusion into a hole.", pkg)
+		}
+	}
+}
+
+// The scan is only worth its roots, and the roots are a hand-written list.
+//
+// Adding `conformance` as a top-level package — so client vendors can import
+// the corpus — put first-party code that ships in the binary outside
+// `internal/` and `cmd/` for the first time, and the scan would have said
+// nothing about it. Checking the roots against the real build graph turns
+// "remember to update the list" into a property, which is the only version of
+// that instruction that survives contact with a busy afternoon.
+func TestEveryShippedPackageIsScanned(t *testing.T) {
+	out, err := exec.Command("go", "list", "-deps", "../../cmd/agentbridge").Output()
+	if err != nil {
+		t.Fatalf("go list: %v", err)
+	}
+
+	const module = "github.com/agentbridge/agentbridge"
+	scanned := sourceFiles(t)
+
+	for _, pkg := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if !strings.HasPrefix(pkg, module) {
+			continue // a dependency, not ours
+		}
+		rel := strings.TrimPrefix(strings.TrimPrefix(pkg, module), "/")
+		if rel == "" {
+			rel = "."
+		}
+
+		var covered bool
+		for path := range scanned {
+			if filepath.Dir(filepath.ToSlash(path)) == "../../"+rel {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			t.Errorf("%s ships in the binary but no file of it is scanned.\n"+
+				"Add its directory to the roots in sourceFiles, or the network and "+
+				"infrastructure checks silently do not apply to it.", pkg)
 		}
 	}
 }
