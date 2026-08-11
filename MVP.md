@@ -453,7 +453,7 @@ that the meaning explains rather than restates.
 | M8-2 | SLSA provenance for our own binary | We cannot sell provenance while shipping unsigned | ✅ |
 | M8-3 | Homebrew tap | | ✅ |
 | M8-4 | npm wrapper package (downloads + verifies the binary) | `npm i -g` works without a Node runtime dependency at execution | ✅ |
-| M8-5 | Install script with signature verification | `curl \| sh` verifies before executing | ⬜ |
+| M8-5 | Install script with signature verification | `curl \| sh` verifies before executing | ✅ |
 | M8-6 | Scoop / winget | **P1** | ✅ |
 
 **Honest status: the release pipeline has never run.** GoReleaser and cosign
