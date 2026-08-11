@@ -32,6 +32,7 @@ import (
 	"github.com/agentbridge/agentbridge/internal/ir"
 	"github.com/agentbridge/agentbridge/internal/lockfile"
 	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridge/agentbridge/internal/scanner"
 	"github.com/agentbridge/agentbridge/internal/source"
 )
 
@@ -53,6 +54,15 @@ type Options struct {
 	Scope   adapter.Scope
 	// Plan carries install-time secret policy into the adapters.
 	Plan adapter.PlanOptions
+	// AllowFlagged installs a plugin whose instruction text the scanner rates
+	// high severity.
+	//
+	// Sync is gated as well as install because the interesting case is not the
+	// first install — it is the plugin that was clean when it was reviewed and
+	// gained an injected instruction three commits later. That change arrives
+	// through sync, unattended, and is exactly what a lockfile alone cannot
+	// catch: the digest changes honestly, and the content is the problem.
+	AllowFlagged bool
 }
 
 // PluginResult is what happened to one declared plugin.
@@ -62,6 +72,9 @@ type PluginResult struct {
 	Plugin   *ir.Plugin
 	Locked   lockfile.Locked
 	Plans    []*adapter.Plan
+	// Scan is the content scan for this plugin, reported whether or not it
+	// blocked the install.
+	Scan *scanner.Report
 	// Err records a failure for this plugin alone. One plugin that cannot be
 	// resolved must not stop the rest, for the same reason the specification
 	// isolates component failures: a partially working machine beats a machine
@@ -224,6 +237,17 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 	if err != nil {
 		result.Err = err
 		return result
+	}
+
+	// Scanned before planning: a plugin that will be refused should not produce
+	// a fidelity report describing an install that is not going to happen.
+	if report, err := scanner.Scan(root, imported.Plugin); err == nil {
+		result.Scan = report
+		if high := report.AtLeast(scanner.High); len(high) > 0 && !opts.AllowFlagged {
+			result.Err = fmt.Errorf("%d high-severity content finding(s): %s at %s:%d — run `agentbridge scan %s`",
+				len(high), high[0].Title, high[0].File, high[0].Line, entry.Source)
+			return result
+		}
 	}
 
 	sel := adapterreg.Selection{

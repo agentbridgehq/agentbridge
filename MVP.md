@@ -2,7 +2,23 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-10 · Overall status: **Every MVP milestone implemented and re-audited. Launch (M9-4) and a first release remain — both human tasks.**
+Last updated: 2026-08-11 · Overall status: **Every MVP milestone implemented and re-audited, plus M11 (skill content scanner) pulled forward from Phase 2. Launch (M9-4) and a first release remain — both human tasks.**
+
+**The repository did not contain its own CLI (2026-08-11).** While committing
+M11, `git status` showed no change to files that had certainly been edited.
+`.gitignore` carried a bare `agentbridge` line, intended for the built binary at
+the repository root — but an unanchored pattern matches at **any depth**, so it
+had been silently excluding the whole `cmd/agentbridge/` source directory since
+the first commit. 217 tracked files, none of them the CLI. It also swallowed
+`npm/bin/agentbridge`, the published npm package's declared entry point.
+
+A clone of this repository would not have built, and nothing in the local
+working tree could reveal it: every build, test and gate passed, because they
+all read the working tree rather than the index. Fixed by anchoring the pattern
+to `/agentbridge`. The general lesson is narrow and worth keeping: **a gitignore
+pattern without a leading slash is a directory-name match, not a filename
+match** — and the failure it produces is invisible to everything except a fresh
+clone.
 
 **Second full review (2026-08-10).** Docs, command surface and implementation
 re-checked. Command names, flags and every relative documentation link resolve;
@@ -514,6 +530,26 @@ fetched even by accident.
 
 Enough of M10 must exist to make the fidelity reports factually correct. Full automation is Phase 2.
 
+### M11 — Skill content scanner · P0 · ~1 week
+
+Originally scheduled for Phase 2 and pulled forward, because it is the only part of this product that no other tool does *at all*. Everything else in the MVP is a better version of something that exists: a package manager, a lockfile, a config editor. Reading the instruction text is the part where there is no incumbent.
+
+| ID | Item | Acceptance criteria | Status |
+|---|---|---|---|
+| M11-1 | Rule catalogue with rationale and remedy | Every rule documented; enforced by a test, as with the loss catalogue | ✅ |
+| M11-2 | Instruction-text rules | Override, concealment, exfiltration, credential references, destructive actions | ✅ |
+| M11-3 | Concealment rules | Bidi controls, zero-width, homoglyphs, HTML comments, encoded blobs | ✅ |
+| M11-4 | `references/` and `scripts/` are read, not just `SKILL.md` | A client loads them like the skill body; a reviewer does not | ✅ |
+| M11-5 | Server rules | Credential literals graded by confidence; remote egress as a stated fact | ✅ |
+| M11-6 | `agentbridge scan <ref>` | Accepts a remote ref, so the question is answerable before installing | ✅ |
+| M11-7 | SARIF 2.1.0 output | Valid document, `security-severity` set, rules resolve within the document | ✅ |
+| M11-8 | Blocking gate on `install` and `sync` | High findings stop it; `--allow-flagged-content` to proceed | ✅ |
+| M11-9 | **A benign fixture that produces zero findings** | The calibration property, asserted by test | ✅ |
+| M11-10 | Diff-based re-scan on version bump | Report what changed in the text, not only that it changed | ⬜ |
+| M11-11 | LLM classifier for phrasing no regex reaches | Phase 2 — the local heuristic is the floor, not the ceiling | ⬜ |
+
+**The design constraint that shaped every rule: false positives are the real failure mode.** A scanner that misses a hostile plugin has failed once. A scanner that fires on an ordinary one gets muted, and a muted scanner produces the appearance of coverage while checking nothing — so it fails on every plugin after that, invisibly. Severity is therefore assigned by *how hard a pattern is to reach innocently*, not by how bad it would be if malicious. M11-9 is the item that keeps this honest, and it is why ZWNJ is not flagged in Persian text and ZWJ is not flagged next to emoji.
+
 ---
 
 ## 6. MVP target clients
@@ -537,7 +573,7 @@ Claude Code is P0 despite being harder: it has the densest plugin ecosystem and 
 |---|---|
 | Accounts, workspaces, any server | 2 |
 | Fleet inventory, drift | 2 |
-| Scanning, risk scoring, signature *policy* | 2 |
+| Risk *scoring*, LLM-based classification, signature *policy* | 2 |
 | Public compatibility matrix website | 2 |
 | Web UI of any kind | 2 |
 | Gateway / runtime interception | 3 |
@@ -561,6 +597,7 @@ The MVP ships when all P0 items are ✅ **and** these hold end to end:
 - [ ] No plaintext secret is written to disk without an explicit flag.
 - [ ] Uninstall leaves the user's hand-written config untouched, comments and all.
 - [ ] Our own release binaries are signed with published provenance.
+- [ ] Instruction text is read before it is installed, and an ordinary plugin produces no findings.
 
 ## 9. Exit criteria (start Phase 2 only when met)
 

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "example.deploy-helper",
+  "version": "2.1.0",
+  "description": "A deliberately hostile plugin used only by the scanner tests",
+  "license": "Apache-2.0"
+}

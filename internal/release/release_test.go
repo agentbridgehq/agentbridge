@@ -9,7 +9,11 @@
 package release_test
 
 import (
+	"encoding/json"
+	"io/fs"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -178,4 +182,163 @@ func TestReleaseSigningIsKeylessAndPinned(t *testing.T) {
 	if !strings.Contains(workflow, "go test ./...") {
 		t.Error("the release workflow does not run the tests")
 	}
+}
+
+// No source file may be excluded from the repository by .gitignore.
+//
+// This exists because one was — all of them, in fact. A bare `agentbridge` line
+// in .gitignore, meant for the built binary at the repository root, matched at
+// *any* depth and so silently excluded the entire `cmd/agentbridge/` source
+// directory, the whole CLI, from every commit. It also swallowed
+// `npm/bin/agentbridge`, the npm package's declared entry point.
+//
+// Nothing local could reveal it: builds, tests and every other gate read the
+// working tree, not the index, so all of them passed on a repository that no
+// clone could build. The failure surfaces only where nobody looks until release.
+//
+// The check is on *ignored*, not merely untracked. An untracked file is ordinary
+// work in progress and failing on it would make this test fire during every
+// edit; an ignored source file is always the bug.
+func TestNoSourceFileIsGitIgnored(t *testing.T) {
+	var candidates []string
+
+	err := filepath.WalkDir("../..", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "dist", "bin", "node_modules":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, rerr := filepath.Rel("../..", p)
+		if rerr != nil {
+			return nil
+		}
+		if isSourceFile(d.Name()) {
+			candidates = append(candidates, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	if len(candidates) == 0 {
+		t.Fatal("found no source files to check, which means the walk is wrong")
+	}
+
+	for _, path := range gitIgnored(t, candidates) {
+		t.Errorf("%s is excluded by .gitignore: a clone would not contain it", path)
+	}
+}
+
+// The npm package declares its own contents, and every declared path must
+// exist and be committed — otherwise `npm publish` ships a package whose entry
+// point is missing, which is how the same .gitignore bug reached npm.
+func TestNpmPackageContentsAreTracked(t *testing.T) {
+	tracked := gitLsFiles(t, "npm/*")
+	if len(tracked) == 0 {
+		t.Skip("not a git checkout")
+	}
+
+	var pkg struct {
+		Bin   map[string]string `json:"bin"`
+		Files []string          `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(read(t, "../../npm/package.json")), &pkg); err != nil {
+		t.Fatalf("npm/package.json: %v", err)
+	}
+
+	declared := append([]string(nil), pkg.Files...)
+	for _, target := range pkg.Bin {
+		declared = append(declared, target)
+	}
+	if len(declared) == 0 {
+		t.Fatal("npm/package.json declares neither bin nor files")
+	}
+
+	for _, entry := range declared {
+		entry = strings.TrimSuffix(entry, "/")
+		full := "npm/" + entry
+		if _, err := os.Stat("../../" + full); err != nil {
+			t.Errorf("npm/package.json declares %q, which does not exist", entry)
+			continue
+		}
+		// A directory is satisfied by any tracked file beneath it.
+		var found bool
+		for path := range tracked {
+			if path == full || strings.HasPrefix(path, full+"/") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("npm/package.json declares %q but nothing under %s is committed", entry, full)
+		}
+	}
+}
+
+// isSourceFile reports whether a file is part of what the repository ships,
+// rather than build output or a local artifact.
+func isSourceFile(name string) bool {
+	switch filepath.Ext(name) {
+	case ".go", ".js", ".sh", ".yaml", ".yml", ".json", ".md":
+		return true
+	}
+	// The npm shim has no extension and is the second thing the bug swallowed.
+	return name == "agentbridge" || name == "Makefile"
+}
+
+// gitIgnored returns the subset of paths excluded by .gitignore. Paths already
+// tracked are never reported: git honours the index over the ignore rules, and
+// a tracked file is in the repository whatever the patterns say.
+func gitIgnored(t *testing.T, paths []string) []string {
+	t.Helper()
+
+	tracked := gitLsFiles(t, "")
+	if len(tracked) == 0 {
+		t.Skip("not a git checkout")
+	}
+
+	cmd := exec.Command("git", "check-ignore", "--stdin", "-z")
+	cmd.Dir = "../.."
+	cmd.Stdin = strings.NewReader(strings.Join(paths, "\x00"))
+	out, _ := cmd.Output() // exit status 1 simply means nothing was ignored
+
+	var ignored []string
+	for _, p := range strings.Split(string(out), "\x00") {
+		if p != "" && !tracked[p] {
+			ignored = append(ignored, p)
+		}
+	}
+	sort.Strings(ignored)
+	return ignored
+}
+
+// gitLsFiles returns the tracked paths matching a pattern, relative to the
+// repository root. An empty result means this is not a git checkout — a source
+// tarball, say — where the question does not apply.
+func gitLsFiles(t *testing.T, pattern string) map[string]bool {
+	t.Helper()
+
+	args := []string{"ls-files", "-z"}
+	if pattern != "" {
+		args = append(args, "--", pattern)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = "../.."
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	paths := map[string]bool{}
+	for _, p := range strings.Split(string(out), "\x00") {
+		if p != "" {
+			paths[p] = true
+		}
+	}
+	return paths
 }

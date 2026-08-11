@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "release": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@example/release-mcp"],
+      "env": { "RELEASE_TOKEN": "${secret:release-token}" }
+    }
+  }
+}

@@ -52,10 +52,24 @@ T11 deserves emphasis: the spec mandates that clients not inspect foreign namesp
 - Resolution order that makes dependency confusion impossible (internal scope always wins; never fall back to public for a scoped name).
 
 ### 3.2 At analysis (scan)
-- **Skill analysis**: heuristics + LLM classifier for injection patterns, credential access instructions, exfiltration phrasing, obfuscation (unicode homoglyphs, zero-width chars, base64 blobs), instruction-override attempts, hidden content in `references/`.
-- **MCP analysis**: capability inference (does it exec? network? read home dir?), egress destinations, package reputation for the `command`, `env` secret patterns.
-- **Diff-based re-scan on every version bump** — T5 is only catchable at update time.
-- Findings emitted as SARIF so they flow into existing tooling.
+
+**Shipped** — `agentbridge scan <ref>`, implemented in `internal/scanner`:
+
+- **Skill analysis.** Fifteen rules over instruction text: instruction-override phrasing, instructions to conceal activity from the user, exfiltration phrasing, references to credential locations, destructive actions, and obfuscation (bidirectional controls, zero-width characters, mixed-script words, long encoded runs, instructions inside HTML comments).
+- **Reference files and scripts are read, not just `SKILL.md`.** A client loads `references/` into context exactly like the skill body, while a reviewer opens `SKILL.md` and stops. Scripts are read under different rules — remote-execution pipelines and destructive commands — because they are code the agent may run rather than text it reads.
+- **MCP analysis.** Credential literals in `env` (graded by detection confidence) and remote egress endpoints. Deliberately thin, because transport security, command form, working-directory containment and reserved environment names are already *rejected at load time* by the importer; re-reporting them would produce findings for configurations that can never reach a client.
+- **Blocking at install and at sync.** A high-severity finding stops the install and says how to proceed anyway (`--allow-flagged-content`), the same shape as `--allow-plaintext-secrets`. Sync is gated too — the interesting case is not the first install but the plugin that was clean when reviewed and gained an injected instruction three commits later, which is precisely what a lockfile cannot catch: the digest changes honestly and the *content* is the problem.
+- **SARIF 2.1.0 output** (`--sarif <file>`), with `security-severity` so it can gate a pull request. Findings appear where a security team already looks.
+- **Local and offline.** No network, no model, no account — enforced by `internal/privacy`.
+
+**The calibration principle.** Severity is assigned by one question: *how hard is this pattern to reach innocently?* — not how bad it would be if malicious, since almost everything here would be bad if malicious and grading on that produces a scanner where everything is High and nothing is read. False positives are the real failure mode: a scanner that fires on ordinary plugins is muted within a week, and a muted scanner is worse than none because it produces the appearance of coverage. `internal/scanner/testdata/benign` is the fixture that enforces this — an ordinary plugin that deletes things, mentions tokens, ships a script and is written partly in Persian, asserted to produce **zero** findings.
+
+**Known limits, stated rather than hidden.** A plugin genuinely *about* prompt injection will match the prompt-injection rules. Instruction text can be rephrased to evade any fixed pattern. Findings are evidence for a person, not grounds for a machine to block silently.
+
+**Not yet built:**
+- LLM classifier for phrasing no regex reaches (the local heuristic layer is the floor, not the ceiling).
+- **Diff-based re-scan on version bump** — T5 is only catchable at update time. Sync scans the new content, but does not yet report *what changed* between the locked version and the new one, which is the more readable signal.
+- Package reputation for a server's `command`.
 
 ### 3.3 At install (policy)
 - Policy-as-code, evaluated by the CLI already on the machine: allow/deny by source, signer, capability, risk score, license.

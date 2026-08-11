@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+'use strict';
+
+// Thin shim: run the downloaded binary and pass everything through.
+//
+// Node is a dependency of *installing*, never of running. The binary is a
+// static executable, so once it is in place this shim only forwards stdio,
+// arguments and the exit code — which matters because agentbridge is itself
+// launched by agent clients as an MCP server wrapper (`agentbridge run`), where
+// anything that mangles signals or exit codes would be a real fault.
+
+const path = require('path');
+const fs = require('fs');
+const { spawnSync } = require('child_process');
+
+const binary = path.join(
+  __dirname,
+  process.platform === 'win32' ? 'agentbridge.exe' : 'agentbridge'
+);
+
+if (!fs.existsSync(binary)) {
+  process.stderr.write(
+    'agentbridge: the binary is missing. Reinstall with `npm install -g agentbridge`,\n' +
+      'or install another way: https://github.com/agentbridge/agentbridge\n'
+  );
+  process.exit(1);
+}
+
+const result = spawnSync(binary, process.argv.slice(2), { stdio: 'inherit' });
+
+if (result.error) {
+  process.stderr.write(`agentbridge: ${result.error.message}\n`);
+  process.exit(1);
+}
+// A process killed by a signal has no exit code; report it the way a shell
+// would rather than exiting 0 and claiming success.
+process.exit(result.status === null ? 1 : result.status);

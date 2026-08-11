@@ -1,7 +1,10 @@
 # Build output
 /dist/
 /bin/
-agentbridge
+# Anchored to the repository root on purpose. An unanchored `agentbridge`
+# matches at any depth, and so silently excluded the entire cmd/agentbridge
+# source directory from the repository — a clone that could not be built.
+/agentbridge
 
 # Go
 *.test
