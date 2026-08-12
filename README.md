@@ -189,6 +189,7 @@ Flags work on either side of the argument, and every command takes `--json`.
 
 | Doc | For |
 |---|---|
+| [Getting started](docs/getting-started.md) | New user: install, write a plugin, install it, keep a team in sync |
 | [Client compatibility](docs/clients.md) | What each client takes — generated from the adapters |
 | [Conformance corpus](conformance/README.md) | 18 plugin packages for testing *any* client against v1.0.0 |
 | [Measuring a client](conformance/PROTOCOL.md) | How to run the corpus against a real client and record it |
