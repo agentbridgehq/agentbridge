@@ -196,6 +196,7 @@ Flags work on either side of the argument, and every command takes `--json`.
 | [Telemetry](docs/telemetry.md) | There is none, and the claim is enforced by a test |
 | [Security](SECURITY.md) | Threat model and reporting |
 | [Spec compliance](docs/10-spec-compliance.md) | Requirement-by-requirement audit against v1.0.0 |
+| [Testing by hand](TESTING.md) | Drive every feature yourself in ~30 minutes, in a throwaway sandbox |
 | [Releasing](RELEASING.md) | How a release is cut and verified |
 
 ## Why this exists

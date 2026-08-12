@@ -217,8 +217,9 @@ func TestNoSourceFileIsGitIgnored(t *testing.T) {
 		if rerr != nil {
 			return nil
 		}
-		if isSourceFile(d.Name()) {
-			candidates = append(candidates, filepath.ToSlash(rel))
+		slashed := filepath.ToSlash(rel)
+		if isSourceFile(slashed) {
+			candidates = append(candidates, slashed)
 		}
 		return nil
 	})
@@ -282,13 +283,18 @@ func TestNpmPackageContentsAreTracked(t *testing.T) {
 
 // isSourceFile reports whether a file is part of what the repository ships,
 // rather than build output or a local artifact.
-func isSourceFile(name string) bool {
-	switch filepath.Ext(name) {
+// It takes the repository-relative path, not the basename, because the two
+// extensionless files that matter share one: `npm/bin/agentbridge` is the npm
+// package's entry point and must be committed, while `/agentbridge` at the root
+// is what `make` builds and must stay ignored. Matching on the name alone made
+// this test fail for anyone who ran `make` before `go test` — which is the
+// order TESTING.md tells them to use.
+func isSourceFile(rel string) bool {
+	switch filepath.Ext(rel) {
 	case ".go", ".js", ".sh", ".yaml", ".yml", ".json", ".md":
 		return true
 	}
-	// The npm shim has no extension and is the second thing the bug swallowed.
-	return name == "agentbridge" || name == "Makefile"
+	return rel == "npm/bin/agentbridge" || rel == "Makefile"
 }
 
 // gitIgnored returns the subset of paths excluded by .gitignore. Paths already
