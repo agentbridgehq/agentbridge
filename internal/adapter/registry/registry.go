@@ -308,13 +308,29 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 	return store.Save()
 }
 
-// ApplyRemove executes removal plans and clears their receipts.
-func ApplyRemove(store *receipt.Store, pluginName string, plans []*adapter.Plan) error {
+// ApplyRemove executes removal plans, clears their receipts, and disposes of the
+// plugin's data directory.
+//
+// It returns the data directory if one was kept, so the caller can say so. An
+// uninstall that silently leaves something behind contradicts the promise the
+// receipt design exists to make.
+func ApplyRemove(env adapter.Env, store *receipt.Store, pluginName string, plans []*adapter.Plan) (keptData string, err error) {
 	for _, plan := range plans {
 		if err := adapter.Apply(plan); err != nil {
-			return fmt.Errorf("%s (%s): %w", plan.Installation.Client.Name, plan.Installation.Scope, err)
+			return "", fmt.Errorf("%s (%s): %w", plan.Installation.Client.Name, plan.Installation.Scope, err)
 		}
 		store.Delete(pluginName, plan.Installation.Client.ID, string(plan.Installation.Scope))
 	}
-	return store.Save()
+
+	// After the clients, and only once no receipt still claims this plugin.
+	// Removing from one client while another still has it installed would take
+	// the surviving install's data with it.
+	if len(store.ForPlugin(pluginName)) == 0 {
+		kept, err := adapter.ReleasePluginData(PluginDataDir(env, pluginName))
+		if err != nil {
+			return "", err
+		}
+		keptData = kept
+	}
+	return keptData, store.Save()
 }

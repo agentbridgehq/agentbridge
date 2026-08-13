@@ -127,6 +127,51 @@ func EnsurePluginData(dir string) error {
 	return os.MkdirAll(dir, 0o755)
 }
 
+// ReleasePluginData disposes of a plugin's data directory at uninstall, and
+// reports whether anything was kept.
+//
+// §9.1 requires PLUGIN_DATA to be preserved across *updates*, and says nothing
+// about removal — which leaves the decision to us, and both possible answers
+// are wrong in one direction:
+//
+//   - Deleting it always would throw away a server's accumulated state on an
+//     uninstall the user may be doing to reinstall a minute later. That data is
+//     theirs, and this tool did not write it.
+//   - Keeping it always leaves an empty directory behind on every uninstall of
+//     every plugin that never ran a server, which is litter — and litter left
+//     by a tool whose documented promise is to remove "exactly what was
+//     installed, and nothing else".
+//
+// So: an empty directory is removed, because there is nothing to preserve and
+// what remains is only our own bookkeeping. A directory with contents is kept
+// and *reported*, so the choice to delete real data stays with the person whose
+// data it is. Silence is the one option not available, since it is the one that
+// makes the promise above untrue.
+func ReleasePluginData(dir string) (kept string, err error) {
+	if dir == "" {
+		return "", nil
+	}
+
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if len(entries) > 0 {
+		return dir, nil
+	}
+
+	// os.Remove rather than RemoveAll: the directory was empty a moment ago,
+	// and if something has appeared since then it is a plugin's data arriving
+	// under a concurrent process, not ours to delete.
+	if err := os.Remove(dir); err != nil && !os.IsNotExist(err) {
+		return dir, nil
+	}
+	return "", nil
+}
+
 // NoteSecretsWritten records a loss for each env value that lands in a client
 // config as plaintext.
 //

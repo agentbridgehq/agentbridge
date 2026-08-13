@@ -120,6 +120,7 @@ produces a plausible, confidently wrong client.
 |---|---|---|---|
 | 9.1 | Provide `PLUGIN_ROOT` and `PLUGIN_DATA` to every plugin subprocess | injected into written `env` | ✅ ¹ |
 | 9.1 | Create `PLUGIN_DATA` before launch, writable, preserved across updates | `EnsurePluginData`, lives outside client dirs | ✅ ¹ |
+| 9.1 | *(unspecified)* disposal on uninstall | `ReleasePluginData`: empty is removed, non-empty is kept **and reported** | ✅ |
 | 9.1 | Configured `env` overlays the base; reserved names set **last** | `Materialize` sets them after user env | ✅ ¹ |
 | 9.2 | Expand only the two placeholders, only in `args`, `env` values, `cwd` | `Materialize` | ✅ |
 | 9.2 | Single, non-recursive replacement; introduced text not rescanned | one `strings.ReplaceAll` pass per field | ✅ |

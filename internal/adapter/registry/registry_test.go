@@ -276,7 +276,7 @@ func TestRemoveLeavesUserEntriesAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.ApplyRemove(store, plugin.Name, removePlans); err != nil {
+	if _, err := registry.ApplyRemove(env, store, plugin.Name, removePlans); err != nil {
 		t.Fatal(err)
 	}
 
@@ -325,7 +325,7 @@ func TestRemoveIgnoresLookalikeUserEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.ApplyRemove(store, plugin.Name, removePlans); err != nil {
+	if _, err := registry.ApplyRemove(env, store, plugin.Name, removePlans); err != nil {
 		t.Fatal(err)
 	}
 

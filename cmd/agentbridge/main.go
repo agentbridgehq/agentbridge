@@ -418,19 +418,35 @@ func remove(args []string) error {
 		return err
 	}
 
-	if *asJSON {
-		return emitJSON(map[string]any{"plugin": name, "dryRun": *dryRun, "plans": plans})
-	}
-
-	printPlans(name, plans, *dryRun)
 	if *dryRun {
+		if *asJSON {
+			return emitJSON(map[string]any{"plugin": name, "dryRun": true, "plans": plans})
+		}
+		printPlans(name, plans, true)
 		fmt.Printf("\nDry run: nothing was written.\n")
 		return nil
 	}
-	if err := adapterreg.ApplyRemove(store, name, plans); err != nil {
+
+	keptData, err := adapterreg.ApplyRemove(env, store, name, plans)
+	if err != nil {
 		return err
 	}
+
+	if *asJSON {
+		return emitJSON(map[string]any{
+			"plugin": name, "dryRun": false, "plans": plans, "keptDataDir": keptData,
+		})
+	}
+
+	printPlans(name, plans, false)
 	fmt.Printf("\nRemoved %s from %d client target(s).\n", name, len(plans))
+	if keptData != "" {
+		// The one thing an uninstall deliberately does not take. Said out loud,
+		// because a tool that promises to remove exactly what it installed must
+		// account for anything it leaves.
+		fmt.Printf("\nKept the plugin's data directory, which agentbridge did not write:\n  %s\n"+
+			"Delete it yourself if you do not want it back on a reinstall.\n", keptData)
+	}
 	return nil
 }
 

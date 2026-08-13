@@ -329,6 +329,19 @@ pattern-matching the config. Your own hand-written entries, and your comments,
 are left untouched. Try it: add a comment to `~/.cursor/mcp.json`, install
 something, remove it, and diff.
 
+The one thing an uninstall does **not** take is a plugin's data directory
+(`${PLUGIN_DATA}`), if a server put anything in it — that is your data and this
+tool did not write it. You are told where it is:
+
+```
+Kept the plugin's data directory, which agentbridge did not write:
+  ~/.agentbridge/data/acme.db
+Delete it yourself if you do not want it back on a reinstall.
+```
+
+If it is empty — which it is for any plugin that never ran a server — it is
+removed with everything else.
+
 ```bash
 agentbridge cache --clear      # drop fetched packages
 ```

@@ -434,7 +434,7 @@ func prune(env adapter.Env, store *receipt.Store, declared map[string]bool, opts
 		if err != nil {
 			return nil, fmt.Errorf("pruning %s: %w", name, err)
 		}
-		if err := adapterreg.ApplyRemove(store, name, plans); err != nil {
+		if _, err := adapterreg.ApplyRemove(env, store, name, plans); err != nil {
 			return nil, fmt.Errorf("pruning %s: %w", name, err)
 		}
 	}
