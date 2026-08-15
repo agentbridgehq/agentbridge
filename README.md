@@ -1,9 +1,18 @@
-# AgentBridge
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.png">
+    <img alt="AgentBridge" src="assets/logo-light.png" width="360">
+  </picture>
+</p>
 
-**The supply chain for agent extensions.** Install any agent plugin into any
-agent client — including the ones the standard does not cover — with a lockfile,
-signed provenance, secrets kept off disk, and an honest report of exactly what
-each client received and what it dropped.
+<p align="center">
+  <strong>The supply chain for agent extensions.</strong>
+</p>
+
+Install any agent plugin into any agent client — including the ones the standard
+does not cover — with a lockfile, signed provenance, secrets kept off disk, and
+an honest report of exactly what each client received and what it dropped.
 
 Apache-2.0 · by Masih Moloodian · [LICENSE](LICENSE) · [NOTICE](NOTICE)
 
