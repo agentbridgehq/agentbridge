@@ -198,6 +198,7 @@ Flags work on either side of the argument, and every command takes `--json`.
 
 | Doc | For |
 |---|---|
+| [Landing page](docs/index.html) | A visual walkthrough — open it in a browser, or serve `docs/` with GitHub Pages |
 | [Getting started](docs/getting-started.md) | New user: install, write a plugin, install it, keep a team in sync |
 | [Client compatibility](docs/clients.md) | What each client takes — generated from the adapters |
 | [Conformance corpus](conformance/README.md) | 18 plugin packages for testing *any* client against v1.0.0 |
