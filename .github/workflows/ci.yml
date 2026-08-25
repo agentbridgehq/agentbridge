@@ -58,9 +58,20 @@ jobs:
             echo "$unformatted"
             exit 1
           fi
+      # Built from source with this workflow's Go toolchain rather than
+      # downloaded as a prebuilt binary.
+      #
+      # The action's "latest" resolves to a release built with an older Go, and
+      # golangci-lint refuses to load a go.mod whose language version is newer
+      # than the one it was compiled with — so a prebuilt binary fails against
+      # Go 1.26 with "the Go language version used to build golangci-lint is
+      # lower than the targeted Go version". Compiling it here makes the two
+      # versions the same by construction, which also means bumping GO_VERSION
+      # never breaks linting again.
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          install-mode: goinstall
 
   # M8: a release pipeline is otherwise exercised for the first time at exactly
   # the moment it must not fail. Validating the config and the wrapper on every
