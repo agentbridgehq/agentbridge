@@ -22,10 +22,10 @@
 
 ---
 
-> **Status: pre-release.** Every implementation milestone is built and tested
-> ([MVP.md](MVP.md)). What remains is not code: no release has been cut, and no
-> third-party client has been independently measured. See
-> [What is not done](#what-is-not-done).
+> **Status: pre-release, private.** Every implementation milestone is built and
+> tested ([MVP.md](MVP.md)). What remains is not code: no release has been cut,
+> the repository is not yet public, and no third-party client has been
+> independently measured. See [What is not done](#what-is-not-done).
 
 ## The problem
 
@@ -319,13 +319,13 @@ Four claims hold everything else up:
 
 Being straight about the gaps:
 
-1. **The name is unverified.** `agentbridge` has not been checked as a
-   trademark or domain, and the GitHub org `agentbridge` is already taken —
-   the module path here uses a placeholder. This blocks a first release
-   ([D-02](MVP.md)).
-2. **No release has been cut.** The pipeline is written and validated by CI on
-   every pull request, but it has never run. Nothing is signed because nothing
-   is published.
+1. **The name is only partly secured.** The GitHub organisation
+   `agentbridgehq` and the npm name `agentbridge` are claimed, but the name has
+   not been checked as a trademark or a domain ([D-02](MVP.md)).
+2. **No release has been cut, and the repository is private.** The pipeline is
+   written and validated by CI on every pull request, but it has never run.
+   Homebrew and Scoop publishing are disabled until those tap repositories
+   exist; the first tag will produce signed binaries, checksums and provenance.
 3. **No third-party client has been measured.** The
    [conformance corpus](conformance/README.md) exists and this implementation
    passes all 18 cases, but running it against real clients needs those clients

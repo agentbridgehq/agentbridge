@@ -10,7 +10,8 @@ Last updated: 2026-08-11 · Overall status: **Every implementation item is built
 |---|---|
 | **M10-2** — measure the six target clients (§6) | Installing each client and watching it, by hand. The corpus, the protocol and the results template are built and ship in the binary. |
 | **M8** — cut a first release | The pipeline is written and CI-validated on every pull request, but has never run. Nothing is signed because nothing is published. |
-| **D-02 / M9-4** — name verification, then launch | Deliberately out of scope for now at the user's direction. |
+| **Going public** | The repository is private. `go get`, the npm postinstall and the `curl \| sh` installer all need release artifacts that are publicly downloadable. |
+| **D-02 / M9-4** — trademark check, then launch | The GitHub org `agentbridgehq` and the npm name `agentbridge` are claimed. Trademark and domain remain unchecked. |
 
 **Third full review (2026-08-11).** Docs and implementation re-checked after
 M11 and M3-5, then every status marker in this file re-checked against the code
@@ -181,7 +182,7 @@ Priority: **P0** = MVP does not ship without it · **P1** = ships if time allows
 | ID | Decision | Ref | Status |
 |---|---|---|---|
 | D-01 | Planning docs written | [docs/](docs/) | ✅ |
-| D-02 | Name + trademark availability verified (npm, GitHub org, domain, USPTO/EUIPO) | [07 D6](docs/07-open-questions.md) | ⬜ |
+| D-02 | Name + trademark availability verified (npm, GitHub org, domain, USPTO/EUIPO) | [07 D6](docs/07-open-questions.md) | 🟨 org + npm claimed; trademark and domain unchecked |
 | D-03 | Language confirmed: Go | [08 §1](docs/08-tech-stack.md) | ✅ |
 | D-04 | License confirmed: Apache-2.0 core, separate commercial repo | [07 D3](docs/07-open-questions.md) | ✅ |
 | D-05 | IR design reviewed and signed off | [03 §3](docs/03-architecture.md) | ✅ |

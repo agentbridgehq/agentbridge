@@ -1,0 +1,12 @@
+{
+  "name": "agentbridge",
+  "version": "0.0.1",
+  "description": "The supply chain for agent extensions — name reserved; not yet released. Build from source for now.",
+  "license": "Apache-2.0",
+  "author": "Masih Moloodian <masihmoloodian@gmail.com>",
+  "homepage": "https://github.com/agentbridgehq/agentbridge",
+  "repository": { "type": "git", "url": "git+https://github.com/agentbridgehq/agentbridge.git" },
+  "keywords": ["agent", "plugins", "mcp", "agent-plugins", "skills", "cli"],
+  "files": ["README.md"],
+  "engines": { "node": ">=18" }
+}

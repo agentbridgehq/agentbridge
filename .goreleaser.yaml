@@ -82,27 +82,41 @@ sboms:
   - id: archives
     artifacts: archive
 
-brews:
-  - name: agentbridge
-    repository:
-      owner: agentbridge
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
-    homepage: https://github.com/agentbridgehq/agentbridge
-    description: The supply chain for agent extensions
-    license: Apache-2.0
-    test: |
-      system "#{bin}/agentbridge", "version"
-
-scoops:
-  - repository:
-      owner: agentbridge
-      name: scoop-bucket
-      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
-    homepage: https://github.com/agentbridgehq/agentbridge
-    description: The supply chain for agent extensions
-    license: Apache-2.0
+# Homebrew and Scoop publishing are deliberately disabled until the tap
+# repositories exist.
+#
+# GoReleaser fails the whole release if a publisher is configured and its
+# token is missing, so leaving these enabled would mean the first tag — the
+# one moment the pipeline must not fail — dies after building every artifact.
+# The binaries, checksums, signature and provenance are what a release is;
+# the taps are convenience on top, and they can be turned on in the release
+# that first has somewhere to publish to.
+#
+# To re-enable: create agentbridgehq/homebrew-tap and agentbridgehq/scoop-bucket,
+# add HOMEBREW_TAP_TOKEN and SCOOP_BUCKET_TOKEN as repository secrets, then
+# restore the blocks below and set owner to "agentbridgehq".
+#
+# brews:
+#   - name: agentbridge
+#     repository:
+#       owner: agentbridgehq
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     directory: Formula
+#     homepage: https://github.com/agentbridgehq/agentbridge
+#     description: The supply chain for agent extensions
+#     license: Apache-2.0
+#     test: |
+#       system "#{bin}/agentbridge", "version"
+#
+# scoops:
+#   - repository:
+#       owner: agentbridgehq
+#       name: scoop-bucket
+#       token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+#     homepage: https://github.com/agentbridgehq/agentbridge
+#     description: The supply chain for agent extensions
+#     license: Apache-2.0
 
 changelog:
   use: github
