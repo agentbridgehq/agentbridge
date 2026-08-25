@@ -4,6 +4,28 @@
 
 Last updated: 2026-08-11 · Overall status: **Every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
 
+**Pushed to GitHub 2026-08-25**, and CI ran for the first time. It found
+**eleven defects within minutes**, two of them in product code: a manifestless
+Claude Code plugin was named after its own absolute path on Windows
+(`path.Base` where `filepath.Base` was meant, one character apart), and
+`safepath` accepted a Unix absolute path as relative there, because
+`filepath.IsAbs` answers false for a rooted path with no drive letter — the
+package already documented that exact principle for the mirror case and
+implemented only one direction of it. `safeJoin`, the function between an
+attacker-chosen filename and the filesystem, let `"."` through on Windows for
+the same family of reason.
+
+The rest were the suite itself being Mac-shaped: `go build -o` produces a
+non-executable file on Windows without `.exe`, git rewrites text to CRLF and
+broke two structural scans, and `"file://" + a Windows path` is not a URL. One
+of those hid a test that had been checking nothing: the ad-hoc install in the
+prune test silently failed, and its absence afterwards was indistinguishable
+from the deletion the test exists to catch.
+
+**The lesson is the one this project keeps relearning: a gate that has never
+run is not a gate.** CI existed as YAML for weeks. Its first actual execution
+was worth more than any amount of local green.
+
 **What remains is not code.** Three things, and none can be finished by writing Go:
 
 | | Blocked on |

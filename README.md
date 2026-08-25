@@ -323,7 +323,8 @@ Being straight about the gaps:
    `agentbridgehq` and the npm name `agentbridge` are claimed, but the name has
    not been checked as a trademark or a domain ([D-02](MVP.md)).
 2. **No release has been cut, and the repository is private.** The pipeline is
-   written and validated by CI on every pull request, but it has never run.
+   written and CI-validated on every push — CI itself is green on Linux, macOS
+   and Windows — but the release workflow has never run.
    Homebrew and Scoop publishing are disabled until those tap repositories
    exist; the first tag will produce signed binaries, checksums and provenance.
 3. **No third-party client has been measured.** The
