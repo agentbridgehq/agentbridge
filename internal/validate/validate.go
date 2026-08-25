@@ -28,13 +28,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/diag"
-	"github.com/agentbridge/agentbridge/internal/importer"
-	"github.com/agentbridge/agentbridge/internal/importer/agentplugins"
-	"github.com/agentbridge/agentbridge/internal/importer/registry"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
-	"github.com/agentbridge/agentbridge/internal/schema"
+	"github.com/agentbridgehq/agentbridge/internal/diag"
+	"github.com/agentbridgehq/agentbridge/internal/importer"
+	"github.com/agentbridgehq/agentbridge/internal/importer/agentplugins"
+	"github.com/agentbridgehq/agentbridge/internal/importer/registry"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/schema"
 )
 
 // Severity of a finding.

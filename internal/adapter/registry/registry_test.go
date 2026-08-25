@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	"github.com/agentbridge/agentbridge/internal/adapter/registry"
-	importreg "github.com/agentbridge/agentbridge/internal/importer/registry"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	importreg "github.com/agentbridgehq/agentbridge/internal/importer/registry"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
 
 // fakeMachine builds a home directory containing the marker directories each

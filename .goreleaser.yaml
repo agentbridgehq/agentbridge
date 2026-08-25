@@ -89,7 +89,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
-    homepage: https://github.com/agentbridge/agentbridge
+    homepage: https://github.com/agentbridgehq/agentbridge
     description: The supply chain for agent extensions
     license: Apache-2.0
     test: |
@@ -100,7 +100,7 @@ scoops:
       owner: agentbridge
       name: scoop-bucket
       token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
-    homepage: https://github.com/agentbridge/agentbridge
+    homepage: https://github.com/agentbridgehq/agentbridge
     description: The supply chain for agent extensions
     license: Apache-2.0
 
@@ -136,7 +136,7 @@ release:
     cosign verify-blob checksums.txt \
       --signature checksums.txt.sig \
       --certificate checksums.txt.pem \
-      --certificate-identity-regexp 'https://github.com/agentbridge/agentbridge/.github/workflows/release.yml@.*' \
+      --certificate-identity-regexp 'https://github.com/agentbridgehq/agentbridge/.github/workflows/release.yml@.*' \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
     sha256sum --check --ignore-missing checksums.txt

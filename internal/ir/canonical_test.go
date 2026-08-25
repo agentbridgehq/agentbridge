@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
 )
 
 // Map iteration order in Go is randomized, so a digest built by naive

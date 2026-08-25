@@ -3,7 +3,7 @@ package scanner_test
 import (
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
 )
 
 func finding(rule, file string, line int, excerpt string) scanner.Finding {

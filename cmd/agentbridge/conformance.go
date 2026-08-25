@@ -8,9 +8,9 @@ import (
 
 	// The embedded cases and the runner that executes them. Both paths end in
 	// "conformance", so the corpus is aliased to the package name it declares.
-	corpus "github.com/agentbridge/agentbridge/conformance"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/conformance"
+	corpus "github.com/agentbridgehq/agentbridge/conformance"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/conformance"
 )
 
 // conformanceCmd runs the canonical corpus.

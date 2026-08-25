@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"sort"
 
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/secrets"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/secrets"
 )
 
 // Server-side rules.

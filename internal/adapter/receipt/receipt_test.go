@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
 )
 
 // The store is a whole-file document, so an instance loaded before someone

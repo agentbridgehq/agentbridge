@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/diag"
-	"github.com/agentbridge/agentbridge/internal/skill"
+	"github.com/agentbridgehq/agentbridge/internal/diag"
+	"github.com/agentbridgehq/agentbridge/internal/skill"
 )
 
 func TestParseFrontmatter(t *testing.T) {

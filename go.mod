@@ -1,4 +1,4 @@
-module github.com/agentbridge/agentbridge
+module github.com/agentbridgehq/agentbridge
 
 go 1.26.3
 

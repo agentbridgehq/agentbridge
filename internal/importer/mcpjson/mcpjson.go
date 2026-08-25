@@ -22,12 +22,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/capability"
-	"github.com/agentbridge/agentbridge/internal/diag"
-	"github.com/agentbridge/agentbridge/internal/importer"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
-	"github.com/agentbridge/agentbridge/internal/schema"
+	"github.com/agentbridgehq/agentbridge/internal/capability"
+	"github.com/agentbridgehq/agentbridge/internal/diag"
+	"github.com/agentbridgehq/agentbridge/internal/importer"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/schema"
 )
 
 // CandidatePaths are the filenames this importer looks for, in order.

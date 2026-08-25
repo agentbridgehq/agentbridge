@@ -13,12 +13,12 @@ package registry
 import (
 	"fmt"
 
-	"github.com/agentbridge/agentbridge/internal/importer"
-	"github.com/agentbridge/agentbridge/internal/importer/agentplugins"
-	"github.com/agentbridge/agentbridge/internal/importer/claudecode"
-	"github.com/agentbridge/agentbridge/internal/importer/mcpjson"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/importer"
+	"github.com/agentbridgehq/agentbridge/internal/importer/agentplugins"
+	"github.com/agentbridgehq/agentbridge/internal/importer/claudecode"
+	"github.com/agentbridgehq/agentbridge/internal/importer/mcpjson"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
 
 // All returns every importer in detection order.

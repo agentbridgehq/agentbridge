@@ -7,13 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/doctor"
-	importreg "github.com/agentbridge/agentbridge/internal/importer/registry"
-	"github.com/agentbridge/agentbridge/internal/safepath"
-	"github.com/agentbridge/agentbridge/internal/secrets"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/doctor"
+	importreg "github.com/agentbridgehq/agentbridge/internal/importer/registry"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/secrets"
 )
 
 const ccFixture = "../importer/claudecode/testdata/full"

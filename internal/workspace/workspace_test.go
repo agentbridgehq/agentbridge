@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/lockfile"
-	"github.com/agentbridge/agentbridge/internal/scanner"
-	"github.com/agentbridge/agentbridge/internal/workspace"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/lockfile"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/workspace"
 )
 
 // fakeMachine builds a home directory a client will be detected in.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/configedit"
+	"github.com/agentbridgehq/agentbridge/internal/configedit"
 )
 
 func writeTemp(t *testing.T, name, content string) string {

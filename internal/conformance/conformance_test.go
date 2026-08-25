@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/conformance"
+	"github.com/agentbridgehq/agentbridge/internal/conformance"
 )
 
 const corpus = "../../conformance/cases"

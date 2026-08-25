@@ -210,7 +210,7 @@ func TestEveryShippedPackageIsScanned(t *testing.T) {
 		t.Fatalf("go list: %v", err)
 	}
 
-	const module = "github.com/agentbridge/agentbridge"
+	const module = "github.com/agentbridgehq/agentbridge"
 	scanned := sourceFiles(t)
 
 	for _, pkg := range strings.Split(strings.TrimSpace(string(out)), "\n") {

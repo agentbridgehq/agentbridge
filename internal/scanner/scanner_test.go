@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/importer/registry"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
-	"github.com/agentbridge/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/importer/registry"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
 )
 
 func scan(t *testing.T, dir string) *scanner.Report {

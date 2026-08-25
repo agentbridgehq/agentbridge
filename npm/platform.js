@@ -35,7 +35,7 @@ function artifactFor(version, platform, arch) {
     throw new Error(
       `agentbridge does not publish a binary for ${platform}/${arch}.\n` +
         `Supported: ${supportedPairs().join(', ')}.\n` +
-        `Build from source instead: https://github.com/agentbridge/agentbridge`
+        `Build from source instead: https://github.com/agentbridgehq/agentbridge`
     );
   }
 

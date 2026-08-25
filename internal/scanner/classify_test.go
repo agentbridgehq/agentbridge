@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/safepath"
-	"github.com/agentbridge/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
 )
 
 // fakeModel is an endpoint speaking the Anthropic Messages shape.

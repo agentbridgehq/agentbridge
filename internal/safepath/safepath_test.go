@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
 
 // newTestRoot builds a plugin root with a file inside it and a sibling

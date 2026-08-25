@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
 )
 
 // allLossCodes lists every loss constant the package defines.

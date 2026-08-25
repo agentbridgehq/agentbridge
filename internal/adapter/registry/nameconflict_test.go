@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	"github.com/agentbridge/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/registry"
 )
 
 // Regression: two plugins claiming the same name silently orphaned one of them.

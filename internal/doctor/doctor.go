@@ -20,11 +20,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/configedit"
-	"github.com/agentbridge/agentbridge/internal/secrets"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/configedit"
+	"github.com/agentbridgehq/agentbridge/internal/secrets"
 )
 
 // Status grades a check.

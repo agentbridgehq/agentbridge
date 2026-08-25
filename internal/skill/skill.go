@@ -14,8 +14,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/agentbridge/agentbridge/internal/diag"
-	"github.com/agentbridge/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/diag"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
 )
 
 // Parsed is the result of reading a skill's Markdown file.

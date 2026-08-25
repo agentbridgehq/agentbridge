@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/source"
+	"github.com/agentbridgehq/agentbridge/internal/source"
 )
 
 // ------------------------------------------------------------ reference parsing

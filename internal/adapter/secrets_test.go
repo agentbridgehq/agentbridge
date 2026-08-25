@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/secrets"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/secrets"
 )
 
 func stdio(env map[string]string) ir.MCPServer {

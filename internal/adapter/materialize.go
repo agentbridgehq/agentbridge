@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
 )
 
 // secretEnvPattern mirrors the one in internal/capability. Duplicated

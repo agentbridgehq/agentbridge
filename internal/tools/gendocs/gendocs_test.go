@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/conformance"
+	"github.com/agentbridgehq/agentbridge/internal/conformance"
 )
 
 // docs/clients.md is generated. Compatibility documentation written by hand

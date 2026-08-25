@@ -21,8 +21,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/diag"
-	"github.com/agentbridge/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/diag"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
 )
 
 // secretEnvPattern matches environment variable names that conventionally hold

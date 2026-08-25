@@ -25,4 +25,4 @@ curl -fsSL https://raw.githubusercontent.com/agentbridge/agentbridge/main/instal
 ```
 
 Source, documentation and issues:
-https://github.com/agentbridge/agentbridge
+https://github.com/agentbridgehq/agentbridge

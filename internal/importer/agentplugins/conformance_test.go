@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/diag"
-	"github.com/agentbridge/agentbridge/internal/importer"
-	"github.com/agentbridge/agentbridge/internal/importer/agentplugins"
-	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/diag"
+	"github.com/agentbridgehq/agentbridge/internal/importer"
+	"github.com/agentbridgehq/agentbridge/internal/importer/agentplugins"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
 
 // Tests for requirements taken directly from Agent Plugins Specification

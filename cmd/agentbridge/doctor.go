@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/doctor"
-	"github.com/agentbridge/agentbridge/internal/secrets"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/doctor"
+	"github.com/agentbridgehq/agentbridge/internal/secrets"
 )
 
 // doctorCmd answers "I installed it — why is nothing happening?".

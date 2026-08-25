@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/validate"
+	"github.com/agentbridgehq/agentbridge/internal/validate"
 )
 
 func run(t *testing.T, dir string) *validate.Report {

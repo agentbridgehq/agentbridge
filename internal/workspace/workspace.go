@@ -28,15 +28,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	importreg "github.com/agentbridge/agentbridge/internal/importer/registry"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/lockfile"
-	"github.com/agentbridge/agentbridge/internal/safepath"
-	"github.com/agentbridge/agentbridge/internal/scanner"
-	"github.com/agentbridge/agentbridge/internal/source"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	importreg "github.com/agentbridgehq/agentbridge/internal/importer/registry"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/lockfile"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/source"
 )
 
 // Options control a sync.

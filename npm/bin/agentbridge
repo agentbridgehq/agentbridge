@@ -21,7 +21,7 @@ const binary = path.join(
 if (!fs.existsSync(binary)) {
   process.stderr.write(
     'agentbridge: the binary is missing. Reinstall with `npm install -g agentbridge`,\n' +
-      'or install another way: https://github.com/agentbridge/agentbridge\n'
+      'or install another way: https://github.com/agentbridgehq/agentbridge\n'
   );
   process.exit(1);
 }

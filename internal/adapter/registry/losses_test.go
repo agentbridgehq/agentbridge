@@ -3,8 +3,8 @@ package registry_test
 import (
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/registry"
 )
 
 // The declaration rule enforced against the real adapters, not a stub.

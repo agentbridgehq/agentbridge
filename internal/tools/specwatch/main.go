@@ -38,9 +38,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/schema"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/schema"
 )
 
 const (

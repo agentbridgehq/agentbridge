@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/schema"
+	"github.com/agentbridgehq/agentbridge/internal/schema"
 )
 
 // The canonical schema expresses this rule with a negative lookahead that Go's

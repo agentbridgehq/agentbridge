@@ -15,9 +15,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/conformance"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/conformance"
 )
 
 // fence renders a fenced code block. Written as a helper because a raw string

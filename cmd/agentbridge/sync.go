@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/lockfile"
-	"github.com/agentbridge/agentbridge/internal/scanner"
-	"github.com/agentbridge/agentbridge/internal/workspace"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/lockfile"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/workspace"
 )
 
 // syncFlags are the options both sync and update take.

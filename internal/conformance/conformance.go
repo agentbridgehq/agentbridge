@@ -29,7 +29,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/agentbridge/agentbridge/internal/importer/registry"
+	"github.com/agentbridgehq/agentbridge/internal/importer/registry"
 )
 
 // Case is one conformance test.

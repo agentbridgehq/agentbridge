@@ -31,8 +31,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
 
 // Support describes how well a client handles a component type.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
 )
 
 // allRuleIDs lists every rule the package defines.

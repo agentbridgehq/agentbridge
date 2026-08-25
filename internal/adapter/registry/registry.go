@@ -14,15 +14,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	"github.com/agentbridge/agentbridge/internal/adapter/clients/claudecode"
-	"github.com/agentbridge/agentbridge/internal/adapter/clients/codex"
-	"github.com/agentbridge/agentbridge/internal/adapter/clients/cursor"
-	"github.com/agentbridge/agentbridge/internal/adapter/clients/gemini"
-	"github.com/agentbridge/agentbridge/internal/adapter/clients/vscode"
-	"github.com/agentbridge/agentbridge/internal/adapter/receipt"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/claudecode"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/codex"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/cursor"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/gemini"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/vscode"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
 
 // StateDirName is the directory holding AgentBridge's own state.

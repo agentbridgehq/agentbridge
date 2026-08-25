@@ -1,9 +1,9 @@
 package adapter
 
 import (
-	"github.com/agentbridge/agentbridge/internal/configedit"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/configedit"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
 
 // JSONMCPSpec describes a client whose MCP configuration is a JSON object of

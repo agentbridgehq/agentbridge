@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
 )
 
 // lossesCmd prints what each client might not carry, before anything is

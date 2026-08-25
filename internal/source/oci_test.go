@@ -17,7 +17,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/source"
+	"github.com/agentbridgehq/agentbridge/internal/source"
 )
 
 // fakeRegistry is enough of the OCI distribution API to pull an artifact.

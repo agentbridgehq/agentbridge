@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/configedit"
+	"github.com/agentbridgehq/agentbridge/internal/configedit"
 )
 
 // Regression: Original() re-rendered the document instead of returning the

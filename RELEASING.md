@@ -34,7 +34,7 @@ artifact it lists, which keeps one signature to check rather than a dozen.
 cosign verify-blob checksums.txt \
   --signature checksums.txt.sig \
   --certificate checksums.txt.pem \
-  --certificate-identity-regexp 'https://github.com/agentbridge/agentbridge/.github/workflows/release.yml@.*' \
+  --certificate-identity-regexp 'https://github.com/agentbridgehq/agentbridge/.github/workflows/release.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 

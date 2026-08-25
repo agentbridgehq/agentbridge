@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agentbridge/agentbridge/internal/configedit"
+	"github.com/agentbridgehq/agentbridge/internal/configedit"
 )
 
 // Preserving the user's formatting is only half the job. What we add has to be

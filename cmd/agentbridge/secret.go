@@ -12,10 +12,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/agentbridge/agentbridge/internal/adapter"
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/configedit"
-	"github.com/agentbridge/agentbridge/internal/secrets"
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/configedit"
+	"github.com/agentbridgehq/agentbridge/internal/secrets"
 	"golang.org/x/term"
 )
 

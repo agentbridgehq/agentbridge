@@ -123,7 +123,7 @@ func (r *Report) SARIF(toolVersion string) ([]byte, error) {
 			Tool: tool{Driver: driver{
 				Name:           "agentbridge",
 				Version:        toolVersion,
-				InformationURI: "https://github.com/agentbridge/agentbridge",
+				InformationURI: "https://github.com/agentbridgehq/agentbridge",
 				Rules:          descriptors,
 			}},
 			Results: results,

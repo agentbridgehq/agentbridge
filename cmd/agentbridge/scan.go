@@ -8,13 +8,13 @@ import (
 	"os"
 	"strings"
 
-	adapterreg "github.com/agentbridge/agentbridge/internal/adapter/registry"
-	"github.com/agentbridge/agentbridge/internal/importer/registry"
-	"github.com/agentbridge/agentbridge/internal/ir"
-	"github.com/agentbridge/agentbridge/internal/safepath"
-	"github.com/agentbridge/agentbridge/internal/scanner"
-	"github.com/agentbridge/agentbridge/internal/secrets"
-	"github.com/agentbridge/agentbridge/internal/source"
+	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/importer/registry"
+	"github.com/agentbridgehq/agentbridge/internal/ir"
+	"github.com/agentbridgehq/agentbridge/internal/safepath"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/secrets"
+	"github.com/agentbridgehq/agentbridge/internal/source"
 )
 
 // scanCmd inspects a plugin's instruction text.

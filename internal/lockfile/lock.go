@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/agentbridge/agentbridge/internal/scanner"
+	"github.com/agentbridgehq/agentbridge/internal/scanner"
 )
 
 // LockName is the file recording what the manifest resolved to.
