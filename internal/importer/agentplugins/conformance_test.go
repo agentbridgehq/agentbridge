@@ -140,8 +140,22 @@ func TestWrongFilesystemKindAtFixedLocation(t *testing.T) {
 		}
 	})
 
+	// Built at runtime rather than checked in, because the fixture this needs
+	// is a *directory* named mcp.json with nothing in it — and git cannot store
+	// an empty directory. As a testdata fixture it survived locally and
+	// vanished in every clone, so the test passed here and failed for everyone
+	// else. The neighbouring TestSkillMDMustBeRegularFile already builds its
+	// fixture this way for the same reason.
 	t.Run("mcp.json is not a regular file", func(t *testing.T) {
-		res := mustLoad(t, "testdata/mcp-not-file")
+		dir := t.TempDir()
+		write(t, dir, "plugin.json",
+			`{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"mcp-not-file"}`)
+		write(t, dir, "skills/s/SKILL.md", "---\nname: s\n---\nbody\n")
+		if err := os.MkdirAll(filepath.Join(dir, "mcp.json"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		res := mustLoad(t, dir)
 		if len(res.Plugin.MCPServers) != 0 {
 			t.Errorf("servers = %v, want none", res.Plugin.MCPServers)
 		}

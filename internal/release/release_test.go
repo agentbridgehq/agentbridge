@@ -348,3 +348,50 @@ func gitLsFiles(t *testing.T, pattern string) map[string]bool {
 	}
 	return paths
 }
+
+// No directory the tests depend on may be empty.
+//
+// Git cannot store an empty directory. A fixture that *is* one — say a
+// directory named `mcp.json`, built to prove that a non-regular file at a fixed
+// location is rejected — exists perfectly on the machine that made it and is
+// simply absent from every clone. The test then passes for its author and fails
+// for everyone else, and no local gate can see the difference, because they all
+// read the working tree rather than the index.
+//
+// That is exactly how it happened here: `testdata/mcp-not-file/mcp.json` was an
+// empty directory, and the failure surfaced only when a clone from GitHub was
+// built. Such a fixture must be constructed at runtime instead.
+func TestNoEmptyDirectoriesInTheWorkingTree(t *testing.T) {
+	if len(gitLsFiles(t, "")) == 0 {
+		t.Skip("not a git checkout")
+	}
+
+	var empty []string
+	err := filepath.WalkDir("../..", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return err
+		}
+		switch d.Name() {
+		case ".git", "dist", "bin", "node_modules":
+			return filepath.SkipDir
+		}
+		entries, rerr := os.ReadDir(p)
+		if rerr != nil {
+			return nil
+		}
+		if len(entries) == 0 {
+			rel, _ := filepath.Rel("../..", p)
+			empty = append(empty, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+
+	sort.Strings(empty)
+	for _, dir := range empty {
+		t.Errorf("%s is an empty directory, so git will not store it and a clone will not have it.\n"+
+			"If a test depends on it, build it at runtime with t.TempDir() instead.", dir)
+	}
+}
