@@ -1,0 +1,19 @@
+# Check every text file out with LF on every platform.
+#
+# Without this, git converts to CRLF on Windows, and two kinds of check break
+# there for reasons that have nothing to do with the code: the generated-file
+# tests compare `make docs` output (always LF) against a checked-out file
+# (CRLF), and the release-config scan looks for "\n    goos:" anchors that CRLF
+# splits apart. Both reported real-looking failures — "docs/clients.md does not
+# match the adapters", ".goreleaser.yaml has no goos list" — that were purely
+# line endings.
+* text=auto eol=lf
+
+# Fixtures whose bytes are the point. A conformance case exists to be loaded
+# exactly as written, and the corpus digest covers its contents.
+conformance/cases/** -text
+internal/*/testdata/** -text
+internal/*/*/testdata/** -text
+
+# Binary.
+*.png binary

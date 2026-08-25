@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/agentbridgehq/agentbridge/internal/conformance"
@@ -11,6 +12,14 @@ import (
 // goes stale within a release and then actively misleads, which for this page
 // would be worse than having none — the product claim is that we tell people
 // the truth about what each client takes.
+// normaliseEOL strips CR before comparing.
+//
+// .gitattributes pins the working tree to LF, but a checkout made before that
+// existed — or a contributor with core.autocrlf set — still has CRLF on disk,
+// and the generator always emits LF. Comparing raw bytes then reports "run
+// make docs" for a difference make docs cannot fix.
+func normaliseEOL(s string) string { return strings.ReplaceAll(s, "\r\n", "\n") }
+
 func TestClientDocsAreCurrent(t *testing.T) {
 	want := Render("../../../conformance/cases")
 
@@ -18,7 +27,7 @@ func TestClientDocsAreCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("docs/clients.md is missing; run `make docs`: %v", err)
 	}
-	if string(got) != want {
+	if normaliseEOL(string(got)) != normaliseEOL(want) {
 		t.Error("docs/clients.md does not match the adapters. Run `make docs`.")
 	}
 }
@@ -36,7 +45,7 @@ func TestCorpusIndexIsCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("conformance/index.json is missing; run `make docs`: %v", err)
 	}
-	if string(got) != string(want) {
+	if normaliseEOL(string(got)) != normaliseEOL(string(want)) {
 		t.Error("conformance/index.json does not match the corpus. Run `make docs`.")
 	}
 }

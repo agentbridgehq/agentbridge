@@ -17,6 +17,17 @@ import (
 	"github.com/agentbridgehq/agentbridge/internal/workspace"
 )
 
+// fileURL builds a file:// reference for a local path.
+//
+// "file://" + a Windows path is not a URL: the drive colon parses as a port.
+func fileURL(dir string) string {
+	p := filepath.ToSlash(dir)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return "file://" + p
+}
+
 // fakeMachine builds a home directory a client will be detected in.
 func fakeMachine(t *testing.T) adapter.Env {
 	t.Helper()
@@ -129,7 +140,7 @@ func TestSyncInstallsAndWritesLock(t *testing.T) {
 	repo := pluginRepo(t, "acme.db", "1.0.0")
 	project := t.TempDir()
 
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	result := sync(t, env, res, workspace.Options{Prune: true})
 
 	if len(result.Plugins) != 1 {
@@ -167,7 +178,7 @@ func TestSyncIsIdempotent(t *testing.T) {
 	repo := pluginRepo(t, "acme.db", "1.0.0")
 	project := t.TempDir()
 
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	sync(t, env, res, workspace.Options{Prune: true})
 
 	second := sync(t, env, res, workspace.Options{Prune: true})
@@ -190,7 +201,7 @@ func TestSyncHonoursThePin(t *testing.T) {
 	repo := pluginRepo(t, "acme.db", "1.0.0")
 	project := t.TempDir()
 
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	first := sync(t, env, res, workspace.Options{Prune: true})
 	pinned := first.Plugins[0].Resolved.Commit
 
@@ -229,7 +240,7 @@ func TestPruneRemovesOnlyManagedPlugins(t *testing.T) {
 	project := t.TempDir()
 
 	// One declared plugin, and one installed by hand.
-	res := declare(t, env, project, "file://"+managed+"@v1.0.0")
+	res := declare(t, env, project, fileURL(managed)+"@v1.0.0")
 	sync(t, env, res, workspace.Options{Prune: true})
 
 	adhocRes := lockfile.Resolution{Entries: []lockfile.ScopedEntry{{
@@ -274,7 +285,7 @@ func TestDryRunWritesNothing(t *testing.T) {
 	repo := pluginRepo(t, "acme.db", "1.0.0")
 	project := t.TempDir()
 
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	result := sync(t, env, res, workspace.Options{DryRun: true, Prune: true})
 
 	if len(result.Diff.Added) != 1 {
@@ -297,7 +308,7 @@ func TestOnePluginFailureDoesNotStopTheRest(t *testing.T) {
 
 	res := declare(t, env, project,
 		"file:///nonexistent/repo@v1.0.0",
-		"file://"+good+"@v1.0.0")
+		fileURL(good)+"@v1.0.0")
 
 	store, err := receipt.Open(adapterreg.StateDir(env))
 	if err != nil {
@@ -369,7 +380,7 @@ func TestUndeclaringRemovesFromLock(t *testing.T) {
 	repo := pluginRepo(t, "acme.db", "1.0.0")
 	project := t.TempDir()
 
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	sync(t, env, res, workspace.Options{Prune: true})
 
 	empty := declare(t, env, project)
@@ -395,7 +406,7 @@ func TestUpdateBlocksOnAFindingIntroducedByABump(t *testing.T) {
 	env := fakeMachine(t)
 	repo := pluginRepo(t, "acme.db", "1.0.0")
 	project := t.TempDir()
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 
 	// Reviewed and installed while clean.
 	first := sync(t, env, res, workspace.Options{Prune: true})
@@ -457,7 +468,7 @@ func TestAnAcceptedFindingDoesNotBlockAgain(t *testing.T) {
 	gitRun(t, repo, "tag", "-f", "v1.0.0")
 
 	project := t.TempDir()
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	store, err := receipt.Open(adapterreg.StateDir(env))
 	if err != nil {
 		t.Fatal(err)
@@ -516,7 +527,7 @@ func TestResolvingAFindingClearsTheBaseline(t *testing.T) {
 	gitRun(t, repo, "tag", "-f", "v1.0.0")
 
 	project := t.TempDir()
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	accepted := sync(t, env, res, workspace.Options{Env: env, AllowFlagged: true})
 	if len(accepted.Plugins[0].Locked.Scan) == 0 {
 		t.Fatal("nothing was recorded to resolve")
@@ -557,7 +568,7 @@ func TestABlockedPluginIsNotRecordedAsAccepted(t *testing.T) {
 	gitRun(t, repo, "tag", "-f", "v1.0.0")
 
 	project := t.TempDir()
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	store, err := receipt.Open(adapterreg.StateDir(env))
 	if err != nil {
 		t.Fatal(err)
@@ -601,7 +612,7 @@ func TestJSONReportsWhyAPluginFailed(t *testing.T) {
 	gitRun(t, repo, "tag", "-f", "v1.0.0")
 
 	project := t.TempDir()
-	res := declare(t, env, project, "file://"+repo+"@v1.0.0")
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
 	store, err := receipt.Open(adapterreg.StateDir(env))
 	if err != nil {
 		t.Fatal(err)
