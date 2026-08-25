@@ -91,7 +91,9 @@ func (r *fakeRegistry) handle(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-		w.Write(raw)
+		if _, err := w.Write(raw); err != nil {
+			r.t.Errorf("writing blob: %v", err)
+		}
 	case strings.HasPrefix(req.URL.Path, prefix+"blobs/"):
 		if r.redirectBlobsTo != "" {
 			http.Redirect(w, req, r.redirectBlobsTo+req.URL.Path, http.StatusTemporaryRedirect)
@@ -103,7 +105,9 @@ func (r *fakeRegistry) handle(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		w.Write(raw)
+		if _, err := w.Write(raw); err != nil {
+			r.t.Errorf("writing blob: %v", err)
+		}
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -589,7 +593,9 @@ func TestNormalizesFilePermissions(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		tw.Write([]byte(body))
+		if _, err := tw.Write([]byte(body)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	tw.Close()
 	zw.Close()
@@ -636,7 +642,9 @@ func TestRefusesDuplicateEntries(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		tw.Write([]byte(content))
+		if _, err := tw.Write([]byte(content)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	tw.Close()
 	zw.Close()

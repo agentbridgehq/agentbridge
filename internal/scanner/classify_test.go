@@ -37,7 +37,10 @@ func newFakeModel(t *testing.T, reply func(prompt string) string) *fakeModel {
 				Content string `json:"content"`
 			} `json:"messages"`
 		}
-		json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
 		if len(req.Messages) > 0 {
 			m.prompts = append(m.prompts, req.Messages[0].Content)
 		}
@@ -49,9 +52,11 @@ func newFakeModel(t *testing.T, reply func(prompt string) string) *fakeModel {
 		if m.reply != nil && len(req.Messages) > 0 {
 			text = m.reply(req.Messages[0].Content)
 		}
-		json.NewEncoder(w).Encode(map[string]any{
+		if err := json.NewEncoder(w).Encode(map[string]any{
 			"content": []map[string]string{{"type": "text", "text": text}},
-		})
+		}); err != nil {
+			t.Errorf("encoding reply: %v", err)
+		}
 	}))
 	t.Cleanup(m.server.Close)
 	return m

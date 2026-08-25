@@ -79,10 +79,10 @@ func main() {
 			strings.HasSuffix(r.URL.Path, "/manifests/"+manifestDigest):
 			w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
 			w.Header().Set("Docker-Content-Digest", manifestDigest)
-			w.Write(manifest)
+			writeOrLog(w, manifest)
 		case strings.HasSuffix(r.URL.Path, "/blobs/"+layerDigest):
 			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Write(layer)
+			writeOrLog(w, layer)
 		default:
 			http.NotFound(w, r)
 		}
@@ -151,4 +151,12 @@ func (w *stringWriter) Write(p []byte) (int, error) { return w.b.Write(p) }
 func digestOf(b []byte) string {
 	sum := sha256.Sum256(b)
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// writeOrLog reports a failed response body rather than dropping it, so a
+// broken pull is visible in this server's log instead of only at the client.
+func writeOrLog(w http.ResponseWriter, b []byte) {
+	if _, err := w.Write(b); err != nil {
+		log.Printf("writing response: %v", err)
+	}
 }

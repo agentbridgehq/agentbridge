@@ -331,7 +331,11 @@ func TestUnreadableFilesAreReportedNotSkipped(t *testing.T) {
 	if err := os.Chmod(locked, 0o000); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(locked, 0o644) })
+	t.Cleanup(func() {
+		if err := os.Chmod(locked, 0o644); err != nil {
+			t.Logf("restoring permissions on %s: %v", locked, err)
+		}
+	})
 
 	r := scan(t, dir)
 

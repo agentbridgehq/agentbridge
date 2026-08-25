@@ -101,9 +101,11 @@ func main() {
 			http.Error(w, "encode", http.StatusInternalServerError)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{
+		if err := json.NewEncoder(w).Encode(map[string]any{
 			"content": []map[string]string{{"type": "text", "text": string(body)}},
-		})
+		}); err != nil {
+			log.Printf("encoding reply: %v", err)
+		}
 	})))
 }
 

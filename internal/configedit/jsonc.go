@@ -52,8 +52,10 @@ func LoadJSON(path string) (*JSONDoc, error) {
 	switch {
 	case err == nil:
 	case os.IsNotExist(err):
-		raw, err = []byte("{}\n"), nil
-		v, perr := hujson.Parse(raw)
+		// A missing file is not an error: "create the config" and "add to the
+		// config" are the same operation to a caller. err is not cleared here
+		// because nothing reads it again on this branch.
+		v, perr := hujson.Parse([]byte("{}\n"))
 		if perr != nil {
 			return nil, perr
 		}

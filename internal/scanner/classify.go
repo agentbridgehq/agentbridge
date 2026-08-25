@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -401,13 +400,4 @@ func locate(content, quote string) (int, bool) {
 		}
 	}
 	return 0, false
-}
-
-// classifyCacheKey addresses a verdict by exactly what produced it, so a
-// changed file, model or endpoint is a different question.
-func classifyCacheKey(model, endpoint, content string) string {
-	h := sha256.New()
-	fmt.Fprintf(h, "%s\x00%s\x00", model, endpoint)
-	h.Write([]byte(content))
-	return hex.EncodeToString(h.Sum(nil))
 }

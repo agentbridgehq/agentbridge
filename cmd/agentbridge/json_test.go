@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -41,7 +42,14 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(dir)
 
+	// Windows will not execute a file without the .exe extension, and
+	// `go build -o` writes exactly the name it is given — so without this every
+	// test here failed on Windows with "executable file not found in %PATH%".
+	// Nothing local could catch it; the first CI run did.
 	binary = filepath.Join(dir, "agentbridge")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if out, err := build.CombinedOutput(); err != nil {
 		panic("building the CLI for tests: " + err.Error() + "\n" + string(out))

@@ -143,10 +143,6 @@ func compileAll() compiled {
 	return c
 }
 
-func decode(b []byte) (any, error) {
-	return jsonschema.UnmarshalJSON(bytes.NewReader(b))
-}
-
 func compileOne(id string, doc any) (*jsonschema.Schema, error) {
 	c := jsonschema.NewCompiler()
 	if err := c.AddResource(id, doc); err != nil {
