@@ -244,7 +244,7 @@ func TestPruneRemovesOnlyManagedPlugins(t *testing.T) {
 	sync(t, env, res, workspace.Options{Prune: true})
 
 	adhocRes := lockfile.Resolution{Entries: []lockfile.ScopedEntry{{
-		Entry:     lockfile.Entry{Source: "file://" + adhoc + "@v1.0.0"},
+		Entry:     lockfile.Entry{Source: fileURL(adhoc) + "@v1.0.0"},
 		Workspace: lockfile.ProjectWorkspace(t.TempDir()),
 	}}}
 	// The store is re-opened rather than reused: it is a whole-file document,
@@ -255,8 +255,19 @@ func TestPruneRemovesOnlyManagedPlugins(t *testing.T) {
 		t.Fatal(err)
 	}
 	// DeclaredIn is empty, which is what an ad-hoc install looks like.
-	if _, err := workspace.Sync(context.Background(), adhocRes, adhocStore, workspace.Options{Env: env}); err != nil {
+	adhocResult, err := workspace.Sync(context.Background(), adhocRes, adhocStore, workspace.Options{Env: env})
+	if err != nil {
 		t.Fatal(err)
+	}
+	// Asserted rather than assumed: Sync reports a per-plugin failure inside
+	// the result rather than returning an error, so an ad-hoc install that
+	// never happened is indistinguishable further down from a prune that
+	// deleted it — which is exactly how this test passed on one platform while
+	// checking nothing on another.
+	for _, p := range adhocResult.Plugins {
+		if p.Err != nil {
+			t.Fatalf("the ad-hoc install did not happen, so there is nothing to protect: %v", p.Err)
+		}
 	}
 
 	// Now undeclare the managed one.
@@ -339,7 +350,7 @@ func TestProjectScopeWinsOverUser(t *testing.T) {
 	env := fakeMachine(t)
 	repo := pluginRepo(t, "acme.db", "1.0.0")
 	project := t.TempDir()
-	ref := "file://" + repo + "@v1.0.0"
+	ref := fileURL(repo) + "@v1.0.0"
 
 	userWS := lockfile.UserWorkspace(adapterreg.StateDir(env))
 	userManifest, err := lockfile.LoadManifest(userWS.ManifestPath())
