@@ -39,7 +39,9 @@ func read(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatalf("%s: %v", path, err)
 	}
-	return string(raw)
+	// Normalised because git may check these files out with CRLF on Windows,
+	// and the structural scans below look for "\n" anchors.
+	return strings.ReplaceAll(string(raw), "\r\n", "\n")
 }
 
 // makefilePlatforms reads the matrix CI cross-compiles on every change.

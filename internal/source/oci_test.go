@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -578,6 +579,9 @@ func TestDropsSymlinksAndOtherSpecialEntries(t *testing.T) {
 // Setuid on a file in the plugin cache is never something an artifact gets to
 // ask for.
 func TestNormalizesFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no Unix permission bits, so there is nothing here to assert")
+	}
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zw)

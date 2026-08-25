@@ -5,11 +5,26 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/agentbridgehq/agentbridge/internal/source"
 )
+
+// fileURL builds a file:// reference for a local path.
+//
+// "file://" + a Windows path is not a URL — the drive colon parses as a port,
+// and the backslashes are not separators to net/url — so the path has to be
+// converted and rooted rather than concatenated. On Unix this is what the tests
+// were already doing.
+func fileURL(dir string) string {
+	p := filepath.ToSlash(dir)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return "file://" + p
+}
 
 // ------------------------------------------------------------ reference parsing
 
@@ -138,6 +153,9 @@ func TestTreeDigestIsContentSensitive(t *testing.T) {
 }
 
 func TestTreeDigestCoversExecutableBit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no Unix permission bits, so there is nothing here to assert")
+	}
 	dir := writeTree(t, map[string]string{"bin/run": "#!/bin/sh\n"})
 	before := digest(t, dir)
 
@@ -258,7 +276,7 @@ func TestResolveGitPinsToCommit(t *testing.T) {
 	})
 	cache := source.NewCache(t.TempDir())
 
-	got, err := source.ResolveString(context.Background(), "file://"+repo+"@v1.0.0", source.Options{Cache: cache})
+	got, err := source.ResolveString(context.Background(), fileURL(repo)+"@v1.0.0", source.Options{Cache: cache})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +303,7 @@ func TestResolveGitPinsToCommit(t *testing.T) {
 func TestResolveGitUsesCacheAndWorksOffline(t *testing.T) {
 	repo := gitRepo(t, map[string]string{"plugin.json": `{"name":"git-plugin"}`})
 	cache := source.NewCache(t.TempDir())
-	ref := "file://" + repo + "@v1.0.0"
+	ref := fileURL(repo) + "@v1.0.0"
 
 	first, err := source.ResolveString(context.Background(), ref, source.Options{Cache: cache})
 	if err != nil {
@@ -305,7 +323,7 @@ func TestResolveGitUsesCacheAndWorksOffline(t *testing.T) {
 
 	// Once pinned to a commit, resolution needs no network at all.
 	offline, err := source.ResolveString(context.Background(),
-		"file://"+repo+"@"+first.Commit, source.Options{Cache: cache, Offline: true})
+		fileURL(repo)+"@"+first.Commit, source.Options{Cache: cache, Offline: true})
 	if err != nil {
 		t.Fatalf("offline resolve of a pinned reference failed: %v", err)
 	}
@@ -320,14 +338,14 @@ func TestOfflineRefusesWhatItHasNeverSeen(t *testing.T) {
 	repo := gitRepo(t, map[string]string{"plugin.json": "{}"})
 	cache := source.NewCache(t.TempDir())
 
-	_, err := source.ResolveString(context.Background(), "file://"+repo+"@v1.0.0",
+	_, err := source.ResolveString(context.Background(), fileURL(repo)+"@v1.0.0",
 		source.Options{Cache: cache, Offline: true})
 	if err == nil || !strings.Contains(err.Error(), "never been resolved") {
 		t.Errorf("a tag never resolved on this machine: %v", err)
 	}
 
 	_, err = source.ResolveString(context.Background(),
-		"file://"+repo+"@0000000000000000000000000000000000000000",
+		fileURL(repo)+"@0000000000000000000000000000000000000000",
 		source.Options{Cache: cache, Offline: true})
 	if err == nil || !strings.Contains(err.Error(), "not in the cache") {
 		t.Errorf("a pinned commit that was never fetched: %v", err)
@@ -341,7 +359,7 @@ func TestOfflineRefusesWhatItHasNeverSeen(t *testing.T) {
 func TestOfflineReusesAPreviouslyResolvedTag(t *testing.T) {
 	repo := gitRepo(t, map[string]string{"plugin.json": `{"name":"x"}`})
 	cache := source.NewCache(t.TempDir())
-	ref := "file://" + repo + "@v1.0.0"
+	ref := fileURL(repo) + "@v1.0.0"
 
 	first, err := source.ResolveString(context.Background(), ref, source.Options{Cache: cache})
 	if err != nil {
@@ -367,7 +385,7 @@ func TestOfflineReusesAPreviouslyResolvedTag(t *testing.T) {
 func TestCacheTamperingIsDetected(t *testing.T) {
 	repo := gitRepo(t, map[string]string{"plugin.json": `{"name":"git-plugin"}`})
 	cache := source.NewCache(t.TempDir())
-	ref := "file://" + repo + "@v1.0.0"
+	ref := fileURL(repo) + "@v1.0.0"
 
 	got, err := source.ResolveString(context.Background(), ref, source.Options{Cache: cache})
 	if err != nil {
@@ -397,7 +415,7 @@ func TestResolveGitSubdirectory(t *testing.T) {
 	cache := source.NewCache(t.TempDir())
 
 	got, err := source.ResolveString(context.Background(),
-		"file://"+repo+"@v1.0.0#plugins/db", source.Options{Cache: cache})
+		fileURL(repo)+"@v1.0.0#plugins/db", source.Options{Cache: cache})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -409,7 +427,7 @@ func TestResolveGitSubdirectory(t *testing.T) {
 	}
 
 	if _, err := source.ResolveString(context.Background(),
-		"file://"+repo+"@v1.0.0#plugins/missing", source.Options{Cache: cache}); err == nil {
+		fileURL(repo)+"@v1.0.0#plugins/missing", source.Options{Cache: cache}); err == nil {
 		t.Error("a subdirectory that does not exist should fail")
 	}
 }
@@ -423,11 +441,11 @@ func TestCacheKeyDistinguishesSubdirectories(t *testing.T) {
 	})
 	cache := source.NewCache(t.TempDir())
 
-	a, err := source.ResolveString(context.Background(), "file://"+repo+"@v1.0.0#plugins/a", source.Options{Cache: cache})
+	a, err := source.ResolveString(context.Background(), fileURL(repo)+"@v1.0.0#plugins/a", source.Options{Cache: cache})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := source.ResolveString(context.Background(), "file://"+repo+"@v1.0.0#plugins/b", source.Options{Cache: cache})
+	b, err := source.ResolveString(context.Background(), fileURL(repo)+"@v1.0.0#plugins/b", source.Options{Cache: cache})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,7 +460,7 @@ func TestCacheKeyDistinguishesSubdirectories(t *testing.T) {
 func TestExpectedDigestRejectsSubstitutedPackage(t *testing.T) {
 	repo := gitRepo(t, map[string]string{"plugin.json": `{"name":"x"}`})
 	cache := source.NewCache(t.TempDir())
-	ref := "file://" + repo + "@v1.0.0"
+	ref := fileURL(repo) + "@v1.0.0"
 
 	got, err := source.ResolveString(context.Background(), ref, source.Options{Cache: cache})
 	if err != nil {

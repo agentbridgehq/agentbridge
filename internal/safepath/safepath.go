@@ -84,7 +84,7 @@ func (r *Root) Resolve(rel string) (string, error) {
 	if rel == "" {
 		return "", ErrEmpty
 	}
-	if filepath.IsAbs(rel) || isWindowsAbs(rel) {
+	if filepath.IsAbs(rel) || isWindowsAbs(rel) || isRooted(rel) {
 		return "", fmt.Errorf("%w: %q", ErrAbsolute, rel)
 	}
 
@@ -157,6 +157,18 @@ func resolveExisting(path string) (string, error) {
 		remainder = filepath.Join(filepath.Base(current), remainder)
 		current = parent
 	}
+}
+
+// isRooted catches a path anchored at a filesystem root on *any* platform.
+//
+// The mirror of isWindowsAbs, and it was missing. filepath.IsAbs on Windows
+// answers false for "/etc/passwd" — it is rooted but has no drive — so a
+// manifest authored on Linux carrying a Unix absolute path was rejected on
+// Linux and quietly accepted as relative on Windows. The rule this package
+// exists to enforce is that component paths are plugin-relative, and that
+// cannot depend on which machine happens to be reading the manifest.
+func isRooted(p string) bool {
+	return len(p) > 0 && (p[0] == '/' || p[0] == '\\')
 }
 
 // isWindowsAbs catches Windows-style absolute paths ("C:\x", "\\server\share")

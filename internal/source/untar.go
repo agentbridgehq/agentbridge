@@ -181,7 +181,11 @@ func safeJoin(dst, name string) (string, bool) {
 		}
 	}
 
-	clean := strings.TrimPrefix(filepath.Clean("/"+normalized), "/")
+	// Clean with the host's separator, then normalise back — on Windows
+	// filepath.Clean("/.") returns "\\", which a TrimPrefix of "/" does not
+	// strip, so "." slipped through as the destination directory itself.
+	clean := filepath.ToSlash(filepath.Clean("/" + normalized))
+	clean = strings.TrimPrefix(clean, "/")
 	if clean == "" || clean == "." {
 		return "", false
 	}

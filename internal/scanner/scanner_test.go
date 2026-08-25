@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -314,6 +315,9 @@ func TestAtLeastFiltersByThreshold(t *testing.T) {
 // a scan error as advisory, so one unreadable file would switch the gate off
 // entirely — which is precisely what an attacker would arrange.
 func TestUnreadableFilesAreReportedNotSkipped(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 000 does not deny reads on Windows, so the file stays readable")
+	}
 	if os.Getuid() == 0 {
 		t.Skip("running as root, which can read anything")
 	}
