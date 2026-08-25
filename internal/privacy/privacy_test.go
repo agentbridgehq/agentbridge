@@ -224,7 +224,7 @@ func TestEveryShippedPackageIsScanned(t *testing.T) {
 
 		var covered bool
 		for path := range scanned {
-			if filepath.Dir(filepath.ToSlash(path)) == "../../"+rel {
+			if filepath.ToSlash(filepath.Dir(path)) == "../../"+rel {
 				covered = true
 				break
 			}

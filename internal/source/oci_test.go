@@ -539,7 +539,9 @@ func TestDropsSymlinksAndOtherSpecialEntries(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	tw.Write([]byte(body))
+	if _, err := tw.Write([]byte(body)); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, h := range []*tar.Header{
 		{Name: "secrets", Linkname: "/etc/passwd", Typeflag: tar.TypeSymlink, Mode: 0o777},
@@ -726,7 +728,9 @@ func TestFollowsBlobRedirectsButNotIntoPlaintext(t *testing.T) {
 
 		// Serve the blob from the CDN instead, and redirect to it.
 		cdn.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write(content)
+			if _, err := w.Write(content); err != nil {
+				t.Errorf("write: %v", err)
+			}
 		})
 		reg.redirectBlobsTo = cdn.URL
 
@@ -737,7 +741,9 @@ func TestFollowsBlobRedirectsButNotIntoPlaintext(t *testing.T) {
 
 	t.Run("content is still verified after a redirect", func(t *testing.T) {
 		cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write(tarGz(t, map[string]string{"plugin.json": `{"name":"evil.swap","version":"9"}`}))
+			if _, err := w.Write(tarGz(t, map[string]string{"plugin.json": `{"name":"evil.swap","version":"9"}`})); err != nil {
+				t.Errorf("write: %v", err)
+			}
 		}))
 		defer cdn.Close()
 

@@ -40,6 +40,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -125,7 +126,10 @@ func (i *Importer) Import(root *safepath.Root) (*importer.Result, error) {
 
 	name := m.Name
 	if name == "" {
-		name = path.Base(root.Declared())
+		// filepath, not path: the latter only knows "/", so on Windows it
+		// returns the entire absolute path and the plugin ends up named
+		// after its own location on disk.
+		name = filepath.Base(root.Declared())
 		ds.Add(diag.Warning, diag.CodeManifestMissing, "",
 			"no manifest name; using directory name %q, which changes if the directory is renamed", name)
 	}

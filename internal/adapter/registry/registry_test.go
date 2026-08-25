@@ -181,7 +181,13 @@ func TestPlaceholdersAreResolvedForNonConformantTargets(t *testing.T) {
 	if strings.Contains(written, "${PLUGIN_ROOT}") || strings.Contains(written, "${PLUGIN_DATA}") {
 		t.Errorf("unresolved placeholder written to a client config:\n%s", written)
 	}
-	if !strings.Contains(written, src.Path()) {
+	// The path is embedded in JSON, so on Windows its separators arrive
+	// escaped. Compare against the encoded form rather than the raw string.
+	encoded, err := json.Marshal(src.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(written, strings.Trim(string(encoded), `"`)) {
 		t.Errorf("plugin root was not resolved to an absolute path:\n%s", written)
 	}
 }
