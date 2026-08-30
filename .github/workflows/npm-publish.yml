@@ -42,16 +42,30 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Trusted publishing needs Node >= 22.14.0.
-          node-version: "22"
+          # 24 is the current LTS and ships an npm that already supports
+          # trusted publishing, so the upgrade below is a safety net rather
+          # than the thing this depends on. Pinning the major matters: the npm
+          # that can publish over OIDC has a floor on the Node version too, and
+          # a runner on an older line fails while installing npm rather than
+          # while publishing, which reads like an unrelated problem.
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Use an npm new enough to publish over OIDC
-        # The npm bundled with Node 22 is 10.x, which has no trusted publishing
-        # support and fails with an authentication error rather than saying so.
+      - name: Require an npm that can publish over OIDC
+        # Trusted publishing needs npm >= 11.5.1 and Node >= 22.14.0. An npm
+        # without it does not say so — it asks for a token that does not exist
+        # here and reports an authentication failure, sending you looking for a
+        # credential problem that is really a version problem. So the version
+        # is checked, out loud, before publishing.
         run: |
-          npm install -g npm@latest
-          npm --version
+          need=11.5.1
+          have=$(npm --version)
+          if [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" != "$need" ]; then
+            echo "npm $have is older than $need; upgrading"
+            npm install -g npm@latest
+            have=$(npm --version)
+          fi
+          echo "node $(node --version), npm $have"
 
       - name: Check the package version matches the release
         # install.js derives the download URL from package.json's version, so a

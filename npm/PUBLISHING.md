@@ -116,3 +116,27 @@ reported success and produced a command that hung the first time it ran.
 Both the shim and the installer now ask `platform.js` where the binary lives, so
 they cannot disagree again, and two tests in
 [`platform.test.js`](platform.test.js) keep it that way.
+
+---
+
+## A note if you use nvm
+
+Two things behave differently, and both bite quietly:
+
+- **Your npm login is global.** `npm login` writes the auth token to
+  `~/.npmrc`, not into a Node version, so it survives `nvm use` and you do not
+  re-authenticate when switching.
+- **npm itself is per-version.** `npm install -g npm@latest` upgrades npm only
+  for the Node you had active. Switch versions and you are on whatever npm that
+  one shipped with — which for Node 20 is npm 10.
+
+There is an [`.nvmrc`](.nvmrc) here so `nvm use` in this directory selects a
+Node new enough to publish. Check before publishing rather than after:
+
+```bash
+node --version && npm --version
+```
+
+This only matters for a **local** publish. Trusted publishing runs on the CI
+runner, whose Node and npm come from the workflow, so nothing about your
+machine affects it.
