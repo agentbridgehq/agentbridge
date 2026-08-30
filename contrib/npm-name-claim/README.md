@@ -7,10 +7,18 @@ and a scanner that reads what the plugin tells your agent to do.
 ## This version is a placeholder
 
 `0.0.1` reserves the name. **It installs no binary and provides no command.**
-The first working release will be `0.1.0`, and this package will then download
-a signed, checksum-verified binary for your platform.
+A later version of this package will download a signed, checksum-verified
+binary for your platform.
 
-Until then, build from source — Go 1.26, no runtime dependencies:
+The tool itself is released. Install it directly:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/agentbridgehq/agentbridge/main/install.sh | sh
+```
+
+That verifies a SHA-256 checksum against the release's signed checksum file,
+and the Sigstore signature too when `cosign` is present. Or build from source —
+Go 1.26, no runtime dependencies:
 
 ```bash
 git clone https://github.com/agentbridgehq/agentbridge

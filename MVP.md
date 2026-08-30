@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-30 · Overall status: **Every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
+Last updated: 2026-08-30 · Overall status: **v0.1.0 released; every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
 
 **Pushed to GitHub 2026-08-25**, and CI ran for the first time. It found
 **eleven defects within minutes**, two of them in product code: a manifestless
@@ -87,14 +87,35 @@ fix judged emptiness recursively and read `{"command": "mine"}` as empty,
 because a string has no keys below it — an existing test caught it deleting a
 user's server, which is the only reason it is not in the released binary.
 
-**What remains is not code.** Three things, and none can be finished by writing Go:
+**Public, and released (2026-08-30).** The repository is public and **v0.1.0 is
+published**: six platforms, checksums, a Sigstore signature and SLSA build
+provenance. The release pipeline succeeded on its first real run, having been
+rehearsed locally first — which is how two defects were caught before they
+could ship rather than after.
+
+The larger of the two was in `install.sh`, the path the README leads with:
+`REPO` named the organisation `agentbridge`, which is not ours, so **every
+install would have failed**. Reading the script would not have found it;
+running it against a real published release did. The failure also disguised
+itself — a 404 meant no redirect to a tag, `sed` left the URL untouched, and
+the URL became the version, so the error blamed the download rather than the
+lookup. Verified afterwards against the live release: default install, pinned
+version, custom `AGENTBRIDGE_BINDIR`, and `AGENTBRIDGE_REQUIRE_SIGNATURE=1`,
+with checksum and cosign signature both confirmed, and `gh attestation verify`
+checked against negative controls so that a passing result means something.
+
+The second: GoReleaser's `go mod tidy` hook rewrote `go.mod` as its first act,
+because three directly-imported modules were recorded as indirect. That would
+have built the published binaries from a manifest differing from the committed
+one.
+
+**What remains is not code.** None of these can be finished by writing Go:
 
 | | Blocked on |
 |---|---|
 | **M10-2** — measure the target clients (§6) | Partly closed: Codex and opencode confirm what they loaded through their own CLIs (above). Cursor and VS Code are desktop applications with no read-back, so those two still need a person installing each client and watching it. The corpus, the protocol and the results template are built and ship in the binary. |
-| **M8** — cut a first release | The pipeline is written and CI-validated on every pull request, but has never run. Nothing is signed because nothing is published. |
-| **Going public** | The repository is private. `go get`, the npm postinstall and the `curl \| sh` installer all need release artifacts that are publicly downloadable. |
-| **D-02 / M9-4** — trademark check, then launch | The GitHub org `agentbridgehq` and the npm name `agentbridge` are claimed. Trademark and domain remain unchecked. |
+| **`brew` and `npm`** | Homebrew and Scoop publishing stay commented out in `.goreleaser.yaml` until the tap repositories exist. The npm placeholder is written but unpublished — the name `agentbridge` is still unregistered, and claiming it needs a 2FA code. |
+| **D-02 / M9-4** — trademark check, then launch | The GitHub org `agentbridgehq` is ours. Trademark, domain, and the npm name remain unchecked or unclaimed. |
 
 **Third full review (2026-08-11).** Docs and implementation re-checked after
 M11 and M3-5, then every status marker in this file re-checked against the code
@@ -680,26 +701,31 @@ that the meaning explains rather than restates.
 |---|---|---|---|
 | M8-1 | GoReleaser pipeline, signed releases | Cosign signature + checksums on every artifact | ✅ |
 | M8-2 | SLSA provenance for our own binary | We cannot sell provenance while shipping unsigned | ✅ |
-| M8-3 | Homebrew tap | | ✅ |
-| M8-4 | npm wrapper package (downloads + verifies the binary) | `npm i -g` works without a Node runtime dependency at execution | ✅ |
-| M8-5 | Install script with signature verification | `curl \| sh` verifies before executing | ✅ |
-| M8-6 | Scoop / winget | **P1** | ✅ |
+| M8-3 | Homebrew tap | | ⏸️ written, publishing disabled until the tap repository exists |
+| M8-4 | npm wrapper package (downloads + verifies the binary) | `npm i -g` works without a Node runtime dependency at execution | ⏸️ written; the name is still unregistered |
+| M8-5 | Install script with signature verification | `curl \| sh` verifies before executing | ✅ verified against the published v0.1.0 |
+| M8-6 | Scoop / winget | **P1** | ⏸️ same as M8-3 |
 
-**Honest status: the release pipeline has never run.** GoReleaser and cosign
-are not installed on the development machine, so `.goreleaser.yaml` and the
-release workflow are written carefully and **unverified**. Rather than claim
-otherwise, CI now runs `goreleaser check` and a snapshot build on every pull
-request, which means the config is validated on the first push rather than on
-the first tag. See [RELEASING.md](RELEASING.md) for the pre-first-release
-checklist.
+**The pipeline has now run, and succeeded on its first tag (2026-08-30).**
+v0.1.0 publishes six platforms, SBOMs, checksums, a cosign signature and SLSA
+provenance. It was rehearsed locally first — `goreleaser check`, then a full
+snapshot build of all six targets — and that rehearsal is what caught the
+`go mod tidy` hook rewriting `go.mod` mid-release.
 
-What *was* verified locally: the installer, against a fake release, in four
-scenarios — happy path, tampered archive, a checksums file that does not list
-our artifact, and `AGENTBRIDGE_REQUIRE_SIGNATURE=1` with no signature published.
-Testing it found a real bug: `tar -xzf FILE -C DIR` fails on BSD tar, which
-applies options in order, so the `-C` changed directory before the archive path
-was resolved. On macOS every install would have failed after passing
-verification.
+**The installer was broken, and only running it found out.** `REPO` named the
+organisation `agentbridge` rather than `agentbridgehq`, so every install would
+have failed on the path the README leads with. Earlier testing had been against
+a *fake* release with `AGENTBRIDGE_BASE_URL` set, which bypasses the repository
+constant entirely — the one variable the fake could not exercise was the one
+that was wrong. Verified since against the real release: default install,
+pinned version, custom `AGENTBRIDGE_BINDIR`, and
+`AGENTBRIDGE_REQUIRE_SIGNATURE=1`, with `gh attestation verify` checked against
+a tampered archive and a wrong repository so that a pass means something.
+
+That earlier fake-release testing was still worth its cost: it found that
+`tar -xzf FILE -C DIR` fails on BSD tar, which applies options in order, so
+`-C` changed directory before the archive path resolved. On macOS every install
+would have failed *after* passing verification.
 
 **Verification is not optional anywhere.** The usual `curl | sh` installer
 downloads a binary and runs it having checked nothing, which is precisely the

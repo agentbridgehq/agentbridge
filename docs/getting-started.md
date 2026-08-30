@@ -10,10 +10,26 @@ If you instead want to *verify the implementation* against a sandbox, that is
 
 ## 1. Install
 
-There is no published release yet, so you build it:
+```bash
+curl -fsSL https://raw.githubusercontent.com/agentbridgehq/agentbridge/main/install.sh | sh
+```
+
+It verifies a SHA-256 checksum against the release's signed checksum file
+before writing anything, and refuses an artifact that file does not list. If
+`cosign` is installed it also verifies the Sigstore signature, pinned to this
+repository's release workflow. Set `AGENTBRIDGE_REQUIRE_SIGNATURE=1` to make
+cosign's absence an error rather than a skipped check — the right setting on CI
+and on a managed fleet.
+
+Two knobs worth knowing: `AGENTBRIDGE_BINDIR` chooses the install directory
+(default `/usr/local/bin`, falling back to `~/.local/bin` when that is not
+writable), and `AGENTBRIDGE_VERSION` pins a version instead of taking the
+latest.
+
+Prefer to build it yourself? Go 1.26, no runtime dependencies:
 
 ```bash
-git clone <this repository> agentbridge
+git clone https://github.com/agentbridgehq/agentbridge
 cd agentbridge
 make
 ```
@@ -38,9 +54,10 @@ Check:
 agentbridge version
 ```
 
-> Once a release exists, this becomes `brew install`, `npm i -g agentbridge`, or
-> the install script — all of which verify a signed checksum before writing
-> anything. See [RELEASING.md](../RELEASING.md).
+> `brew install` and `npm i -g agentbridge` do not work yet: Homebrew and Scoop
+> publishing stay disabled until those tap repositories exist, and the npm
+> package reserves the name without shipping a binary. See
+> [RELEASING.md](../RELEASING.md).
 
 ---
 

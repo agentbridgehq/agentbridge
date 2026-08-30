@@ -102,7 +102,25 @@ files, not prose. Your code scanner reads source, and this is not source.
 
 ## Install
 
-No release has been cut yet, so build it. Go 1.26, no runtime dependencies:
+```bash
+curl -fsSL https://raw.githubusercontent.com/agentbridgehq/agentbridge/main/install.sh | sh
+```
+
+The installer verifies a SHA-256 checksum against the release's signed checksum
+file and refuses any artifact that file does not list. When `cosign` is present
+it also verifies the Sigstore signature, pinned to this repository's release
+workflow; `AGENTBRIDGE_REQUIRE_SIGNATURE=1` makes cosign's *absence* an error,
+which is the right setting for CI and for any managed fleet. A tool that argues
+about where your plugins came from cannot have an installer that downloads a
+binary and trusts it.
+
+`AGENTBRIDGE_BINDIR` chooses where it lands (default `/usr/local/bin`, or
+`~/.local/bin` when that is not writable) and `AGENTBRIDGE_VERSION` pins a
+version. Or download from [releases](https://github.com/agentbridgehq/agentbridge/releases)
+and verify by hand — [RELEASING.md](RELEASING.md) has the `cosign` and
+`gh attestation` commands.
+
+From source instead, Go 1.26 and no runtime dependencies:
 
 ```bash
 git clone https://github.com/agentbridgehq/agentbridge
@@ -113,20 +131,9 @@ sudo install -m 0755 ./agentbridge /usr/local/bin/
 
 `make` runs vet, the full test suite and the build.
 
-<details>
-<summary>Once a release exists</summary>
-
-```bash
-brew install agentbridge/tap/agentbridge
-npm install -g agentbridge
-curl -fsSL https://raw.githubusercontent.com/agentbridgehq/agentbridge/main/install.sh | sh
-```
-
-All three verify a SHA-256 checksum against the release's signed checksum file
-and refuse an artifact that file does not list. A tool that argues about where
-your plugins came from cannot have an installer that downloads a binary and
-trusts it. See [RELEASING.md](RELEASING.md).
-</details>
+> **Not yet available:** `brew` and `npm`. Homebrew and Scoop publishing stay
+> disabled until those tap repositories exist, and the npm package currently
+> reserves the name without shipping a binary.
 
 ## Setting it up for a project
 
@@ -323,19 +330,24 @@ Four claims hold everything else up:
 Being straight about the gaps:
 
 1. **The name is only partly secured.** The GitHub organisation
-   `agentbridgehq` and the npm name `agentbridge` are claimed, but the name has
-   not been checked as a trademark or a domain ([D-02](MVP.md)).
-2. **No release has been cut, and the repository is private.** The pipeline is
-   written and CI-validated on every push — CI itself is green on Linux, macOS
-   and Windows — but the release workflow has never run.
-   Homebrew and Scoop publishing are disabled until those tap repositories
-   exist; the first tag will produce signed binaries, checksums and provenance.
-3. **No third-party client has been measured.** The
-   [conformance corpus](conformance/README.md) exists and this implementation
-   passes all 18 cases, but running it against real clients needs those clients
-   installed and a human watching. Until then [clients.md](docs/clients.md)
-   reports what we *write*, based on each vendor's documentation — not what the
-   client does with it.
+   `agentbridgehq` is ours. The npm name `agentbridge` is still unregistered —
+   the placeholder package in [contrib/npm-name-claim](contrib/npm-name-claim)
+   is written and waiting to be published — and the name has been checked as
+   neither a trademark nor a domain ([D-02](MVP.md)).
+2. **`brew` and `npm` do not work yet.** v0.1.0 is published, signed and
+   verifiable — six platforms, checksums, Sigstore signature and SLSA
+   provenance — and `install.sh` is the supported path. But Homebrew and Scoop
+   publishing stay disabled until those tap repositories exist, and the npm
+   package reserves the name without shipping a binary.
+3. **Two clients have been measured, four have not.** Codex reports an
+   installed server as `enabled` under `codex mcp list`, and opencode reports
+   one as `connected` — it launched the server and completed the MCP handshake
+   — while `opencode debug skill` lists the installed skills. That is the
+   vendor's own tooling answering, not ours. Cursor and VS Code are desktop
+   applications with no equivalent read-back, so what we write there matches
+   their published schemas and is unconfirmed. The full
+   [conformance corpus](conformance/README.md) of 18 cases still needs a human
+   watching each client; [clients.md](docs/clients.md) reports what we *write*.
 4. **Plugin signature verification does not exist.** Our own release binaries
    are signed; a plugin's provenance is currently the commit or digest in your
    lockfile, which is real but is not a signature.
