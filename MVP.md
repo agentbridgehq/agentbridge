@@ -114,8 +114,8 @@ one.
 | | Blocked on |
 |---|---|
 | **M10-2** — measure the target clients (§6) | Partly closed: Codex and opencode confirm what they loaded through their own CLIs (above). Cursor and VS Code are desktop applications with no read-back, so those two still need a person installing each client and watching it. The corpus, the protocol and the results template are built and ship in the binary. |
-| **`brew` and `npm`** | Homebrew and Scoop publishing stay commented out in `.goreleaser.yaml` until the tap repositories exist. The npm placeholder is written but unpublished — the name `agentbridge` is still unregistered, and claiming it needs a 2FA code. |
-| **D-02 / M9-4** — trademark check, then launch | The GitHub org `agentbridgehq` is ours. Trademark, domain, and the npm name remain unchecked or unclaimed. |
+| **`brew`** | Homebrew and Scoop publishing stay commented out in `.goreleaser.yaml` until the tap repositories exist. npm is done: `@agentbridgehq/agentbridge` is published and a clean install was verified to download, checksum and run. |
+| **D-02 / M9-4** — the name | Now urgent rather than administrative. `agentbridge` was taken on GitHub; npm refuses it unscoped as too similar to `agent-bridge`; the `@agentbridge` scope belongs to an unrelated framework; and three further published packages carry the name in this exact space, two of them shipping per-client adapters. A name three other projects reached for independently does not distinguish this one. Trademark and domain remain unchecked. |
 
 **Third full review (2026-08-11).** Docs and implementation re-checked after
 M11 and M3-5, then every status marker in this file re-checked against the code
@@ -702,7 +702,7 @@ that the meaning explains rather than restates.
 | M8-1 | GoReleaser pipeline, signed releases | Cosign signature + checksums on every artifact | ✅ |
 | M8-2 | SLSA provenance for our own binary | We cannot sell provenance while shipping unsigned | ✅ |
 | M8-3 | Homebrew tap | | ⏸️ written, publishing disabled until the tap repository exists |
-| M8-4 | npm wrapper package (downloads + verifies the binary) | `npm i -g` works without a Node runtime dependency at execution | ⏸️ written; the name is still unregistered |
+| M8-4 | npm wrapper package (downloads + verifies the binary) | `npm i -g` works without a Node runtime dependency at execution | ✅ published as `@agentbridgehq/agentbridge`, install verified |
 | M8-5 | Install script with signature verification | `curl \| sh` verifies before executing | ✅ verified against the published v0.1.0 |
 | M8-6 | Scoop / winget | **P1** | ⏸️ same as M8-3 |
 

@@ -11,6 +11,11 @@ beneath it.
 
 ---
 
+> **Published.** `@agentbridgehq/agentbridge@0.1.0` is live, and a clean
+> install was verified to run the postinstall, report the checksum verified,
+> and produce a working `agentbridge` command. What remains is step 2 below, so
+> that no future publish needs a laptop.
+
 ## The one-time problem: npm cannot bootstrap itself
 
 Publishing from CI uses **trusted publishing** — OIDC, no token, no 2FA prompt.
@@ -59,6 +64,10 @@ weakness a registry cannot afford. WebAuthn is origin-bound and phishing-
 resistant, so it is the only method now offered.
 
 Enrol from the web, at `https://www.npmjs.com/settings/<your-username>/tfa`.
+The scope also has to exist before you can publish into it: npm gives you
+`@<your-username>` automatically, but an organisation scope must be created at
+<https://www.npmjs.com/org/create> first, or the publish fails with
+`404 Scope not found` after the 2FA ceremony has already succeeded.
 On a Mac, Touch ID works as the authenticator; so does a passkey in iCloud
 Keychain or 1Password, or a physical key such as a YubiKey. **Register a second
 factor while you are there** — a phone passkey or a spare key — because a
