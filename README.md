@@ -155,7 +155,8 @@ and reporting success.
 **2. Read anything you did not write.** This is the habit worth forming:
 
 ```bash
-agentbridge scan github.com/acme/deploy-plugin@v1.2.0
+agentbridge scan github.com/acme/deploy-plugin@v1.2.0   # one plugin
+agentbridge scan .                                      # every plugin in this repo
 ```
 
 High-severity findings stop an install until you have looked at them. Findings
@@ -253,7 +254,7 @@ the day something genuinely new appears.
 |---|---|
 | `clients` | Agent clients on this machine, and what each accepts |
 | `validate <dir>` | Check a plugin against Agent Plugins v1.0.0 |
-| `scan <ref>` | Read the instruction text for content that steers an agent |
+| `scan <ref>` | Read the instruction text for content that steers an agent — **scans every plugin in a repository** |
 | `install <ref>` | Install into every client — add `--dry-run` to see the exact diffs first |
 | `list` | What is installed, and where it came from |
 | `doctor [plugin]` | Why a plugin appears installed and does nothing |
@@ -287,6 +288,7 @@ Everything lives in **[docs/](docs/)** — start there for the full index.
 |---|---|
 | [Visual walkthrough](docs/index.html) | Open in a browser: what it is, in one scroll |
 | [Getting started](docs/getting-started.md) | Install, write a plugin, install it, keep a team in sync |
+| [CI integration](docs/ci-integration.md) | Scan every plugin on every pull request, and enforce the lockfile |
 | [Client compatibility](docs/clients.md) | What each assistant accepts — generated from the adapters |
 | [Writing a plugin](docs/plugin-authors.md) | The conformance traps, and how to avoid them |
 | [Telemetry](docs/telemetry.md) | There is none, and a test enforces the claim |

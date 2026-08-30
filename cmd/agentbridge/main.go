@@ -97,7 +97,8 @@ Usage:
   agentbridge clients                  List agent clients detected on this machine
   agentbridge inspect <dir>            Load a plugin and print its normalized form
   agentbridge validate <dir>           Check a plugin against Agent Plugins v1.0.0
-  agentbridge scan <ref>               Read a plugin's instructions for content that steers an agent
+  agentbridge scan <ref>               Read instructions for content that steers an agent;
+                                       scans every plugin in a directory tree
   agentbridge doctor [plugin]          Explain why a plugin is not doing anything
   agentbridge install <ref>            Install a plugin into every detected client
   agentbridge remove <name>            Remove a plugin from the clients it was installed into

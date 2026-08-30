@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"encoding/json"
+	"path"
 	"sort"
 )
 
@@ -24,7 +25,52 @@ const (
 
 // SARIF renders a report in the interchange format.
 func (r *Report) SARIF(toolVersion string) ([]byte, error) {
-	rules := usedRules(r)
+	return CombinedSARIF(toolVersion, r)
+}
+
+// WithPrefix returns a copy whose findings are located relative to a directory
+// above the plugin.
+//
+// Findings carry plugin-relative paths, which is right when the plugin is what
+// you pointed at. Scanning a repository that contains several is the other
+// case: `skills/deploy/SKILL.md` exists inside three plugins, and a dashboard
+// told that path annotates whichever file it finds first. Prefixing with the
+// plugin's own location makes the path mean what the repository means by it.
+func (r *Report) WithPrefix(prefix string) *Report {
+	if prefix == "" || prefix == "." {
+		return r
+	}
+	out := *r
+	out.Findings = make([]Finding, len(r.Findings))
+	for i, f := range r.Findings {
+		if f.File != "" {
+			f.File = path.Join(prefix, f.File)
+		}
+		out.Findings[i] = f
+	}
+	out.Unread = make([]string, len(r.Unread))
+	for i, u := range r.Unread {
+		out.Unread[i] = path.Join(prefix, u)
+	}
+	return &out
+}
+
+// CombinedSARIF renders several reports as one document.
+//
+// One run rather than one run per plugin: it is the same tool, the same
+// invocation and the same commit, and code scanning treats each run as a
+// separate analysis to reconcile. Splitting them makes a repository's findings
+// arrive as unrelated reports that resolve and reappear independently.
+func CombinedSARIF(toolVersion string, reports ...*Report) ([]byte, error) {
+	merged := &Report{}
+	for _, r := range reports {
+		if r == nil {
+			continue
+		}
+		merged.Findings = append(merged.Findings, r.Findings...)
+	}
+	rules := usedRules(merged)
+	r := merged
 
 	type message struct {
 		Text string `json:"text"`

@@ -122,6 +122,38 @@ func TestInstallersMatchTheArchiveNamingTemplate(t *testing.T) {
 	if !strings.Contains(platformJS, "agentbridge_${stripped}_${os}_${goarch}.${ext}") {
 		t.Error("npm/platform.js no longer builds the release archive name")
 	}
+
+	// The GitHub Action is a third place that constructs the name by hand, and
+	// the one whose breakage is least visible: it fails inside somebody else's
+	// pipeline, on a release we are not watching.
+	action := read(t, "../../action.yml")
+	if !strings.Contains(action, "agentbridge_${stripped}_${os}_${arch}.tar.gz") {
+		t.Error("action.yml no longer builds the release archive name")
+	}
+}
+
+// The Action installs a binary and then runs it against a repository's plugins.
+// It has the same obligation as the other two installers: verify before
+// executing, and refuse an artifact the checksums file does not list.
+func TestActionVerifiesBeforeRunning(t *testing.T) {
+	action := read(t, "../../action.yml")
+
+	for _, want := range []string{
+		"checksums.txt",       // the file is fetched at all
+		"refusing to install", // an unlisted artifact is refused
+		"checksum mismatch",   // tampering is refused
+		"shasum -a 256",       // macOS runners have no sha256sum
+	} {
+		if !strings.Contains(action, want) {
+			t.Errorf("action.yml is missing %q", want)
+		}
+	}
+
+	// --ignore-missing would let a checksums file that does not mention our
+	// artifact pass, which is the whole check.
+	if strings.Contains(withoutShellComments(action), "--ignore-missing") {
+		t.Error("action.yml uses --ignore-missing, which lets an unlisted artifact pass verification")
+	}
 }
 
 // Verification is the point. An installer that downloads without checking would

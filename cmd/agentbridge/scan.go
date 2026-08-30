@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
+	"github.com/agentbridgehq/agentbridge/internal/discover"
 	"github.com/agentbridgehq/agentbridge/internal/importer/registry"
 	"github.com/agentbridgehq/agentbridge/internal/ir"
 	"github.com/agentbridgehq/agentbridge/internal/safepath"
@@ -67,27 +68,45 @@ func scanCmd(args []string) error {
 		return err
 	}
 
-	result, err := registry.Open(resolved.Dir)
+	// Every plugin in the tree, not just one. Pointing at a plugin and pointing
+	// at a repository that contains several is the same request, and a team
+	// scanning in CI should not have to enumerate their own directories — a
+	// hand-written list is a list that stops covering plugins added later.
+	found, err := discover.Plugins(resolved.Dir)
 	if err != nil {
 		return err
 	}
-	root, err := safepath.NewRoot(resolved.Dir)
-	if err != nil {
-		return err
+	if len(found) == 0 {
+		return fmt.Errorf("%s: no plugin found here or in any directory beneath it", positional[0])
 	}
 
 	model, err := classify.build(*offline)
 	if err != nil {
 		return err
 	}
-	report, err := scanner.ScanWith(context.Background(), root, result.Plugin, model)
-	if err != nil {
-		return err
+
+	reports := make([]*scanner.Report, 0, len(found))
+	for _, p := range found {
+		root, err := safepath.NewRoot(p.Dir)
+		if err != nil {
+			return err
+		}
+		result, err := registry.Open(p.Dir)
+		if err != nil {
+			return fmt.Errorf("%s: %w", p.Rel, err)
+		}
+		report, err := scanner.ScanWith(context.Background(), root, result.Plugin, model)
+		if err != nil {
+			return err
+		}
+		report.Findings = report.AtLeast(minimum)
+		// Located as the repository sees them, so a dashboard annotates the
+		// right file when two plugins both have skills/deploy/SKILL.md.
+		reports = append(reports, report.WithPrefix(p.Rel))
 	}
-	report.Findings = report.AtLeast(minimum)
 
 	if *sarifPath != "" {
-		raw, err := report.SARIF(version)
+		raw, err := scanner.CombinedSARIF(version, reports...)
 		if err != nil {
 			return err
 		}
@@ -97,11 +116,20 @@ func scanCmd(args []string) error {
 	}
 
 	if *asJSON {
-		if err := emitJSON(report); err != nil {
+		// A single plugin stays a bare report, so every existing consumer keeps
+		// working; a tree becomes a list, which is the only honest shape for
+		// more than one.
+		if len(reports) == 1 {
+			if err := emitJSON(reports[0]); err != nil {
+				return err
+			}
+		} else if err := emitJSON(map[string]any{
+			"root": positional[0], "plugins": len(reports), "reports": reports,
+		}); err != nil {
 			return err
 		}
 	} else {
-		printScan(report, *sarifPath)
+		printScanAll(reports, *sarifPath)
 	}
 
 	if strings.EqualFold(*failOn, "never") {
@@ -111,10 +139,47 @@ func scanCmd(args []string) error {
 	if err != nil {
 		return err
 	}
-	if n := len(report.AtLeast(threshold)); n > 0 {
-		return fmt.Errorf("%d finding(s) at %s or above", n, threshold)
+	var over int
+	for _, r := range reports {
+		over += len(r.AtLeast(threshold))
+	}
+	if over > 0 {
+		return fmt.Errorf("%d finding(s) at %s or above", over, threshold)
 	}
 	return nil
+}
+
+// printScanAll renders one or many plugin reports.
+//
+// A single plugin prints exactly as it always did. Several print a per-plugin
+// section and one total, because the number a reviewer acts on is the total
+// and the number they investigate with is the section.
+func printScanAll(reports []*scanner.Report, sarifPath string) {
+	if len(reports) == 1 {
+		printScan(reports[0], sarifPath)
+		return
+	}
+
+	var high, medium, low, info, clean int
+	for _, r := range reports {
+		if len(r.Findings) == 0 {
+			clean++
+			continue
+		}
+		printScan(r, "")
+		fmt.Println()
+		high += r.Count(scanner.High)
+		medium += r.Count(scanner.Medium)
+		low += r.Count(scanner.Low)
+		info += r.Count(scanner.Info)
+	}
+
+	fmt.Printf("%d plugin(s) scanned, %d with nothing to report\n", len(reports), clean)
+	fmt.Printf("  %d high, %d medium, %d low, %d note", high, medium, low, info)
+	if sarifPath != "" {
+		fmt.Printf(" · SARIF written to %s", sarifPath)
+	}
+	fmt.Println()
 }
 
 // classifierFlags are the model-pass options, shared by scan, install and sync.

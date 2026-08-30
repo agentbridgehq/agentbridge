@@ -1,0 +1,145 @@
+name: AgentBridge Scan
+description: >-
+  Read the instruction text of every agent plugin in a repository for content
+  that would steer an assistant against its user, and upload the findings to
+  code scanning.
+author: Masih Moloodian
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: >-
+      Directory to scan. Every plugin beneath it is found and scanned, so this
+      is normally the repository root.
+    required: false
+    default: "."
+  fail-on:
+    description: >-
+      Severity at which the step fails the job: high, medium, low, info, or
+      never. High is the default because it is the level the tool itself treats
+      as blocking; anything lower will fail builds on findings that are meant
+      to be read rather than acted on.
+    required: false
+    default: high
+  sarif-file:
+    description: >-
+      Where to write SARIF 2.1.0. Upload it with
+      github/codeql-action/upload-sarif to get findings as pull-request
+      annotations. Set to an empty string to skip.
+    required: false
+    default: agentbridge.sarif
+  min-severity:
+    description: Report findings at this severity or above.
+    required: false
+    default: info
+  version:
+    description: >-
+      Release to install, such as v0.1.0. Defaults to the latest release.
+    required: false
+    default: latest
+  working-directory:
+    description: Directory to run in.
+    required: false
+    default: "."
+
+outputs:
+  sarif-file:
+    description: Path to the SARIF file that was written.
+    value: ${{ inputs.sarif-file }}
+  exit-code:
+    description: The scan's exit code, whether or not the step was allowed to fail.
+    value: ${{ steps.scan.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install agentbridge
+      shell: bash
+      env:
+        AB_VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        # The binary is verified against the release's checksums file before it
+        # runs. A tool whose entire argument is about knowing where your
+        # software came from cannot install itself by downloading something and
+        # trusting it.
+        repo="agentbridgehq/agentbridge"
+        version="$AB_VERSION"
+        if [ "$version" = "latest" ]; then
+          version="$(gh release view --repo "$repo" --json tagName --jq .tagName)"
+        fi
+        stripped="${version#v}"
+
+        case "$(uname -s)" in
+          Linux)  os=linux ;;
+          Darwin) os=darwin ;;
+          *)      echo "::error::unsupported runner OS $(uname -s)"; exit 1 ;;
+        esac
+        case "$(uname -m)" in
+          x86_64|amd64)  arch=amd64 ;;
+          arm64|aarch64) arch=arm64 ;;
+          *) echo "::error::unsupported runner architecture $(uname -m)"; exit 1 ;;
+        esac
+
+        archive="agentbridge_${stripped}_${os}_${arch}.tar.gz"
+        tmp="$(mktemp -d)"
+
+        gh release download "$version" --repo "$repo" \
+          --pattern "$archive" --pattern checksums.txt --dir "$tmp"
+
+        # --ignore-missing is deliberately not used: it would let a checksums
+        # file that does not mention our artifact pass, which defeats the check.
+        #
+        # macOS runners have shasum and no sha256sum, so both are handled rather
+        # than assumed — an installer that only works on Linux is an installer
+        # that fails on the runner half the world uses for release testing.
+        line="$(grep " ${archive}\$" checksums.txt || true)"
+        if [ -z "$line" ]; then
+          echo "::error::checksums.txt does not list ${archive}; refusing to install unverified"
+          exit 1
+        fi
+        expected="$(printf '%s' "$line" | awk '{print $1}')"
+        if command -v sha256sum >/dev/null 2>&1; then
+          actual="$(sha256sum "$tmp/$archive" | awk '{print $1}')"
+        else
+          actual="$(shasum -a 256 "$tmp/$archive" | awk '{print $1}')"
+        fi
+        if [ "$expected" != "$actual" ]; then
+          echo "::error::checksum mismatch for ${archive}"
+          exit 1
+        fi
+
+        ( cd "$tmp" && tar -xzf "$archive" )
+        install -m 0755 "$tmp/agentbridge" "$RUNNER_TEMP/agentbridge"
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+    - name: Scan
+      id: scan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        AB_PATH: ${{ inputs.path }}
+        AB_FAIL_ON: ${{ inputs.fail-on }}
+        AB_SARIF: ${{ inputs.sarif-file }}
+        AB_MIN: ${{ inputs.min-severity }}
+      run: |
+        set -uo pipefail
+
+        args=("$AB_PATH" "--fail-on" "$AB_FAIL_ON" "--min-severity" "$AB_MIN")
+        if [ -n "$AB_SARIF" ]; then
+          args+=("--sarif" "$AB_SARIF")
+        fi
+
+        agentbridge scan "${args[@]}"
+        code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+
+        # The SARIF is written before the exit code is honoured, so findings
+        # still reach code scanning on the run that fails — a failed job with no
+        # annotations tells a reviewer that something is wrong and nothing about
+        # what.
+        exit "$code"

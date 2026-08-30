@@ -9,6 +9,7 @@ The project overview lives in the [root README](../README.md).
 |---|---|
 | **[Visual walkthrough](index.html)** | Open in a browser. What the tool is, in one scroll, with a live demonstration of the problem it solves. |
 | **[Getting started](getting-started.md)** | The real workflow on your own machine: install, write a plugin, install it, keep a team in sync, back it out. |
+| **[CI integration](ci-integration.md)** | Scan every plugin on every pull request, upload findings to code scanning, and enforce the lockfile. No server, no account. |
 | [Client compatibility](clients.md) | What each assistant accepts, and what it will silently drop. **Generated from the adapters** — a test fails if it drifts from the code. |
 | [Writing a plugin](plugin-authors.md) | For plugin authors: the conformance traps, and how to avoid each one. |
 
