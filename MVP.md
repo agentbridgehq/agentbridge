@@ -109,6 +109,32 @@ because three directly-imported modules were recorded as indirect. That would
 have built the published binaries from a manifest differing from the committed
 one.
 
+**Documentation audited by running it (2026-08-30).** All 30 markdown files
+checked against the code and the published release, and TESTING.md executed
+section by section with its documented output compared to the real thing. Most
+matched. Four did not, and each was the kind of error only running finds:
+
+- **TESTING.md §7 documented a test that could not work.** It said to prove the
+  OCI digest check by editing the plugin directory while the local registry
+  runs. The stand-in packs the layer once at startup, so the edit changes
+  nothing it serves and the install *succeeds* — manufacturing confidence in
+  precisely the check the section exists to demonstrate. The stand-in now takes
+  `-tamper`.
+- **docs/ci-integration.md told readers to use `@v1`.** No such tag exists, so
+  every workflow copied from that page would fail to resolve the action.
+- **The wrong organisation appeared four times across three files**, including
+  inside the npm README that shipped in the published tarball, and in the
+  advice `install.js` prints when an install fails.
+- **A skills-only plugin created an empty config in every JSON client** — found
+  because getting-started.md documents `== cursor` for that case and the code
+  had drifted to `!!`. The documentation was right and the code was wrong.
+
+Three of the four are now enforced by tests rather than remembered: the
+organisation name across every file type, the action tag against git's own tag
+list, and the empty-config behaviour. All 132 relative links resolve, and the
+three documented install paths — `install.sh`, Homebrew, npm — were each run
+against the published release and produce a working 0.1.0.
+
 **What remains is not code.** None of these can be finished by writing Go:
 
 | | Blocked on |
