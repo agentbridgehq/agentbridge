@@ -94,8 +94,17 @@ func (d *JSONDoc) Original() []byte { return d.original }
 // comments. If nothing was changed, this is byte-identical to Original.
 func (d *JSONDoc) Bytes() ([]byte, error) {
 	out := d.value.Pack()
-	if !bytes.HasSuffix(out, []byte("\n")) {
+	// A new file gets a trailing newline; an existing one keeps whatever it
+	// had. Adding one to a file that lacked it is a diff the user did not ask
+	// for, and it defeats the property that installing and then removing a
+	// plugin returns the file to its original bytes.
+	wantNewline := !d.existed || bytes.HasSuffix(d.original, []byte("\n"))
+	hasNewline := bytes.HasSuffix(out, []byte("\n"))
+	switch {
+	case wantNewline && !hasNewline:
 		out = append(out, '\n')
+	case !wantNewline && hasNewline:
+		out = bytes.TrimRight(out, "\n")
 	}
 	return out, nil
 }

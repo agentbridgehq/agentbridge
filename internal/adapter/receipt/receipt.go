@@ -51,6 +51,11 @@ type Entry struct {
 	// ConfigKeys are the key paths written into ConfigPath. Each is a path
 	// through the document, so removal is exact rather than pattern-matched.
 	ConfigKeys [][]string `json:"configKeys,omitempty"`
+	// CreatedContainers are objects the install created to hold its entries,
+	// removed on uninstall if they are empty by then. Absent on receipts
+	// written before this was recorded, which simply means nothing is
+	// reclaimed — the old, safe behaviour.
+	CreatedContainers [][]string `json:"createdContainers,omitempty"`
 	// BlockSections are managed-block section headers written, for
 	// line-oriented formats.
 	BlockSections []string `json:"blockSections,omitempty"`

@@ -19,6 +19,7 @@ import (
 	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/codex"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/cursor"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/gemini"
+	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/opencode"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/vscode"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
 	"github.com/agentbridgehq/agentbridge/internal/ir"
@@ -35,9 +36,14 @@ func DefaultEnv(projectDir string) (adapter.Env, error) {
 		return adapter.Env{}, err
 	}
 	configDir, _ := os.UserConfigDir()
+	configHome := os.Getenv("XDG_CONFIG_HOME")
+	if configHome == "" {
+		configHome = filepath.Join(home, ".config")
+	}
 	return adapter.Env{
 		HomeDir:    home,
 		ConfigDir:  configDir,
+		ConfigHome: configHome,
 		ProjectDir: projectDir,
 		GOOS:       runtime.GOOS,
 	}, nil
@@ -67,6 +73,7 @@ func Adapters(env adapter.Env) []adapter.Adapter {
 		vscode.New(dataDir),
 		codex.New(dataDir),
 		gemini.New(dataDir),
+		opencode.New(dataDir),
 	}
 }
 
@@ -149,7 +156,7 @@ func PlanInstall(env adapter.Env, p *ir.Plugin, src *safepath.Root, sel Selectio
 
 // keyRemover removes exactly the configuration keys a receipt recorded.
 type keyRemover interface {
-	PlanRemoveKeys(inst adapter.Installation, pluginName string, keys [][]string) (*adapter.Plan, error)
+	PlanRemoveKeys(inst adapter.Installation, pluginName string, keys, created [][]string) (*adapter.Plan, error)
 }
 
 // sectionRemover removes exactly the managed-block sections a receipt recorded.
@@ -196,7 +203,7 @@ func PlanRemove(env adapter.Env, store *receipt.Store, pluginName string, sel Se
 			if !ok {
 				return nil, fmt.Errorf("%s cannot remove configuration keys", e.Client)
 			}
-			plan, err = r.PlanRemoveKeys(inst, pluginName, e.ConfigKeys)
+			plan, err = r.PlanRemoveKeys(inst, pluginName, e.ConfigKeys, e.CreatedContainers)
 		case len(e.BlockSections) > 0:
 			r, ok := a.(sectionRemover)
 			if !ok {
@@ -291,18 +298,19 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 			return fmt.Errorf("%s (%s): %w", plan.Installation.Client.Name, plan.Installation.Scope, err)
 		}
 		store.Put(receipt.Entry{
-			Plugin:         p.Name,
-			Client:         plan.Installation.Client.ID,
-			Scope:          string(plan.Installation.Scope),
-			Digest:         digest,
-			Source:         prov.Source,
-			TreeDigest:     prov.TreeDigest,
-			SourceIdentity: prov.Identity,
-			Managed:        prov.Managed,
-			ConfigPath:     plan.Installation.ConfigPath,
-			ConfigKeys:     plan.ConfigKeys,
-			BlockSections:  plan.BlockSections,
-			PackageDir:     plan.PackageDir,
+			Plugin:            p.Name,
+			Client:            plan.Installation.Client.ID,
+			Scope:             string(plan.Installation.Scope),
+			Digest:            digest,
+			Source:            prov.Source,
+			TreeDigest:        prov.TreeDigest,
+			SourceIdentity:    prov.Identity,
+			Managed:           prov.Managed,
+			ConfigPath:        plan.Installation.ConfigPath,
+			ConfigKeys:        plan.ConfigKeys,
+			CreatedContainers: plan.CreatedContainers,
+			BlockSections:     plan.BlockSections,
+			PackageDir:        plan.PackageDir,
 		})
 	}
 	return store.Save()

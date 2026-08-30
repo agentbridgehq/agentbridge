@@ -82,12 +82,12 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 
 // PlanRemove implements adapter.Adapter.
 func (a *Adapter) PlanRemove(inst adapter.Installation, pluginName string) (*adapter.Plan, error) {
-	return adapter.PlanRemoveJSONMCP(a.spec(), inst, pluginName, nil)
+	return adapter.PlanRemoveJSONMCP(a.spec(), inst, pluginName, nil, nil)
 }
 
 // PlanRemoveKeys removes exactly the keys a receipt recorded.
-func (a *Adapter) PlanRemoveKeys(inst adapter.Installation, pluginName string, keys [][]string) (*adapter.Plan, error) {
-	return adapter.PlanRemoveJSONMCP(a.spec(), inst, pluginName, keys)
+func (a *Adapter) PlanRemoveKeys(inst adapter.Installation, pluginName string, keys, created [][]string) (*adapter.Plan, error) {
+	return adapter.PlanRemoveJSONMCP(a.spec(), inst, pluginName, keys, created)
 }
 
 func (a *Adapter) spec() adapter.JSONMCPSpec {

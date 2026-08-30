@@ -35,6 +35,8 @@ func fakeMachine(t *testing.T, clients ...string) adapter.Env {
 			dirs = []string{".codex"}
 		case "gemini-cli":
 			dirs = []string{".gemini"}
+		case "opencode":
+			dirs = []string{".config/opencode"}
 		default:
 			t.Fatalf("unknown client %q", c)
 		}
@@ -45,7 +47,11 @@ func fakeMachine(t *testing.T, clients ...string) adapter.Env {
 		}
 	}
 
-	return adapter.Env{HomeDir: home, GOOS: "darwin"}
+	// ConfigHome is set explicitly rather than left to the caller's
+	// environment, so a developer with XDG_CONFIG_HOME exported does not have
+	// the suite detect — and write to — the opencode installation on their own
+	// machine.
+	return adapter.Env{HomeDir: home, ConfigHome: filepath.Join(home, ".config"), GOOS: "darwin"}
 }
 
 func loadFixture(t *testing.T, dir string) (*ir.Plugin, *safepath.Root) {

@@ -146,6 +146,7 @@ claude-code    user      translated    translated  ~/.claude/skills
 cursor         user      undocumented  native      ~/.cursor/mcp.json
 vscode         user      undocumented  native      ~/Library/…/Code/User/mcp.json
 codex          user      undocumented  translated  ~/.codex/config.toml
+opencode       user      translated    translated  ~/.config/opencode/opencode.jsonc
 ```
 
 `undocumented` means that vendor has never published where skills go, so

@@ -101,9 +101,18 @@ type Installation struct {
 // Injecting it keeps detection testable: a test can point HomeDir at a
 // fixture tree instead of the developer's real machine.
 type Env struct {
-	HomeDir    string
-	ConfigDir  string
-	DataDir    string
+	HomeDir   string
+	ConfigDir string
+	DataDir   string
+	// ConfigHome is the XDG configuration root: $XDG_CONFIG_HOME, or
+	// ~/.config when it is unset. It is distinct from ConfigDir, which on
+	// macOS is ~/Library/Application Support — the right answer for a native
+	// application and the wrong one for the several agent clients that follow
+	// the XDG layout on every platform. It is a field rather than a call to
+	// os.Getenv inside an adapter because Env exists so that detection depends
+	// on nothing but its input: otherwise a developer with XDG_CONFIG_HOME set
+	// would have the test suite discover, and write to, their real machine.
+	ConfigHome string
 	ProjectDir string
 	GOOS       string
 }
@@ -231,9 +240,16 @@ type Plan struct {
 	// SecretNotes explain servers launched indirectly so secrets stay off disk.
 	SecretNotes []SecretNote `json:"secretNotes,omitempty"`
 
-	ConfigKeys    [][]string `json:"configKeys,omitempty"`
-	BlockSections []string   `json:"blockSections,omitempty"`
-	PackageDir    string     `json:"packageDir,omitempty"`
+	ConfigKeys [][]string `json:"configKeys,omitempty"`
+	// CreatedContainers are objects this plan brought into existence to hold
+	// its entries — a client whose config had no "mcp" key at all, say. They
+	// are recorded so removal can take them back out again. Without the
+	// distinction there is no way to tell an empty container we created from
+	// one the client shipped, and removal would either leave litter behind or
+	// delete a key the user had already.
+	CreatedContainers [][]string `json:"createdContainers,omitempty"`
+	BlockSections     []string   `json:"blockSections,omitempty"`
+	PackageDir        string     `json:"packageDir,omitempty"`
 }
 
 // Changed reports whether the plan would alter anything.

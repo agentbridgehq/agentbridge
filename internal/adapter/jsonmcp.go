@@ -44,6 +44,11 @@ func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepat
 	}
 	pluginData := spec.PluginDataDir(p.Name)
 
+	// Recorded before anything is written: once the first server is set, the
+	// container exists and there is no longer any way to tell whether the
+	// client shipped it or we made it.
+	createdContainer := missingPrefix(doc, spec.ServersKey)
+
 	servers := SortServers(p.MCPServers)
 	plan.Fidelity.MCPServers.Total = len(servers)
 
@@ -92,12 +97,60 @@ func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepat
 		Note:   describeWrite(doc.Existed(), len(writtenKeys)),
 	}}
 	plan.ConfigKeys = writtenKeys
+	if len(createdContainer) > 0 && len(writtenKeys) > 0 {
+		plan.CreatedContainers = [][]string{createdContainer}
+	}
 	return plan, nil
+}
+
+// missingPrefix returns the shortest prefix of keys that the document does not
+// have, which is the outermost object a write would bring into existence.
+// Removing that one key reclaims everything created beneath it.
+func missingPrefix(doc *configedit.JSONDoc, keys []string) []string {
+	for i := 1; i <= len(keys); i++ {
+		prefix := keys[:i]
+		if ok, err := doc.Has(prefix); err != nil {
+			return nil
+		} else if !ok {
+			return append([]string(nil), prefix...)
+		}
+	}
+	return nil
+}
+
+// reclaimable reports whether the container an install created still holds
+// nothing of the user's. The servers object must be empty, and every level
+// between the created key and it must hold only the link to the next — so a
+// config that gained "mcp" solely to carry our entries loses it again, while
+// one where the user has since put something of their own keeps everything.
+//
+// Emptiness is asked of the object itself rather than judged recursively: a
+// server entry like {"command": "mine"} has no keys *below* its fields, and an
+// earlier version of this that recursed treated that as empty and deleted the
+// user's server. The narrow question is the safe one.
+func reclaimable(doc *configedit.JSONDoc, created, serversKey []string) bool {
+	present, err := doc.Has(serversKey)
+	if err != nil {
+		return false
+	}
+	if present {
+		entries, err := doc.Keys(serversKey)
+		if err != nil || len(entries) != 0 {
+			return false
+		}
+	}
+	for i := len(created); i < len(serversKey); i++ {
+		children, err := doc.Keys(serversKey[:i])
+		if err != nil || len(children) != 1 {
+			return false
+		}
+	}
+	return true
 }
 
 // PlanRemoveJSONMCP builds a removal plan from the exact keys recorded at
 // install time.
-func PlanRemoveJSONMCP(spec JSONMCPSpec, inst Installation, pluginName string, keys [][]string) (*Plan, error) {
+func PlanRemoveJSONMCP(spec JSONMCPSpec, inst Installation, pluginName string, keys, created [][]string) (*Plan, error) {
 	plan := &Plan{Installation: inst, PluginName: pluginName}
 
 	doc, err := configedit.LoadJSON(inst.ConfigPath)
@@ -111,6 +164,36 @@ func PlanRemoveJSONMCP(spec JSONMCPSpec, inst Installation, pluginName string, k
 	for _, k := range keys {
 		if err := doc.Delete(k); err != nil {
 			return nil, err
+		}
+	}
+
+	// Take back the containers this install created, so a config that had no
+	// "mcp" key before does not keep an empty one forever. Only if they are
+	// empty: a user who added a server of their own to the same object keeps
+	// it, which is the whole reason the container is checked rather than
+	// deleted outright.
+	reclaimed := false
+	for _, c := range created {
+		if reclaimable(doc, c, spec.ServersKey) {
+			if err := doc.Delete(c); err != nil {
+				return nil, err
+			}
+			reclaimed = true
+		}
+	}
+
+	// Deleting the last entry from an object leaves the whitespace it sat in
+	// behind, so a config that read "mcpServers": {} before the install reads
+	// "mcpServers": {\n  } after the removal. Nothing is broken by that, but
+	// it is a diff the user did not make, in a file they may well have
+	// committed. Rewriting the emptied object collapses it again.
+	if !reclaimed {
+		if present, err := doc.Has(spec.ServersKey); err == nil && present {
+			if entries, err := doc.Keys(spec.ServersKey); err == nil && len(entries) == 0 {
+				if err := doc.Set(spec.ServersKey, map[string]any{}); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 

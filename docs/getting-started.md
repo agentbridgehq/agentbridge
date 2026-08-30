@@ -56,6 +56,7 @@ claude-code    user      translated    translated  ~/.claude/skills
 cursor         user      undocumented  native      ~/.cursor/mcp.json
 vscode         user      undocumented  native      ~/Library/Application Support/Code/User/mcp.json
 codex          user      undocumented  translated  ~/.codex/config.toml
+opencode       user      translated    translated  ~/.config/opencode/opencode.jsonc
 ```
 
 **Read the two columns before anything else**, because they tell you what to
@@ -68,9 +69,9 @@ expect from every install afterwards:
 | `undocumented` | The client probably loads it, but the vendor has not published where. **We will not write to a guessed path** |
 
 So on a typical machine today: **MCP servers install everywhere; skills install
-into Claude Code only.** That is not a limitation of this tool — it is the state
-of the ecosystem, reported honestly instead of being papered over. `agentbridge
-losses` explains every such difference.
+into Claude Code and opencode.** That is not a limitation of this tool — it is
+the state of the ecosystem, reported honestly instead of being papered over.
+`agentbridge losses` explains every such difference.
 
 ---
 
@@ -378,9 +379,9 @@ Flags work on either side of the argument: `install ./p --dry-run` and
 
 Worth knowing before you build habits on it:
 
-- **Skills land in Claude Code; MCP servers land everywhere.** Other vendors have
-  not documented where skill packages go. When they do, it is one adapter change
-  and your existing manifests keep working.
+- **Skills land in Claude Code and opencode; MCP servers land everywhere.** The
+  remaining vendors have not documented where skill packages go. When they do,
+  it is one adapter change and your existing manifests keep working.
 - **There is no plugin registry.** You will be installing your own, your team's,
   or a repository someone gave you. `scan` matters more, not less, in that world.
 - **No client has been independently measured yet.** `docs/clients.md` reports
