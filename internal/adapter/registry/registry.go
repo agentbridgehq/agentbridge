@@ -274,15 +274,20 @@ func addAuxRemoval(plan *adapter.Plan, e receipt.Entry) error {
 
 // inheritedContainers returns the containers an earlier install of ours
 // recorded creating in the same file.
-func inheritedContainers(store *receipt.Store, plan *adapter.Plan) [][]string {
-	if plan.Installation.ConfigPath == "" || len(plan.ConfigKeys) == 0 {
+func inheritedContainers(store *receipt.Store, plan *adapter.Plan, path string, aux bool) [][]string {
+	if path == "" {
 		return nil
 	}
 	for _, e := range store.All() {
-		if e.ConfigPath != plan.Installation.ConfigPath || len(e.CreatedContainers) == 0 {
+		if aux {
+			if e.AuxConfigPath == path && len(e.AuxCreatedContainers) > 0 {
+				return e.AuxCreatedContainers
+			}
 			continue
 		}
-		return e.CreatedContainers
+		if e.ConfigPath == path && len(e.CreatedContainers) > 0 {
+			return e.CreatedContainers
+		}
 	}
 	return nil
 }
@@ -375,7 +380,15 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 		// them.
 		created := plan.CreatedContainers
 		if len(created) == 0 {
-			created = inheritedContainers(store, plan)
+			created = inheritedContainers(store, plan, plan.Installation.ConfigPath, false)
+		}
+		// The same reasoning for the second configuration file, where VS Code
+		// keeps its skills locations: two plugins share
+		// chat.agentSkillsLocations, only the first records creating it, and
+		// the object outlives them both.
+		auxCreated := plan.AuxCreatedContainers
+		if len(auxCreated) == 0 && plan.AuxConfigPath != "" {
+			auxCreated = inheritedContainers(store, plan, plan.AuxConfigPath, true)
 		}
 
 		store.Put(receipt.Entry{
@@ -394,7 +407,7 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 			PackageDir:           plan.PackageDir,
 			AuxConfigPath:        plan.AuxConfigPath,
 			AuxConfigKeys:        plan.AuxConfigKeys,
-			AuxCreatedContainers: plan.AuxCreatedContainers,
+			AuxCreatedContainers: auxCreated,
 		})
 	}
 	return store.Save()

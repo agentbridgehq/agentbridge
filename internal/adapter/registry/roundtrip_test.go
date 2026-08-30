@@ -283,3 +283,54 @@ func TestLastPluginOutReclaimsASharedContainer(t *testing.T) {
 		t.Errorf("a shared container outlived both plugins\n before %q\n after  %q", before, string(after))
 	}
 }
+
+// The same, for the second configuration file a client may use.
+//
+// VS Code keeps MCP servers in mcp.json and skills locations in settings.json,
+// so a plan records two files. The container in the second one is shared by
+// every plugin exactly as the first is, and the fix for one is not the fix for
+// the other — chat.agentSkillsLocations was left behind, empty, after both
+// plugins that used it had gone.
+func TestLastPluginOutReclaimsASharedAuxContainer(t *testing.T) {
+	env := fakeMachine(t, "vscode")
+	user := filepath.Join(env.HomeDir, "Library", "Application Support", "Code", "User")
+	settings := filepath.Join(user, "settings.json")
+	before := "{\n    \"editor.fontSize\": 13\n}\n"
+	if err := os.WriteFile(settings, []byte(before), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := receipt.Open(registry.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, src := loadFixture(t, ccFixture)
+	names := []string{"acme.first", "acme.second"}
+	for _, name := range names {
+		p := *base
+		p.Name = name
+		plans, err := registry.PlanInstall(env, &p, src, registry.Selection{}, allowPlaintext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := registry.ApplyInstall(env, store, &p, plans, registry.Provenance{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range names {
+		plans, err := registry.PlanRemove(env, store, name, registry.Selection{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := registry.ApplyRemove(env, store, name, plans); err != nil {
+			t.Fatal(err)
+		}
+	}
+	after, err := os.ReadFile(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != before {
+		t.Errorf("the skills-locations object outlived both plugins\n before %q\n after  %q", before, string(after))
+	}
+}
