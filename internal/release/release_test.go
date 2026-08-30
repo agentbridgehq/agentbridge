@@ -496,3 +496,69 @@ func TestNoReferenceNamesAnOrganisationWeDoNotOwn(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A workflow snippet in the documentation must reference a tag that exists.
+//
+// docs/ci-integration.md told readers to use `agentbridgehq/agentbridge@v1`.
+// There is no v1: the first release is v0.1.0, and no floating major tag has
+// ever been published. Every workflow copied from that page would have failed
+// to resolve the action — on the page whose entire purpose is getting this
+// tool into someone's CI, where the failure lands on a stranger rather than on
+// us.
+//
+// Tags are read from git rather than hard-coded, so cutting v0.2.0 does not
+// require editing this test; it requires updating the documentation, which is
+// the point.
+func TestDocumentedActionReferencesAnExistingTag(t *testing.T) {
+	out, err := exec.Command("git", "tag").Output()
+	if err != nil {
+		t.Skipf("git tags unavailable: %v", err)
+	}
+	tags := map[string]bool{}
+	for _, tag := range strings.Fields(string(out)) {
+		tags[tag] = true
+	}
+	if len(tags) == 0 {
+		t.Skip("no tags in this checkout; a shallow clone cannot answer this")
+	}
+
+	re := regexp.MustCompile(`uses:\s*agentbridgehq/agentbridge@(\S+)`)
+	err = filepath.Walk("../..", func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if info.Name() == ".git" || info.Name() == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		switch filepath.Ext(path) {
+		case ".md", ".yml", ".yaml", ".html":
+		default:
+			return nil
+		}
+		if filepath.Base(path) == "release_test.go" {
+			return nil
+		}
+		for i, line := range strings.Split(read(t, path), "\n") {
+			for _, m := range re.FindAllStringSubmatch(line, -1) {
+				ref := m[1]
+				// A branch or SHA is a deliberate choice; only tag-shaped
+				// references are checked, because those are the ones a reader
+				// assumes exist.
+				if !strings.HasPrefix(ref, "v") {
+					continue
+				}
+				if !tags[ref] {
+					t.Errorf("%s:%d uses agentbridgehq/agentbridge@%s, which is not a tag in this repository",
+						filepath.Clean(path), i+1, ref)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

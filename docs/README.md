@@ -54,7 +54,8 @@ read only two.
 | | |
 |---|---|
 | **[MVP.md](../MVP.md)** | The live scope tracker: every milestone, its status, and the review notes behind each decision. Start here to know what is real. |
-| [Releasing](../RELEASING.md) | How a release is cut, signed and verified — and the checklist before the first one. |
+| [Releasing](../RELEASING.md) | How a release is cut, signed and verified, and how to turn on the Homebrew tap. |
+| [Publishing to npm](../npm/PUBLISHING.md) | The package, why the first publish had to be manual, and the OIDC setup that means no publish after it is. |
 | [Contributing](../CONTRIBUTING.md) | How to propose a change. |
 
 ---

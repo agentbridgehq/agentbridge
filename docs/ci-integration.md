@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: agentbridgehq/agentbridge@v1
+      - uses: agentbridgehq/agentbridge@v0.1.0
         id: scan
         continue-on-error: true
 
@@ -46,6 +46,11 @@ be uploaded on the run that found something, or a blocked pull request shows a
 red tick and no annotations — which tells a reviewer that something is wrong
 and nothing about what. The last step restores the failure once the findings
 are visible.
+
+> **Pin the version.** `@v0.1.0` is an immutable tag; there is no floating
+> `@v1` yet, and a workflow referencing one would fail to resolve. Pinning is
+> also the behaviour this tool argues for everywhere else — a CI step that
+> silently changes under you is the same problem as a plugin that does.
 
 `agentbridge scan .` finds **every** plugin beneath the path, so a plugin added
 next month is covered without anyone updating the workflow. `node_modules`,
@@ -115,7 +120,7 @@ the committed lock honest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: agentbridgehq/agentbridge@v1
+      - uses: agentbridgehq/agentbridge@v0.1.0
         with:
           sarif-file: ""          # this job is not about findings
           fail-on: never
