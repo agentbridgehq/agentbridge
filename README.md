@@ -161,7 +161,7 @@ CLIENT         SCOPE     SKILLS        MCP         CONFIG
 claude-code    user      translated    translated  ~/.claude/skills
 cursor         user      translated    native      ~/.cursor/mcp.json
 vscode         user      undocumented  native      ~/Library/…/Code/User/mcp.json
-codex          user      undocumented  translated  ~/.codex/config.toml
+codex          user      translated    translated  ~/.codex/config.toml
 opencode       user      translated    translated  ~/.config/opencode/opencode.jsonc
 ```
 

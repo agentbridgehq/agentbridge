@@ -41,10 +41,10 @@ func (*Adapter) Client() adapter.Client {
 		ID:         ID,
 		Name:       "Codex",
 		Conformant: true,
-		Skills:     adapter.SupportUndocumented,
+		Skills:     adapter.SupportTranslated,
 		MCP:        adapter.SupportTranslated,
 		ConfigDoc:  "https://developers.openai.com/codex/mcp",
-		Losses:     adapter.DeclaredLosses(adapter.LossSkillsUndocumented),
+		Losses:     adapter.DeclaredLosses(adapter.LossNativeComponentDropped),
 	}
 }
 
@@ -66,6 +66,7 @@ func (a *Adapter) Detect(env adapter.Env) []adapter.Installation {
 			Client:     a.Client(),
 			Scope:      adapter.ScopeUser,
 			ConfigPath: filepath.Join(home, "config.toml"),
+			PackageDir: filepath.Join(home, "skills"),
 			Evidence:   home + " exists",
 		})
 	}
@@ -77,6 +78,7 @@ func (a *Adapter) Detect(env adapter.Env) []adapter.Installation {
 				Client:     a.Client(),
 				Scope:      adapter.ScopeProject,
 				ConfigPath: filepath.Join(projectDir, "config.toml"),
+				PackageDir: filepath.Join(projectDir, "skills"),
 				Evidence:   projectDir + " exists",
 			})
 		}
@@ -138,6 +140,24 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 		Note:   "update the agentbridge managed block",
 	}}
 	plan.BlockSections = sections
+
+	// Skills are a separate mechanism from the managed block: Codex scans its
+	// skills directory recursively, so a whole package is dropped in and every
+	// SKILL.md beneath it is found.
+	if len(p.Skills) > 0 && inst.PackageDir != "" {
+		if src == nil {
+			plan.Fidelity.AddLoss(adapter.LossNativeComponentDropped, "",
+				"Codex takes skills as a directory, so installing them requires the plugin's source; none was supplied")
+			return plan, nil
+		}
+		target := filepath.Join(inst.PackageDir, p.Name)
+		plan.PackageDir = target
+		plan.Ops = append([]adapter.Op{
+			adapter.CopyTreeOp(target, src.Path(), "install plugin package"),
+		}, plan.Ops...)
+		plan.Fidelity.Skills = adapter.Coverage{Carried: len(p.Skills), Total: len(p.Skills)}
+	}
+
 	return plan, nil
 }
 
@@ -146,9 +166,23 @@ func (a *Adapter) PlanRemove(inst adapter.Installation, pluginName string) (*ada
 	return a.PlanRemoveSections(inst, pluginName, nil)
 }
 
-// PlanRemoveSections removes exactly the sections a receipt recorded.
+// PlanRemoveSections removes exactly the sections a receipt recorded, and the
+// installed package with them. Both happen here because removal dispatches on
+// the recorded sections: a plugin that installed a server never reaches
+// PlanRemove, and its skills would otherwise stay behind.
 func (a *Adapter) PlanRemoveSections(inst adapter.Installation, pluginName string, sections []string) (*adapter.Plan, error) {
 	plan := &adapter.Plan{Installation: inst, PluginName: pluginName}
+
+	if inst.PackageDir != "" {
+		target := filepath.Join(inst.PackageDir, pluginName)
+		plan.PackageDir = target
+		plan.Ops = append(plan.Ops, adapter.Op{
+			Kind:         adapter.OpRemoveTree,
+			Path:         target,
+			TargetExists: adapter.PathExists(target),
+			Note:         "remove plugin package",
+		})
+	}
 
 	doc, err := configedit.LoadBlock(inst.ConfigPath)
 	if err != nil {
@@ -162,13 +196,14 @@ func (a *Adapter) PlanRemoveSections(inst adapter.Installation, pluginName strin
 		doc.DeleteSection(section)
 	}
 
-	plan.Ops = []adapter.Op{{
+	// Appended, not assigned: the package removal added above must survive.
+	plan.Ops = append(plan.Ops, adapter.Op{
 		Kind:   adapter.OpWriteFile,
 		Path:   inst.ConfigPath,
 		Before: doc.Original(),
 		After:  doc.Bytes(),
 		Note:   "remove managed block entries",
-	}}
+	})
 	return plan, nil
 }
 

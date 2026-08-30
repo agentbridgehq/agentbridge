@@ -78,7 +78,7 @@ CLIENT         SCOPE     SKILLS        MCP         CONFIG
 claude-code    user      translated    translated  ~/.claude/skills
 cursor         user      translated    native      ~/.cursor/mcp.json
 vscode         user      undocumented  native      ~/Library/Application Support/Code/User/mcp.json
-codex          user      undocumented  translated  ~/.codex/config.toml
+codex          user      translated    translated  ~/.codex/config.toml
 opencode       user      translated    translated  ~/.config/opencode/opencode.jsonc
 ```
 
@@ -92,7 +92,7 @@ expect from every install afterwards:
 | `undocumented` | The client probably loads it, but the vendor has not published where. **We will not write to a guessed path** |
 
 So on a typical machine today: **MCP servers install everywhere; skills install
-into Claude Code, Cursor and opencode.** That is not a limitation of this tool —
+into Claude Code, Cursor, Codex and opencode.** That is not a limitation of this tool —
 it is the state of the ecosystem, reported honestly instead of being papered
 over. `agentbridge losses` explains every such difference.
 
@@ -402,11 +402,11 @@ Flags work on either side of the argument: `install ./p --dry-run` and
 
 Worth knowing before you build habits on it:
 
-- **Skills land in Claude Code, Cursor and opencode; MCP servers land
-  everywhere.** VS Code and Codex have not documented where skill packages go.
-  When they do — or when someone confirms the path the way Cursor's was
-  confirmed — it is one adapter change and your existing manifests keep
-  working.
+- **Skills land in Claude Code, Cursor, Codex and opencode; MCP servers land
+  everywhere.** VS Code is the last client where the location is unconfirmed.
+  When it is — the way Cursor's and Codex's were, by putting a package there and
+  asking the client what it loaded — it is one adapter change and your existing
+  manifests keep working.
 - **There is no plugin registry.** You will be installing your own, your team's,
   or a repository someone gave you. `scan` matters more, not less, in that world.
 - **Two clients have been confirmed to load what we write; the rest are

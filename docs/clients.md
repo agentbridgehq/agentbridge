@@ -19,7 +19,7 @@ verified.
 | **Claude Code** | no | `translated` | `translated` | [docs](https://code.claude.com/docs/en/plugins-reference) |
 | **Cursor** | yes | `translated` | `native` | [docs](https://cursor.com/docs/mcp) |
 | **VS Code / Copilot** | yes | `undocumented` | `native` | [docs](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) |
-| **Codex** | yes | `undocumented` | `translated` | [docs](https://developers.openai.com/codex/mcp) |
+| **Codex** | yes | `translated` | `translated` | [docs](https://developers.openai.com/codex/mcp) |
 | **Gemini CLI** | no | `none` | `translated` | [docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md) |
 | **opencode** | no | `translated` | `translated` | [docs](https://opencode.ai/docs/config/) |
 
@@ -93,12 +93,12 @@ can be fixed.
 | Kind | Code | Meaning |
 |---|---|---|
 | by design | `client.extensions_dropped` | client-specific data under a reverse-domain namespace was not written. The specification gives this data no portable meaning, and a client that does not own the namespace must ignore it (§8.1). |
+| by design | `client.native_component_dropped` | a component the source dialect defines but Agent Plugins does not — hooks, agents, workflows and the like — was not installed. |
 | fault | `client.secret_launcher_unavailable` | an MCP server was not installed, because its secrets can only be supplied at launch and the agentbridge binary could not be located. |
 | fault | `client.secret_not_stored` | an MCP server was not installed, because it references a secret that the credential store does not have. Installing it would produce a server that fails on start with no visible diagnostic. |
 | fault | `client.secret_plaintext_refused` | an MCP server was not installed, because its environment holds a value that looks like a credential and these files are routinely committed. |
 | fault | `client.secret_reference_embedded` | an MCP server was not installed, because a reference appears inside a longer string. It cannot be resolved, and §9.2 requires unrecognized placeholder text to be passed through literally — so the server would receive the placeholder itself. |
 | fault | `client.secret_written_plaintext` | a value that looks like a credential was written into a client configuration file, because --allow-plaintext-secrets was given. §9.2 states that env values are visible package data. |
-| by design | `client.skills_location_undocumented` | the plugin's skills were not installed. This client loads Agent Plugins, but its vendor has not published where a portable package is installed, and we will not write to a path we have not verified. |
 | by design | `client.transport_unsupported` | one MCP server was not installed, because the client cannot connect over the transport the server declares. |
 
 ### Gemini CLI
