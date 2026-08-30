@@ -139,7 +139,7 @@ against the published release and produce a working 0.1.0.
 
 | | Blocked on |
 |---|---|
-| **M10-2** — measure the target clients (§6) | **Four of six now carry skills**: Claude Code, Cursor, Codex and opencode. Cursor's path was read off an installed plugin and confirmed by Cursor naming the directory back; Codex's by `codex debug prompt-input` naming the file back. Only **VS Code** is left — its path is read out of the shipped code (`User/agent-plugins`) but a probe placed there did not load, so it stays `undocumented` and nothing is written to it. The 18-case corpus is still unrun against any GUI client. See [conformance/PROTOCOL.md](conformance/PROTOCOL.md). |
+| **M10-2** — measure the target clients (§6) | **Every client with a skills mechanism now carries them**, and none reports `undocumented`. Claude Code and opencode from vendor documentation; Cursor, Codex and VS Code from locations their vendors never published, each established by reading the client's own code, installing a package, and having the client report back what it loaded. Gemini CLI has no mechanism and says so. What remains is the 18-case corpus, still unrun against any client — the paths are closed, the behavioural matrix is not. See [conformance/PROTOCOL.md](conformance/PROTOCOL.md). |
 | **Release automation** | Both package managers work by hand and neither is automated. `brew install agentbridgehq/tap/agentbridge` and `npm i -g @agentbridgehq/agentbridge` were each verified end to end, but the tap formula was hand-written — GoReleaser needs `HOMEBREW_TAP_TOKEN`, a credential scoped to the tap repository, since a workflow's own token cannot write to another repo. npm needs its trusted publisher configured on npmjs.com. Both are one manual step, and neither can be done from here. |
 | **D-02 / M9-4** — the name | Now urgent rather than administrative. `agentbridge` was taken on GitHub; npm refuses it unscoped as too similar to `agent-bridge`; the `@agentbridge` scope belongs to an unrelated framework; and three further published packages carry the name in this exact space, two of them shipping per-client adapters. A name three other projects reached for independently does not distinguish this one. Trademark and domain remain unchecked. |
 
@@ -872,7 +872,7 @@ The interesting design problem was not the API call but **the classifier reading
 | Client | Conformant | Priority | Status |
 |---|---|---|---|
 | Cursor | yes | P0 | ✅ **skills and MCP both install.** Plugin path found by reading an installed plugin, then confirmed: Cursor listed the package and named `~/.cursor/plugins/local` itself |
-| VS Code / Copilot | yes | P0 | 🟨 MCP shape verified against its own `--add-mcp`; plugin path found (`User/agent-plugins`) but unconfirmed |
+| VS Code / Copilot | yes | P0 | ✅ **skills and MCP both install.** MCP shape matches its own `--add-mcp`; skills registered through `chat.agentSkillsLocations` and confirmed by VS Code listing the skill |
 | Codex | yes | P0 | ✅ **skills and MCP both install.** `codex mcp list` reports the server enabled; `codex debug prompt-input` names the installed skill file back |
 | Claude Code | **no** | P0 — highest strategic value | ⬜ package installs; not measured |
 | One of Zed / Windsurf / Gemini CLI | no | P0 | ⬜ Gemini CLI adapter built, unmeasured |

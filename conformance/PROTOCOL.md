@@ -51,34 +51,35 @@ Three questions, in order:
 |---|---|---|
 | **Claude Code** | any directory under a skills directory containing `.claude-plugin/plugin.json` | Vendor documentation |
 | **opencode** | `~/.config/opencode/skills/`, scanned recursively for `**/SKILL.md`; extra roots via `skills.paths` | Vendor documentation, then confirmed against the binary — `opencode debug skill` lists what it loaded |
-| **VS Code / Copilot** | User-level `~/.agents/skills`, `~/.copilot/skills`, `~/.claude/skills`; workspace-level `.agents/skills`, `.github/skills`, `.claude/skills`. Extra roots via the `chat.agentSkillsLocations` setting, whose default is that same table. **Scanned one level deep**: each immediate child directory is checked for a `SKILL.md` and nothing below that is looked at | **Confirmed by the scanner itself**, which iterates the root's children and joins `SKILL.md` onto each. A flat skill placed in `~/.copilot/skills` loads; a package placed in `~/.claude/skills` does not, because `<pkg>/SKILL.md` does not exist. `agent-plugins` was a wrong turn — `agentPluginsHome` sits beside `mcp.json` and looks right, but it is the *plugin* home and holds no skills |
+| **VS Code / Copilot** | User-level `~/.agents/skills`, `~/.copilot/skills`, `~/.claude/skills`; workspace-level `.agents/skills`, `.github/skills`, `.claude/skills`. Extra roots via the `chat.agentSkillsLocations` setting, whose default is that same table. **Scanned one level deep**: each immediate child directory is checked for a `SKILL.md` and nothing below that is looked at | **Confirmed.** The scan depth was read off the scanner, which iterates the root's children and joins `SKILL.md` onto each; a package registered through `chat.agentSkillsLocations` was then listed by VS Code when it was asked. `agent-plugins` was a wrong turn — `agentPluginsHome` sits beside `mcp.json` and looks right, but it is the *plugin* home and holds no skills |
 | **Cursor** | `~/.cursor/plugins/`, with `local/` for local installs and `cache/<publisher>/<name>/<sha>/` for fetched ones. A package is marked by `.cursor-plugin/plugin.json`, which points at its own components: `"skills": "./skills/"`, `"mcpServers": "./.mcp.json"` | **Confirmed.** Read off a real installed plugin, then a package was placed there and Cursor was asked what it had loaded — it listed the skill and named `~/.cursor/plugins/local` itself |
 | **Codex** | `~/.codex/skills/`, scanned recursively; a package dropped in whole is found. `.codex-plugin/plugin.json` marks a Codex plugin and declares `"skills": "./skills/"`. MCP via `~/.codex/config.toml` | **Confirmed.** `codex debug prompt-input` renders the model-visible skill list with a source locator for each — it named the installed file back. No model call needed |
 | **Gemini CLI** | n/a | No skills mechanism. MCP-only cases still apply, via `~/.gemini/settings.json` |
 
 Cursor also scans other ecosystems' directories — `~/.claude/skills`, `~/.codex/skills`, `~/.grok/skills`, `~/.agents/skills`, `~/.claude/plugins` — so a plugin installed for Claude Code may already be visible there. opencode does the same. That is worth knowing before concluding a client "supports" something: it may be reading someone else's directory.
 
-### VS Code needs a different install shape
+### VS Code needed a different install shape
 
 Every other client that takes skills scans recursively, so a plugin package is
-dropped in whole and each `SKILL.md` beneath it is found. VS Code does not: it
-looks exactly one level down. A package installed the way Claude Code, Cursor,
-Codex and opencode take it is invisible to it.
+dropped in whole and each `SKILL.md` beneath it is found. VS Code looks exactly
+one level down, so a package installed the way the others take it is invisible
+to it.
 
-Two shapes would work, and they trade off differently:
+Flattening each skill into `~/.copilot/skills/<skill>/SKILL.md` would have
+matched the scanner, but the namespace is flat: two plugins shipping a `deploy`
+skill collide, and the package stops being a unit that can be removed as one.
 
-- **Flatten**, writing each skill to `~/.copilot/skills/<skill>/SKILL.md`. Simple,
-  and it matches what the scanner expects — but the namespace is flat, so two
-  plugins shipping a `deploy` skill collide, and the package stops being a unit
-  that can be removed as one.
-- **Register the package's own skills directory** through
-  `chat.agentSkillsLocations`, whose default value is the table above and which
-  exists precisely to add roots. The package stays intact, its `skills/`
-  directory becomes a root, and its immediate children are the skills — which is
-  what the one-level scan wants. The cost is editing the user's `settings.json`.
+Registering the package's own `skills/` directory through
+`chat.agentSkillsLocations` inverts the problem instead. Its immediate children
+are exactly the skills, which is the layout the one-level scan wants, and the
+package stays intact. That is what the adapter does, and it mirrors what
+opencode's `skills.paths` already does.
 
-The second mirrors what opencode's `skills.paths` already does and keeps the
-package model intact, so it is the one to build. Neither is implemented yet.
+Two constraints worth carrying to any client with a similar setting: the key
+pattern **rejects absolute paths** while permitting a leading `~/`, and a
+rejected key is dropped in silence — the skills simply never appear. And the
+setting lives in `settings.json` while MCP lives in `mcp.json`, so a receipt has
+to record two configuration files or one of them becomes unremovable.
 
 ### Verifying a path you have found
 
