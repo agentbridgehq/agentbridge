@@ -47,20 +47,59 @@ Three questions, in order:
 
 ## Where each client loads plugins from
 
-| Client | Documented location | Notes |
+| Client | Location | How it was established |
 |---|---|---|
-| **Claude Code** | any directory under a skills directory containing `.claude-plugin/plugin.json` | Add `.claude-plugin/plugin.json` alongside the case's `plugin.json`, or use `agentbridge install` |
-| **opencode** | `~/.config/opencode/skills/`, scanned recursively for `**/SKILL.md`; extra roots via `skills.paths` | Documented, and confirmed against the binary — `opencode debug skill` lists what it loaded. A whole package can be dropped in one directory |
-| **Cursor** | *unknown* | Agent Plugins launch client; where a portable package is installed is not published. **Finding this is the single most valuable outcome of a measurement session** |
-| **VS Code / Copilot** | *unknown* | As above |
-| **Codex** | *unknown* | As above |
+| **Claude Code** | any directory under a skills directory containing `.claude-plugin/plugin.json` | Vendor documentation |
+| **opencode** | `~/.config/opencode/skills/`, scanned recursively for `**/SKILL.md`; extra roots via `skills.paths` | Vendor documentation, then confirmed against the binary — `opencode debug skill` lists what it loaded |
+| **VS Code / Copilot** | `~/Library/Application Support/Code/User/agent-plugins`, overridable with `--agent-plugins-dir` or `$VSCODE_AGENT_PLUGINS` | **Read out of the shipped code**, not vendor documentation. `agentPluginsHome` is built beside `mcp.json` in the same profile directory. Unverified — see below |
+| **Cursor** | `~/.cursor/plugins/`, with `local/` for local installs and `cache/<publisher>/<name>/<sha>/` for fetched ones. A package is marked by `.cursor-plugin/plugin.json`, which points at its own components: `"skills": "./skills/"`, `"mcpServers": "./.mcp.json"` | **Read off a real installed plugin** on a developer's machine, plus the directory list in the app bundle. Unverified — see below |
+| **Codex** | *unknown* for skills; MCP via `~/.codex/config.toml` | Vendor documentation for MCP only |
 | **Gemini CLI** | n/a | No skills mechanism. MCP-only cases still apply, via `~/.gemini/settings.json` |
 
-For the three marked *unknown*: try the client's own install UI or command first
-and watch where it writes. If you find the path, that is a bigger result than the
-conformance run itself — it turns `undocumented` into real skill support in
-[docs/clients.md](../docs/clients.md), and it is worth opening an issue about
-before finishing the rest of the cases.
+Cursor also scans other ecosystems' directories — `~/.claude/skills`, `~/.codex/skills`, `~/.grok/skills`, `~/.agents/skills`, `~/.claude/plugins` — so a plugin installed for Claude Code may already be visible there. opencode does the same. That is worth knowing before concluding a client "supports" something: it may be reading someone else's directory.
+
+### Verifying the two unverified paths
+
+A probe plugin can be placed in each location; if the client lists a skill
+called `agentbridge-probe`, the path is confirmed and that client stops being
+`undocumented`.
+
+```bash
+# VS Code
+mkdir -p ~/Library/Application\ Support/Code/User/agent-plugins/agentbridge-probe/skills/agentbridge-probe
+# Cursor
+mkdir -p ~/.cursor/plugins/local/agentbridge-probe/{.cursor-plugin,skills/agentbridge-probe}
+```
+
+Each needs a manifest (`plugin.json` for VS Code, `.cursor-plugin/plugin.json`
+for Cursor, the latter with `"skills": "./skills/"`) and a `SKILL.md` whose
+frontmatter names the skill. Restart the client, open its chat surface, and ask
+what skills are available.
+
+Removing them is `rm -rf` on the two directories above; nothing else is touched.
+
+### Why the two paths above are still marked unverified
+
+Finding a path is not the same as watching a client use it, and this project does
+not write to a location it has not seen work. Both were established by reading
+rather than by observation, and neither client exposes a way to ask it what it
+loaded — they are desktop applications, and the check is a person opening one.
+
+A cautionary note from the attempt. The Copilot CLI bundled inside VS Code
+*does* have that read-back — `copilot plugin install`, `copilot plugin list`,
+`copilot skill list`, `copilot mcp list` — and all 18 cases were run against it.
+It produced a clean-looking 8 pass, 10 fail.
+
+**That table was discarded, because it was measuring the wrong thing.** The
+Copilot CLI's plugin system is not VS Code's Agent Plugins support: it reads
+`skills/` and `mcp.json` but contains no reference to `plugin.json` anywhere in
+its bundle, and none to the specification. Most of its "failures" were simply a
+system that never claimed to implement the manifest being judged against one.
+
+Publishing it would have produced exactly the artefact this corpus exists to
+prevent — a precise-looking compatibility claim about software nobody had
+actually measured. If you run the corpus, check first that the thing answering
+you is the thing you meant to ask.
 
 **Prefer the client's own tooling to your own eyes where it exists.** Codex
 reports MCP state with `codex mcp list`, and opencode reports both with
