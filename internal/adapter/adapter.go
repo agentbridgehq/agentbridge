@@ -248,6 +248,17 @@ type Plan struct {
 	SecretNotes []SecretNote `json:"secretNotes,omitempty"`
 
 	ConfigKeys [][]string `json:"configKeys,omitempty"`
+	// AuxConfigPath and AuxConfigKeys record a *second* JSON configuration
+	// file this plan edited, for a client whose components do not all live in
+	// one place. VS Code is the case that needs it: MCP servers go in
+	// mcp.json, while a skills directory is registered in settings.json.
+	//
+	// Two installations would have been the obvious alternative, but a receipt
+	// is keyed by plugin, client and scope, so the second would overwrite the
+	// first and one of the two files would become unremovable.
+	AuxConfigPath        string     `json:"auxConfigPath,omitempty"`
+	AuxConfigKeys        [][]string `json:"auxConfigKeys,omitempty"`
+	AuxCreatedContainers [][]string `json:"auxCreatedContainers,omitempty"`
 	// CreatedContainers are objects this plan brought into existence to hold
 	// its entries — a client whose config had no "mcp" key at all, say. They
 	// are recorded so removal can take them back out again. Without the

@@ -56,6 +56,13 @@ type Entry struct {
 	// written before this was recorded, which simply means nothing is
 	// reclaimed — the old, safe behaviour.
 	CreatedContainers [][]string `json:"createdContainers,omitempty"`
+	// AuxConfigPath and AuxConfigKeys record a second configuration file the
+	// install edited, for a client whose components do not all live in one
+	// file. Removal deletes exactly these keys from exactly this path, the
+	// same contract as ConfigKeys.
+	AuxConfigPath        string     `json:"auxConfigPath,omitempty"`
+	AuxConfigKeys        [][]string `json:"auxConfigKeys,omitempty"`
+	AuxCreatedContainers [][]string `json:"auxCreatedContainers,omitempty"`
 	// BlockSections are managed-block section headers written, for
 	// line-oriented formats.
 	BlockSections []string `json:"blockSections,omitempty"`

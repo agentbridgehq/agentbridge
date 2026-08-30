@@ -22,6 +22,7 @@ import (
 	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/opencode"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/clients/vscode"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
+	"github.com/agentbridgehq/agentbridge/internal/configedit"
 	"github.com/agentbridgehq/agentbridge/internal/ir"
 	"github.com/agentbridgehq/agentbridge/internal/safepath"
 )
@@ -70,7 +71,7 @@ func Adapters(env adapter.Env) []adapter.Adapter {
 	return []adapter.Adapter{
 		claudecode.New(),
 		cursor.New(dataDir),
-		vscode.New(dataDir),
+		vscode.New(dataDir, env.HomeDir),
 		codex.New(dataDir),
 		gemini.New(dataDir),
 		opencode.New(dataDir),
@@ -216,9 +217,59 @@ func PlanRemove(env adapter.Env, store *receipt.Store, pluginName string, sel Se
 		if err != nil {
 			return nil, fmt.Errorf("%s (%s): %w", e.Client, e.Scope, err)
 		}
+		if err := addAuxRemoval(plan, e); err != nil {
+			return nil, fmt.Errorf("%s (%s): %w", e.Client, e.Scope, err)
+		}
 		plans = append(plans, plan)
 	}
 	return plans, nil
+}
+
+// addAuxRemoval takes back the keys an install wrote into a second
+// configuration file.
+//
+// It lives here rather than in an adapter because it is not client-specific:
+// the receipt says which JSON file and which key paths, and removal deletes
+// exactly those. That is the same contract as the primary config, and the
+// reason removal can be exact rather than pattern-matched.
+func addAuxRemoval(plan *adapter.Plan, e receipt.Entry) error {
+	if e.AuxConfigPath == "" || len(e.AuxConfigKeys) == 0 {
+		return nil
+	}
+	doc, err := configedit.LoadJSON(e.AuxConfigPath)
+	if err != nil {
+		return err
+	}
+	if !doc.Existed() {
+		return nil
+	}
+	for _, k := range e.AuxConfigKeys {
+		if err := doc.Delete(k); err != nil {
+			return err
+		}
+	}
+	// A container we brought into existence goes with them, but only while it
+	// is still empty: a user who has since added a location of their own keeps
+	// it, and everything they wrote around it.
+	for _, c := range e.AuxCreatedContainers {
+		if children, err := doc.Keys(c); err == nil && len(children) == 0 {
+			if err := doc.Delete(c); err != nil {
+				return err
+			}
+		}
+	}
+	after, err := doc.Bytes()
+	if err != nil {
+		return err
+	}
+	plan.Ops = append(plan.Ops, adapter.Op{
+		Kind:   adapter.OpWriteFile,
+		Path:   e.AuxConfigPath,
+		Before: doc.Original(),
+		After:  after,
+		Note:   "remove the registered skills location",
+	})
+	return nil
 }
 
 // Provenance records where a plugin came from, for the receipt.
@@ -298,19 +349,22 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 			return fmt.Errorf("%s (%s): %w", plan.Installation.Client.Name, plan.Installation.Scope, err)
 		}
 		store.Put(receipt.Entry{
-			Plugin:            p.Name,
-			Client:            plan.Installation.Client.ID,
-			Scope:             string(plan.Installation.Scope),
-			Digest:            digest,
-			Source:            prov.Source,
-			TreeDigest:        prov.TreeDigest,
-			SourceIdentity:    prov.Identity,
-			Managed:           prov.Managed,
-			ConfigPath:        plan.Installation.ConfigPath,
-			ConfigKeys:        plan.ConfigKeys,
-			CreatedContainers: plan.CreatedContainers,
-			BlockSections:     plan.BlockSections,
-			PackageDir:        plan.PackageDir,
+			Plugin:               p.Name,
+			Client:               plan.Installation.Client.ID,
+			Scope:                string(plan.Installation.Scope),
+			Digest:               digest,
+			Source:               prov.Source,
+			TreeDigest:           prov.TreeDigest,
+			SourceIdentity:       prov.Identity,
+			Managed:              prov.Managed,
+			ConfigPath:           plan.Installation.ConfigPath,
+			ConfigKeys:           plan.ConfigKeys,
+			CreatedContainers:    plan.CreatedContainers,
+			BlockSections:        plan.BlockSections,
+			PackageDir:           plan.PackageDir,
+			AuxConfigPath:        plan.AuxConfigPath,
+			AuxConfigKeys:        plan.AuxConfigKeys,
+			AuxCreatedContainers: plan.AuxCreatedContainers,
 		})
 	}
 	return store.Save()

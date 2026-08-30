@@ -30,6 +30,8 @@ func fakeMachine(t *testing.T, clients ...string) adapter.Env {
 			dir = ".claude/skills"
 		case "vscode":
 			dir = "Library/Application Support/Code/User"
+		case "gemini-cli":
+			dir = ".gemini"
 		default:
 			t.Fatalf("unknown client %q", c)
 		}
@@ -84,19 +86,22 @@ func find(r *doctor.Report, status doctor.Status, substr string) *doctor.Check {
 
 // The whole reason the command exists: a client that never received skills
 // should say so, rather than leaving the user to wonder.
+//
+// The example used to be Cursor, then VS Code. Both take skills now, so the
+// case is exercised through Gemini CLI, which has no skills mechanism at all.
+// That is worth noticing rather than quietly rewriting: no client is left whose
+// skills location is merely undocumented, which was true of three of them this
+// morning.
 func TestExplainsWhySkillsAreMissing(t *testing.T) {
-	// vscode, not cursor: Cursor's plugin directory was found and confirmed,
-	// so it now takes skills and is no longer an example of a client that
-	// declines them.
-	env := fakeMachine(t, "vscode")
+	env := fakeMachine(t, "gemini-cli")
 	store := install(t, env)
 
 	r := run(t, env, store)
-	c := find(r, doctor.Info, "skills are not installed into this client")
+	c := find(r, doctor.Info, "this client has no skills mechanism")
 	if c == nil {
 		t.Fatalf("the most common question is unanswered: %+v", r.Checks)
 	}
-	if !strings.Contains(c.Detail, "not documented") {
+	if !strings.Contains(c.Detail, "only MCP servers") {
 		t.Errorf("the reason should be specific: %q", c.Detail)
 	}
 }

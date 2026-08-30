@@ -155,15 +155,17 @@ func (d *JSONDoc) Set(keys []string, value any) error {
 		}
 	}
 
+	unit := d.indentUnit()
 	indent := d.indentFor(keys)
 	if indent == "" {
-		indent = depthIndent(len(keys))
+		indent = depthIndent(unit, len(keys))
 	}
 
 	// Encode the value pre-indented for its final depth. hujson preserves the
 	// formatting inside a patch value, so this is what makes an added entry
-	// read like the rest of the file instead of one long line.
-	raw, err := json.MarshalIndent(value, indent, "  ")
+	// read like the rest of the file instead of one long line. The nested unit
+	// is the document's own, not a fixed two spaces.
+	raw, err := json.MarshalIndent(value, indent, unit)
 	if err != nil {
 		return err
 	}
@@ -230,13 +232,13 @@ func (d *JSONDoc) indentInserted(keys []string) error {
 		return nil
 	}
 	if len(obj.Members[idx].Name.BeforeExtra) == 0 {
-		obj.Members[idx].Name.BeforeExtra = hujson.Extra(siblingIndent(obj, idx, len(keys)))
+		obj.Members[idx].Name.BeforeExtra = hujson.Extra(siblingIndent(obj, idx, len(keys), d.indentUnit()))
 	}
 	// A container that had no members has no closing-brace whitespace either,
 	// so without this the braces pile up on one line as `}}}`. Only an empty
 	// extra is filled in; a container the user already formatted keeps its own.
 	if len(obj.AfterExtra) == 0 && len(obj.Members) > 0 {
-		obj.AfterExtra = hujson.Extra("\n" + depthIndent(len(keys)-1))
+		obj.AfterExtra = hujson.Extra("\n" + depthIndent(d.indentUnit(), len(keys)-1))
 	}
 	// The space after the colon, which the patch machinery also omits.
 	if len(obj.Members[idx].Value.BeforeExtra) == 0 {
@@ -253,7 +255,7 @@ func (d *JSONDoc) indentInserted(keys []string) error {
 // back to a bare newline there produced valid but unreadable output, with every
 // level flush left and the closing braces collapsed onto one line, which fails
 // the same standard applied to files we edit: what we add has to be legible.
-func siblingIndent(obj *hujson.Object, idx, depth int) []byte {
+func siblingIndent(obj *hujson.Object, idx, depth int, unit string) []byte {
 	for i := idx - 1; i >= 0; i-- {
 		if ws := trailingWhitespaceLine(obj.Members[i].Name.BeforeExtra); ws != nil {
 			return ws
@@ -264,15 +266,37 @@ func siblingIndent(obj *hujson.Object, idx, depth int) []byte {
 			return ws
 		}
 	}
-	return []byte("\n" + depthIndent(depth))
+	return []byte("\n" + depthIndent(unit, depth))
 }
 
 // depthIndent is the conventional two-space indent for a given nesting level.
-func depthIndent(depth int) string {
+func depthIndent(unit string, depth int) string {
 	if depth < 0 {
 		return ""
 	}
-	return strings.Repeat("  ", depth)
+	if unit == "" {
+		unit = "  "
+	}
+	return strings.Repeat(unit, depth)
+}
+
+// indentUnit is one level of indentation as this document already uses it.
+//
+// Two spaces was hardcoded, which is right for most of these files and wrong
+// for any that is not. VS Code ships settings.json indented with four, so a
+// created object had its members at one width and its closing brace at
+// another — valid JSON, and visibly not the user's formatting, in a file they
+// look at often. The unit is read from the outermost member that has leading
+// whitespace, which is the same evidence a human would use.
+func (d *JSONDoc) indentUnit() string {
+	root, ok := d.value.Value.(*hujson.Object)
+	if !ok {
+		return "  "
+	}
+	if ws := indentFor(root); ws != "" {
+		return ws
+	}
+	return "  "
 }
 
 // trailingWhitespaceLine extracts the newline-plus-indent at the end of an

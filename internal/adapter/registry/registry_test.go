@@ -115,7 +115,7 @@ func TestInstallAcrossClients(t *testing.T) {
 	// The clients that take a whole package reach full skill coverage.
 	// Cursor joined them once its plugin directory was found and confirmed;
 	// before that it was in the list below.
-	for _, id := range []string{"claude-code", "cursor", "codex"} {
+	for _, id := range []string{"claude-code", "cursor", "codex", "vscode"} {
 		p := byClient[id]
 		if !p.Fidelity.Skills.Complete() {
 			t.Errorf("%s skills = %s, want complete", id, p.Fidelity.Skills)
@@ -124,7 +124,7 @@ func TestInstallAcrossClients(t *testing.T) {
 
 	// Everyone else gets MCP only, and must say so rather than reporting
 	// success.
-	for _, id := range []string{"vscode", "gemini-cli"} {
+	for _, id := range []string{"gemini-cli"} {
 		p := byClient[id]
 		if p.Fidelity.Skills.Carried != 0 {
 			t.Errorf("%s claimed to install skills", id)
@@ -156,7 +156,7 @@ func TestVSCodeUsesItsOwnSpelling(t *testing.T) {
 	}
 
 	var doc map[string]any
-	readJSON(t, plans[0].Ops[0].Path, &doc)
+	readJSON(t, plans[0].Installation.ConfigPath, &doc)
 
 	servers, ok := doc["servers"].(map[string]any)
 	if !ok {

@@ -102,3 +102,44 @@ func TestJSONNewFileIsReadable(t *testing.T) {
 		t.Errorf("file does not end with a newline:\n%q", got)
 	}
 }
+
+// A created object must follow the file's own indentation.
+//
+// The width was hardcoded to two spaces, which is right for most of these files
+// and wrong for any that is not. VS Code ships settings.json indented with
+// four, so an object created inside it had its members at one width and its
+// closing brace at another — valid JSON, and visibly not the user's formatting,
+// in a file they look at often.
+func TestCreatedObjectFollowsTheFilesOwnIndentation(t *testing.T) {
+	for _, tc := range []struct {
+		name, before, wantMember, wantClose string
+	}{
+		{"four spaces", "{\n    \"a\": 1\n}\n", "\n        \"k\": true", "\n    }"},
+		{"two spaces", "{\n  \"a\": 1\n}\n", "\n    \"k\": true", "\n  }"},
+		{"tabs", "{\n\t\"a\": 1\n}\n", "\n\t\t\"k\": true", "\n\t}"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "settings.json")
+			if err := os.WriteFile(path, []byte(tc.before), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			doc, err := configedit.LoadJSON(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := doc.Set([]string{"container", "k"}, true); err != nil {
+				t.Fatal(err)
+			}
+			out, err := doc.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(out), tc.wantMember) {
+				t.Errorf("member not indented like the file:\nwant to contain %q\ngot:\n%s", tc.wantMember, out)
+			}
+			if !strings.Contains(string(out), tc.wantClose) {
+				t.Errorf("closing brace not indented like the file:\nwant to contain %q\ngot:\n%s", tc.wantClose, out)
+			}
+		})
+	}
+}

@@ -160,14 +160,17 @@ agentbridge clients
 CLIENT         SCOPE     SKILLS        MCP         CONFIG
 claude-code    user      translated    translated  ~/.claude/skills
 cursor         user      translated    native      ~/.cursor/mcp.json
-vscode         user      undocumented  native      ~/Library/…/Code/User/mcp.json
+vscode         user      translated    native      ~/Library/…/Code/User/mcp.json
 codex          user      translated    translated  ~/.codex/config.toml
 opencode       user      translated    translated  ~/.config/opencode/opencode.jsonc
 ```
 
-`undocumented` means that vendor has never published where skills go, so
-AgentBridge **refuses to guess a path** rather than writing somewhere plausible
-and reporting success.
+Every client on that list takes skills today, but three of those locations were
+never published by their vendors. They were established by reading the client's
+own code, placing a package there, and asking it what it had loaded — and
+`undocumented` is what the column said until each one answered. AgentBridge
+**refuses to guess a path**: a client whose location is unknown is reported as
+such rather than written to somewhere plausible and called a success.
 
 **2. Read anything you did not write.** This is the habit worth forming:
 
