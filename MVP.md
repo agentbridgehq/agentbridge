@@ -87,6 +87,35 @@ fix judged emptiness recursively and read `{"command": "mine"}` as empty,
 because a string has no keys below it — an existing test caught it deleting a
 user's server, which is the only reason it is not in the released binary.
 
+**Verified end to end against five real clients, by their own CLIs
+(2026-08-30).** Two plugins carrying a skill and a working MCP server were
+installed across Claude Code, Cursor, Codex, VS Code and opencode, then each
+client was asked what it had:
+
+| | MCP | skills |
+|---|---|---|
+| Claude Code | 2/2 connected | 2/2 listed |
+| Cursor | 2/2 ready | package layout verified |
+| Codex | 2/2 enabled | 2/2 loaded |
+| opencode | 2/2 connected | 2/2 loaded |
+
+Every server launched, and each one received `PLUGIN_ROOT` and `PLUGIN_DATA`
+with `cwd` at the plugin root — checked by a probe reporting its own
+environment, not by reading configuration. Removing both returned **all five
+configuration files to their pre-install bytes**.
+
+Getting there took two fixes, both found by that diff and neither visible in a
+single-plugin test:
+
+- **An empty container outlived every plugin that used it.** Only the first
+  install into an empty config records having created the container; by the time
+  that plugin is removed the container holds the others, and by the time it is
+  empty the receipt that knew we made it is gone. An install now inherits the
+  record, so whichever plugin leaves last takes the container with it.
+- **The same again in the second config file.** VS Code keeps servers in
+  `mcp.json` and skills locations in `settings.json`, and the fix for one did
+  not reach the other.
+
 **The corpus has been run against four clients (2026-08-30).** VS Code 5/0/13,
 Cursor 5/1/12, Codex 4/1/13, opencode 4/1/13 (pass/fail/unmeasured). Results in
 [conformance/results/](conformance/results/).
