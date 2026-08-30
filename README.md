@@ -131,9 +131,9 @@ sudo install -m 0755 ./agentbridge /usr/local/bin/
 
 `make` runs vet, the full test suite and the build.
 
-> **Not yet available:** `brew` and `npm`. Homebrew and Scoop publishing stay
-> disabled until those tap repositories exist, and the npm package currently
-> reserves the name without shipping a binary.
+> **Not yet available:** `brew`. Homebrew and Scoop publishing stay disabled
+> until those tap repositories exist. npm installs the same verified binary:
+> `npm i -g @agentbridgehq/agentbridge`.
 
 ## Setting it up for a project
 
@@ -329,16 +329,18 @@ Four claims hold everything else up:
 
 Being straight about the gaps:
 
-1. **The name is only partly secured.** The GitHub organisation
-   `agentbridgehq` is ours. The npm name `agentbridge` is still unregistered —
-   the placeholder package in [contrib/npm-name-claim](contrib/npm-name-claim)
-   is written and waiting to be published — and the name has been checked as
-   neither a trademark nor a domain ([D-02](MVP.md)).
-2. **`brew` and `npm` do not work yet.** v0.1.0 is published, signed and
-   verifiable — six platforms, checksums, Sigstore signature and SLSA
-   provenance — and `install.sh` is the supported path. But Homebrew and Scoop
-   publishing stay disabled until those tap repositories exist, and the npm
-   package reserves the name without shipping a binary.
+1. **The name is contested, not just unsecured.** The GitHub organisation
+   `agentbridgehq` is ours because `agentbridge` was taken. npm refuses the
+   unscoped `agentbridge` as too similar to `agent-bridge`, an adjacent CLI for
+   handing off context between Codex, Claude, Gemini and Cursor; the natural
+   `@agentbridge` scope belongs to an unrelated "AgentBridge framework"; and at
+   least three more published packages carry the name in this exact space. We
+   ship as `@agentbridgehq/agentbridge`. Trademark and domain remain
+   unchecked ([D-02](MVP.md)).
+2. **`brew` does not work yet.** v0.1.0 is published, signed and verifiable —
+   six platforms, checksums, Sigstore signature and SLSA provenance — and
+   `install.sh` is the supported path. Homebrew and Scoop publishing stay
+   disabled until those tap repositories exist.
 3. **Two clients have been measured, four have not.** Codex reports an
    installed server as `enabled` under `codex mcp list`, and opencode reports
    one as `connected` — it launched the server and completed the MCP handshake

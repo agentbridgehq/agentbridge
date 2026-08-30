@@ -4,7 +4,7 @@ The supply chain for agent extensions — install any agent plugin into any agen
 client.
 
 ```bash
-npm install -g agentbridge
+npm install -g @agentbridgehq/agentbridge
 agentbridge clients
 ```
 

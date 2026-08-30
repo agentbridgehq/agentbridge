@@ -1,5 +1,5 @@
 {
-  "name": "agentbridge",
+  "name": "@agentbridgehq/agentbridge",
   "version": "0.1.0",
   "description": "The supply chain for agent extensions — install any agent plugin into any agent client",
   "license": "Apache-2.0",

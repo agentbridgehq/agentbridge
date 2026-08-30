@@ -13,14 +13,23 @@ release. Publishing it before a release exists would give anyone who typed
 `postinstall`**, so it cannot fail — it installs two files that explain where
 the project is and how to build it.
 
-## Superseded
+## Abandoned — the unscoped name cannot be had
 
-This placeholder existed only to hold the name while there was no release to
-point at. **v0.1.0 is released**, so publish the real package instead — see
-[`npm/PUBLISHING.md`](../../npm/PUBLISHING.md). A `0.1.0` needs no `0.0.1`
-beneath it, and publishing one now would only put a version on the registry
-that installs nothing.
+This placeholder existed to hold `agentbridge` on the registry. **npm will not
+issue that name to anyone.** A publish is rejected with 403: the name is too
+similar to `agent-bridge`, an existing package, and npm compares names with
+punctuation stripped. That is typosquatting protection working as intended, and
+it is not appealable from the CLI.
 
-Keep this directory until the name is actually claimed: if publishing the real
-package is delayed and somebody else takes `agentbridge`, this is still the
-fastest thing to put up.
+The natural scope was not available either: `@agentbridge` belongs to an
+unrelated "AgentBridge framework" publishing React and Angular SDKs.
+
+So the shipped package is **`@agentbridgehq/agentbridge`**, matching the GitHub
+organisation — see [`npm/PUBLISHING.md`](../../npm/PUBLISHING.md). This
+directory is kept only as the record of why, and nothing here should be
+published.
+
+Worth knowing for [D-02](../../MVP.md): five published packages carry this name,
+several of them building adapters for the same clients this project targets.
+The name is crowded, and that is a discoverability problem rather than a
+registry one.

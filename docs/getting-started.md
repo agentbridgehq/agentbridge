@@ -54,9 +54,9 @@ Check:
 agentbridge version
 ```
 
-> `brew install` and `npm i -g agentbridge` do not work yet: Homebrew and Scoop
-> publishing stay disabled until those tap repositories exist, and the npm
-> package reserves the name without shipping a binary. See
+> `npm i -g @agentbridgehq/agentbridge` installs the same verified binary if you prefer
+> npm. `brew install` does not work yet — Homebrew and Scoop publishing stay
+> disabled until those tap repositories exist. See
 > [RELEASING.md](../RELEASING.md).
 
 ---

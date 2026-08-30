@@ -71,7 +71,7 @@ jobs:
         # install.js derives the download URL from package.json's version, so a
         # package published as 0.1.1 against a v0.1.0 release installs a URL
         # that does not exist. The failure would land on whoever ran
-        # `npm i -g agentbridge`, not on us.
+        # `npm i -g @agentbridgehq/agentbridge`, not on us.
         run: |
           tag="${{ github.event.release.tag_name || inputs.tag }}"
           expected="${tag#v}"

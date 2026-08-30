@@ -98,7 +98,7 @@ test('checksum verification rejects an artifact the file does not list', () => {
 // the package; the installer downloaded the real binary to that same name. So
 // the installer's "already present?" check saw the shim and skipped the
 // download, and the shim then found "the binary" — itself — and spawned it,
-// recursing until it was killed. `npm i -g agentbridge` installed a command
+// recursing until it was killed. `npm i -g @agentbridgehq/agentbridge` installed a command
 // that hung the first time anyone ran it, and nothing failed loudly enough to
 // notice: the install printed success.
 test('the downloaded binary does not collide with the shim npm puts on the PATH', () => {

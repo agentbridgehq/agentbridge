@@ -71,7 +71,7 @@ function supportedPairs() {
 // package. Downloading the real binary to that same name meant three things
 // claimed one path: the installer's "already present?" check saw the shim and
 // skipped the download, and the shim then found "the binary" — itself — and
-// spawned it, recursing until something ran out. `npm i -g agentbridge`
+// spawned it, recursing until something ran out. `npm i -g @agentbridgehq/agentbridge`
 // produced a command that hung on first use.
 //
 // The shim and the installer both ask this function, so the two cannot drift

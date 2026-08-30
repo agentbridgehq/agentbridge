@@ -1,6 +1,6 @@
 # Publishing to npm
 
-This is the real package: `npm i -g agentbridge` installs a tiny shim, and a
+This is the real package: `npm i -g @agentbridgehq/agentbridge` installs a tiny shim, and a
 postinstall downloads the released binary for your platform and **verifies its
 checksum before writing it**.
 
@@ -80,8 +80,8 @@ than something you fill in by hand.
 **Verify what landed**, rather than trusting the success message:
 
 ```bash
-npm view agentbridge version
-cd $(mktemp -d) && npm init -y >/dev/null && npm i agentbridge --foreground-scripts
+npm view @agentbridgehq/agentbridge version
+cd $(mktemp -d) && npm init -y >/dev/null && npm i @agentbridgehq/agentbridge --foreground-scripts
 ./node_modules/.bin/agentbridge version
 ```
 
@@ -92,7 +92,7 @@ postinstall is the part that can fail.
 
 ## 2. Switch to trusted publishing, so there is never a token
 
-On <https://www.npmjs.com/package/agentbridge/access>, find **Trusted Publisher**
+On <https://www.npmjs.com/package/@agentbridgehq/agentbridge/access>, find **Trusted Publisher**
 and choose GitHub Actions:
 
 | Field | Value |
