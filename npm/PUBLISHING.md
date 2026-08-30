@@ -26,10 +26,15 @@ misconfiguration ([npm/cli#8544](https://github.com/npm/cli/issues/8544)).
 ## 1. First publish, by hand
 
 ```bash
-npm install -g npm@latest        # trusted publishing later needs >= 11.5.1
-npm login                        # opens a browser; the session expires, so expect to redo this
-npm whoami                       # confirms it took
+npm login       # opens a browser; the session expires, so expect to redo this
+npm whoami      # confirms it took
 ```
+
+Any npm can do this publish — it needs a 2FA code, not a particular version.
+The `>= 11.5.1` floor applies to **trusted publishing**, which runs on the CI
+runner using the Node and npm the workflow pins, so your local version has no
+bearing on it. Upgrading locally is worth doing anyway, just not for that
+reason.
 
 Check the version matches the release you are publishing against — `install.js`
 builds the download URL from it, so a mismatch produces a package whose
