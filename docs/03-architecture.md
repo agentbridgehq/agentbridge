@@ -59,7 +59,8 @@ Open items are tracked in [07](07-open-questions.md).
 
 The IR is a superset of every dialect, with explicit provenance for each field.
 
-As built (`internal/ir`), with the fields not yet present marked:
+As built (`internal/ir`), with a note on the fields the original sketch put here
+and the implementation put elsewhere:
 
 ```
 Plugin
@@ -73,12 +74,23 @@ Plugin
   native{}      dialect-specific data with no portable home
   capabilities  {exec, network, filesystem, secrets, evidence[]}
 
-  -- not yet built --
-  source        {kind: git|oci|registry|local, uri, ref, resolvedAt}   M3
-  provenance    {signer, attestation, buildRef, verified}              M8/Phase 2
-  compat        {clientId -> {supported, degraded, reasons[]}}          M10
-  riskFindings  per-skill scanner output                                Phase 2
+  -- deliberately not on the Plugin --
+  source        resolved reference        -> agentbridge.lock, and the receipt
+  provenance    signature / attestation   -> release artifacts only, not plugins
+  compat        per-client support        -> computed per install, as Fidelity
+  riskFindings  scanner output            -> agentbridge.lock, and scan --json
 ```
+
+All four are built; none of them belong on the Plugin. The IR describes *what a
+plugin is*, and each of these describes a relationship between a plugin and
+something else — where this copy came from, which client is being written to,
+what a scan concluded on a particular day. Putting them here would have meant a
+plugin's identity changing because it was installed somewhere new, and a
+lockfile diff that could not distinguish a changed plugin from a changed
+opinion about one.
+
+The one genuine gap is provenance: our release binaries are signed, but a
+plugin's provenance is still only the commit or digest recorded in the lock.
 
 Three decisions in the built version that the original sketch got wrong, all
 worth recording because they were only obvious once the importers existed:
@@ -96,7 +108,7 @@ worth recording because they were only obvious once the importers existed:
 
 Key IR-only concepts the spec has no notion of:
 
-- **Secret references** (M5, not yet built). `env` values become
+- **Secret references** (M5, built). `env` values become
   `${secret:openai/api_key}` refs resolved at write time from OS keychain,
   gateway or vault. Note the spec is on our side here and more strongly than
   expected: §9.2 and §7.2.1 state that `env` values and headers are *visible

@@ -137,8 +137,16 @@ reach anyone.
 ## Declared, not measured
 
 Everything above is **declared** by the adapters: it says what we write, based
-on each vendor's own documentation. It does not say what the client then does
-with it, because nobody has watched.
+on each vendor's own documentation. For most clients it does not say what they
+then do with it, because nobody has watched.
+
+Two are further along, and only because their vendors ship a way to ask. Codex
+reports an installed server as `enabled` under `codex mcp list`, and opencode
+reports one as `connected` under `opencode mcp list` — meaning it launched the
+server and completed the MCP handshake — while `opencode debug skill` lists the
+skills it loaded. That is the vendor's own binary answering rather than ours.
+Cursor and VS Code are desktop applications with no equivalent read-back, which
+is exactly why they remain the least verifiable of the set.
 
 That distinction is not pedantry. A conformant client may support neither
 component type (§11.1), several requirements cannot be expressed in JSON Schema
@@ -158,7 +166,9 @@ agentbridge conformance            # run it against this implementation
 | Target | Status |
 |---|---|
 | agentbridge | 18/18 cases pass |
-| Claude Code, Cursor, VS Code, Codex, Gemini CLI | not yet measured |
+| Codex | server confirmed loaded via `codex mcp list`; corpus not run |
+| opencode | server and skills confirmed loaded via its own CLI; corpus not run |
+| Claude Code, Cursor, VS Code, Gemini CLI | not measured |
 
 Results are contributed as pull requests, and a case nobody ran is recorded as
 `unmeasured` rather than inferred. A blank row invites the reader to assume

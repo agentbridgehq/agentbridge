@@ -164,3 +164,58 @@ func TestRemoveCollapsesAConfigWeCreated(t *testing.T) {
 		})
 	}
 }
+
+// A plugin with no servers for a client must not bring that client's config
+// into existence.
+//
+// Installing a skills-only plugin created ~/.cursor/mcp.json holding "{}" —
+// a file the user never had, for a plugin that had nothing to put in it. The
+// dry run announced it as "create config with managed server entries", which
+// was untrue in the one place a user is looking specifically to see what will
+// be written.
+//
+// It also cost the plan its honesty: a client that should have reported "=="
+// (nothing to do) reported "!!" instead, because there was now an op.
+func TestSkillsOnlyPluginDoesNotCreateAnEmptyConfig(t *testing.T) {
+	env := fakeMachine(t, "cursor", "claude-code")
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "skills", "only"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",` +
+		`"name":"acme.skillsonly","version":"1.0.0"}`
+	if err := os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	skill := "---\nname: only\ndescription: A skill and nothing else\n---\nBody.\n"
+	if err := os.WriteFile(filepath.Join(dir, "skills", "only", "SKILL.md"), []byte(skill), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	plugin, src := loadFixture(t, dir)
+	store, err := receipt.Open(registry.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.ApplyInstall(env, store, plugin, plans, registry.Provenance{}); err != nil {
+		t.Fatal(err)
+	}
+
+	config := filepath.Join(env.HomeDir, ".cursor", "mcp.json")
+	if _, err := os.Stat(config); !os.IsNotExist(err) {
+		got, _ := os.ReadFile(config)
+		t.Errorf("install created %s holding %q; a plugin with no servers should leave it absent",
+			config, string(got))
+	}
+
+	for _, p := range plans {
+		if p.Installation.Client.ID == "cursor" && p.Changed() {
+			t.Errorf("cursor plan reports a change, but there was nothing to write: %+v", p.Ops)
+		}
+	}
+}

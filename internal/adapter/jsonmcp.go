@@ -87,6 +87,14 @@ func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepat
 		}
 	}
 
+	// A plugin with no servers for this client has nothing to put in a config,
+	// so bringing one into existence would leave the user a file they never
+	// had, holding "{}", for a plugin that never touched it. Installing a
+	// skills-only plugin did exactly that in every JSON-configured client.
+	if len(writtenKeys) == 0 && !doc.Existed() {
+		return plan, nil
+	}
+
 	after, err := doc.Bytes()
 	if err != nil {
 		return nil, err
@@ -226,11 +234,14 @@ func PlanRemoveJSONMCP(spec JSONMCPSpec, inst Installation, pluginName string, k
 }
 
 func describeWrite(existed bool, n int) string {
-	if !existed {
-		return "create config with managed server entries"
-	}
+	// Emptiness is checked first. Ordering it the other way announced
+	// "create config with managed server entries" for a plugin that had none,
+	// which is both untrue and the opposite of reassuring in a dry run.
 	if n == 0 {
 		return "no server entries to write"
+	}
+	if !existed {
+		return "create config with managed server entries"
 	}
 	return "add or update managed server entries"
 }
