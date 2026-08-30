@@ -21,7 +21,7 @@
 #   AGENTBRIDGE_BASE_URL             override the download location (testing)
 set -eu
 
-REPO="agentbridge/agentbridge"
+REPO="agentbridgehq/agentbridge"
 IDENTITY_REGEXP="https://github.com/${REPO}/.github/workflows/release.yml@.*"
 OIDC_ISSUER="https://token.actions.githubusercontent.com"
 
@@ -51,8 +51,16 @@ detect_arch() {
 latest_version() {
     # The redirect from /releases/latest names the tag, which avoids depending
     # on the API and its rate limits.
-    curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest" \
-        | sed 's|.*/tag/||'
+    resolved=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest") || return 0
+    # Only a URL that actually redirected to a tag carries a version. Without
+    # this check a failed lookup returns the request URL unchanged, sed leaves
+    # it alone, and the whole URL is then used as the version — which builds a
+    # download address containing three copies of itself and reports the
+    # confusion as a download failure rather than as a lookup failure.
+    case "$resolved" in
+        */tag/*) printf '%s\n' "${resolved##*/tag/}" ;;
+        *)       return 0 ;;
+    esac
 }
 
 # verify_checksum confirms one file against a checksums.txt listing.
