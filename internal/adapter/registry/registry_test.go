@@ -112,15 +112,19 @@ func TestInstallAcrossClients(t *testing.T) {
 		byClient[p.Installation.Client.ID] = p
 	}
 
-	// Claude Code takes the whole package, so skills reach full coverage.
-	cc := byClient["claude-code"]
-	if !cc.Fidelity.Skills.Complete() {
-		t.Errorf("claude-code skills = %s, want complete", cc.Fidelity.Skills)
+	// The clients that take a whole package reach full skill coverage.
+	// Cursor joined them once its plugin directory was found and confirmed;
+	// before that it was in the list below.
+	for _, id := range []string{"claude-code", "cursor"} {
+		p := byClient[id]
+		if !p.Fidelity.Skills.Complete() {
+			t.Errorf("%s skills = %s, want complete", id, p.Fidelity.Skills)
+		}
 	}
 
 	// Everyone else gets MCP only, and must say so rather than reporting
 	// success.
-	for _, id := range []string{"cursor", "vscode", "codex", "gemini-cli"} {
+	for _, id := range []string{"vscode", "codex", "gemini-cli"} {
 		p := byClient[id]
 		if p.Fidelity.Skills.Carried != 0 {
 			t.Errorf("%s claimed to install skills", id)
@@ -182,7 +186,7 @@ func TestPlaceholdersAreResolvedForNonConformantTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	written := string(plans[0].Ops[0].After)
+	written := string(configWrite(t, plans[0]))
 
 	if strings.Contains(written, "${PLUGIN_ROOT}") || strings.Contains(written, "${PLUGIN_DATA}") {
 		t.Errorf("unresolved placeholder written to a client config:\n%s", written)

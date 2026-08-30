@@ -148,6 +148,11 @@ type Op struct {
 	TargetExists bool `json:"targetExists,omitempty"`
 	// Note explains the operation in one line, for the plan summary.
 	Note string `json:"note,omitempty"`
+	// Identical records that a copy would produce exactly what is already
+	// there. It is computed when the plan is built rather than asked for
+	// later, because answering it means walking two directory trees and
+	// Changed() is called more than once.
+	Identical bool `json:"identical,omitempty"`
 }
 
 // Unchanged reports whether an operation would leave the filesystem as it is.
@@ -168,6 +173,8 @@ func (o Op) Unchanged() bool {
 		return o.Before != nil && bytes.Equal(o.Before, o.After)
 	case OpRemoveFile, OpRemoveTree:
 		return !o.TargetExists
+	case OpCopyTree:
+		return o.Identical
 	default:
 		return false
 	}

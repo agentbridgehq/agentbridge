@@ -148,7 +148,7 @@ func TestNonConformantClientsReceiveSpecEnvVars(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	written := string(plans[0].Ops[0].After)
+	written := string(configWrite(t, plans[0]))
 
 	for _, want := range []string{"PLUGIN_ROOT", "PLUGIN_DATA"} {
 		if !strings.Contains(written, want) {
@@ -177,7 +177,7 @@ func TestDefaultWorkingDirectoryIsMadeExplicit(t *testing.T) {
 			Cwd string `json:"cwd"`
 		} `json:"mcpServers"`
 	}
-	if err := json.Unmarshal(plans[0].Ops[0].After, &doc); err != nil {
+	if err := json.Unmarshal(configWrite(t, plans[0]), &doc); err != nil {
 		t.Fatal(err)
 	}
 	if got := doc.MCPServers["deploy-tools.bundled"].Cwd; got != src.Path() {
@@ -331,4 +331,22 @@ func removeFixture(t *testing.T, env adapter.Env, store *receipt.Store, name str
 		t.Fatal(err)
 	}
 	return kept
+}
+
+// configWrite returns the content a plan writes to the client's config file.
+//
+// Indexing Ops[0] was fine while a JSON client's plan held exactly one
+// operation. Cursor now installs a package as well, so the first op is a
+// directory copy and the config write is further down — a test that reaches for
+// a position rather than for the thing it means starts failing for reasons that
+// have nothing to do with what it checks.
+func configWrite(t *testing.T, plan *adapter.Plan) []byte {
+	t.Helper()
+	for _, op := range plan.Ops {
+		if op.Kind == adapter.OpWriteFile && op.Path == plan.Installation.ConfigPath {
+			return op.After
+		}
+	}
+	t.Fatalf("no write to the config path %s in plan ops %+v", plan.Installation.ConfigPath, plan.Ops)
+	return nil
 }

@@ -172,12 +172,7 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	// The copy goes first: it creates the directory the skills are read from,
 	// and if it fails there is no config entry pointing at a tree that is not
 	// there.
-	plan.Ops = append([]adapter.Op{{
-		Kind:      adapter.OpCopyTree,
-		Path:      target,
-		SourceDir: src.Path(),
-		Note:      "install plugin package",
-	}}, plan.Ops...)
+	plan.Ops = append([]adapter.Op{adapter.CopyTreeOp(target, src.Path(), "install plugin package")}, plan.Ops...)
 	plan.Fidelity.Skills = adapter.Coverage{Carried: len(p.Skills), Total: len(p.Skills)}
 
 	return plan, nil

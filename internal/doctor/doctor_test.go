@@ -28,6 +28,8 @@ func fakeMachine(t *testing.T, clients ...string) adapter.Env {
 			dir = ".cursor"
 		case "claude-code":
 			dir = ".claude/skills"
+		case "vscode":
+			dir = "Library/Application Support/Code/User"
 		default:
 			t.Fatalf("unknown client %q", c)
 		}
@@ -83,7 +85,10 @@ func find(r *doctor.Report, status doctor.Status, substr string) *doctor.Check {
 // The whole reason the command exists: a client that never received skills
 // should say so, rather than leaving the user to wonder.
 func TestExplainsWhySkillsAreMissing(t *testing.T) {
-	env := fakeMachine(t, "cursor")
+	// vscode, not cursor: Cursor's plugin directory was found and confirmed,
+	// so it now takes skills and is no longer an example of a client that
+	// declines them.
+	env := fakeMachine(t, "vscode")
 	store := install(t, env)
 
 	r := run(t, env, store)

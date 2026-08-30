@@ -213,9 +213,16 @@ func TestSkillsOnlyPluginDoesNotCreateAnEmptyConfig(t *testing.T) {
 			config, string(got))
 	}
 
+	// Scoped to the config, not the whole plan. Cursor installs a package now,
+	// so a skills-only plugin legitimately changes something — just not this
+	// file. The claim under test is that no config is conjured for a client
+	// with no servers to put in one.
 	for _, p := range plans {
-		if p.Installation.Client.ID == "cursor" && p.Changed() {
-			t.Errorf("cursor plan reports a change, but there was nothing to write: %+v", p.Ops)
+		for _, op := range p.Ops {
+			if op.Path == p.Installation.ConfigPath && op.Path != "" {
+				t.Errorf("%s plans a write to its config, but there are no servers: %s",
+					p.Installation.Client.ID, op.Note)
+			}
 		}
 	}
 }

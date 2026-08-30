@@ -113,12 +113,7 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	// Copy the source wholesale. Reconstructing only the components the IR
 	// models would silently drop everything it does not — which for a Claude
 	// Code plugin is most of what makes it useful.
-	plan.Ops = append(plan.Ops, adapter.Op{
-		Kind:      adapter.OpCopyTree,
-		Path:      target,
-		SourceDir: src.Path(),
-		Note:      "install plugin package",
-	})
+	plan.Ops = append(plan.Ops, adapter.CopyTreeOp(target, src.Path(), "install plugin package", ".claude-plugin/plugin.json", ".mcp.json"))
 
 	manifest, err := buildManifest(p)
 	if err != nil {
@@ -127,10 +122,12 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	plan.Ops = append(plan.Ops, adapter.Op{
 		Kind: adapter.OpWriteFile,
 		Path: filepath.Join(target, ".claude-plugin", "plugin.json"),
-		// Before is nil: the copy above establishes the directory's contents,
-		// so there is nothing meaningful to diff against.
-		After: manifest,
-		Note:  "write Claude Code manifest",
+		// Read from disk rather than left nil: an op with no Before can never
+		// compare equal, which made every re-install report a change even when
+		// the package copy above was identical.
+		Before: adapter.ExistingFile(filepath.Join(target, ".claude-plugin", "plugin.json")),
+		After:  manifest,
+		Note:   "write Claude Code manifest",
 	})
 
 	plan.Fidelity.Skills = adapter.Coverage{Carried: len(p.Skills), Total: len(p.Skills)}
