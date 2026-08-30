@@ -52,6 +52,7 @@ can be fixed.
 
 | Kind | Code | Meaning |
 |---|---|---|
+| fault | `client.cwd_unenforceable` | this client accepts a server's working directory and does not use it, so §7.2.1's rule that a plugin server runs in the plugin root cannot be met by writing the value. agentbridge normally routes such a server through its own launcher, which changes directory and then hands over; here no launcher path was available. |
 | by design | `client.extensions_dropped` | client-specific data under a reverse-domain namespace was not written. The specification gives this data no portable meaning, and a client that does not own the namespace must ignore it (§8.1). |
 | by design | `client.flat_skill_restructured` | a skill supplied as a single Markdown file rather than a directory containing SKILL.md. This client accepts it, but Agent Plugins §7.1 does not, so it cannot be published portably as-is. |
 | by design | `client.native_component_dropped` | a component the source dialect defines but Agent Plugins does not — hooks, agents, workflows and the like — was not installed. |
@@ -79,6 +80,7 @@ can be fixed.
 
 | Kind | Code | Meaning |
 |---|---|---|
+| fault | `client.cwd_unenforceable` | this client accepts a server's working directory and does not use it, so §7.2.1's rule that a plugin server runs in the plugin root cannot be met by writing the value. agentbridge normally routes such a server through its own launcher, which changes directory and then hands over; here no launcher path was available. |
 | by design | `client.extensions_dropped` | client-specific data under a reverse-domain namespace was not written. The specification gives this data no portable meaning, and a client that does not own the namespace must ignore it (§8.1). |
 | by design | `client.native_component_dropped` | a component the source dialect defines but Agent Plugins does not — hooks, agents, workflows and the like — was not installed. |
 | fault | `client.secret_launcher_unavailable` | an MCP server was not installed, because its secrets can only be supplied at launch and the agentbridge binary could not be located. |

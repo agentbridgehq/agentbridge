@@ -27,6 +27,10 @@ type JSONMCPSpec struct {
 	// PluginDataDir returns the persistent data directory for a plugin, used
 	// to resolve ${PLUGIN_DATA}.
 	PluginDataDir func(pluginName string) string
+	// EnforceCwd routes stdio servers through the launcher so they start in
+	// the directory §7.2.1 requires, for a client that accepts the field and
+	// ignores it.
+	EnforceCwd bool
 }
 
 // PlanJSONMCP builds an install plan for a JSON-configured client.
@@ -64,6 +68,16 @@ func PlanJSONMCP(spec JSONMCPSpec, inst Installation, p *ir.Plugin, src *safepat
 		}
 		plan.SecretNotes = append(plan.SecretNotes, notes...)
 		materialized = prepared
+
+		if spec.EnforceCwd {
+			enforced, wrapped := EnsureCwd(materialized, opts.Launcher)
+			if !wrapped {
+				plan.Fidelity.AddLoss(LossCwdUnenforceable, s.Name,
+					"%s does not use a server's working directory, and no launcher was available to set it; this server will start wherever the client did",
+					spec.Client.Name)
+			}
+			materialized = enforced
+		}
 
 		value, reason, ok := spec.Encode(materialized)
 		if !ok {

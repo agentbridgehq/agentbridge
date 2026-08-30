@@ -24,6 +24,7 @@ var allLossCodes = []string{
 	adapter.LossSecretMissing,
 	adapter.LossSecretNoLauncher,
 	adapter.LossSecretPartialRef,
+	adapter.LossCwdUnenforceable,
 }
 
 // Every code is documented. A loss reported by a code nobody can look up is

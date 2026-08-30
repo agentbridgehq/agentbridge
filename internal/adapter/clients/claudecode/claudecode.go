@@ -63,6 +63,7 @@ func (*Adapter) Client() adapter.Client {
 		Losses: adapter.DeclaredLosses(
 			adapter.LossFlatSkillRestructured,
 			adapter.LossNativeComponentDropped,
+			adapter.LossCwdUnenforceable,
 		),
 	}
 }
@@ -239,6 +240,24 @@ func buildMCP(servers []ir.MCPServer, opts adapter.PlanOptions, f *adapter.Fidel
 
 		entry := map[string]any{}
 
+		// §7.2.1's default, applied here because this adapter does not go
+		// through Materialize. Claude Code accepts the value and does not use
+		// it — a probe it launched reported the directory `claude` itself was
+		// started from — so the server is routed through the launcher, which
+		// changes directory and then hands over. The placeholder survives the
+		// rewrite below and Claude Code expands it before exec.
+		if s.Transport == ir.TransportStdio {
+			if s.Cwd == "" {
+				s.Cwd = ir.PlaceholderPluginRoot
+			}
+			enforced, wrapped := adapter.EnsureCwd(s, opts.Launcher)
+			if !wrapped {
+				f.AddLoss(adapter.LossCwdUnenforceable, s.Name,
+					"Claude Code does not use a server's working directory, and no launcher was available to set it; this server will start wherever the client did")
+			}
+			s = enforced
+		}
+
 		switch s.Transport {
 		case ir.TransportStdio:
 			entry["command"] = toClaudePath(s.Command)
@@ -260,18 +279,7 @@ func buildMCP(servers []ir.MCPServer, opts adapter.PlanOptions, f *adapter.Fidel
 			env["PLUGIN_ROOT"] = placeholderRoot
 			env["PLUGIN_DATA"] = placeholderData
 			entry["env"] = env
-			// §7.2.1: an omitted cwd means the plugin root. This adapter does
-			// not go through Materialize, which applies that default for every
-			// other client, so writing nothing here left Claude Code to start
-			// the server in whatever directory the user happened to be in — a
-			// plugin server opening ./config.json read a different file
-			// depending on where its user was standing. Found by the MCP
-			// corpus, from a probe reporting its own working directory.
-			cwd := s.Cwd
-			if cwd == "" {
-				cwd = placeholderRoot
-			}
-			entry["cwd"] = toClaudePlaceholders(cwd)
+			entry["cwd"] = toClaudePlaceholders(s.Cwd)
 
 		case ir.TransportStreamableHTTP:
 			entry["type"] = "http"

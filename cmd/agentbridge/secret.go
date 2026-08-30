@@ -177,6 +177,13 @@ func runServer(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	var refs stringList
 	fs.Var(&refs, "secret", "ENV=secret-name, repeatable")
+	// --cwd exists because two clients accept a working directory and ignore
+	// it. §7.2.1 makes the plugin root the directory a server runs in, and a
+	// server that resolves anything relative reads the wrong files when it is
+	// not — silently, while the configuration looks correct. Where a client
+	// will not honour the value, this puts the process in the right place
+	// before handing over.
+	cwd := fs.String("cwd", "", "working directory for the command")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -201,6 +208,15 @@ func runServer(args []string) error {
 			return err
 		}
 		env = append(env, key+"="+value)
+	}
+
+	// Before LookPath, so a command relative to the working directory resolves
+	// against the directory it was told to run in rather than the one the
+	// client happened to start from.
+	if *cwd != "" {
+		if err := os.Chdir(*cwd); err != nil {
+			return fmt.Errorf("cwd %s: %w", *cwd, err)
+		}
 	}
 
 	path, err := exec.LookPath(command[0])

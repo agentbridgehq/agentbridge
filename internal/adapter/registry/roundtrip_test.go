@@ -3,8 +3,10 @@ package registry_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/agentbridgehq/agentbridge/internal/adapter"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
 	"github.com/agentbridgehq/agentbridge/internal/adapter/registry"
 )
@@ -332,5 +334,51 @@ func TestLastPluginOutReclaimsASharedAuxContainer(t *testing.T) {
 	}
 	if string(after) != before {
 		t.Errorf("the skills-locations object outlived both plugins\n before %q\n after  %q", before, string(after))
+	}
+}
+
+// A client that ignores the working directory gets it enforced by the launcher.
+//
+// VS Code and Claude Code both accept a server's cwd and start the process
+// somewhere else — a probe launched by each reported the directory the client
+// itself was started from, and moved with it. Writing the value is therefore not
+// enough for those two, so the command becomes `agentbridge run --cwd <root> --`
+// which changes directory and then hands over.
+//
+// The other three honour the value and are checked here for the opposite
+// reason: wrapping a server that does not need wrapping would put this tool in
+// the launch path of every plugin for no benefit.
+func TestCwdIsEnforcedOnlyWhereTheClientIgnoresIt(t *testing.T) {
+	wraps := map[string]bool{
+		"vscode": true, "claude-code": true,
+		"cursor": false, "codex": false, "opencode": false,
+	}
+	for client, wantWrapped := range wraps {
+		t.Run(client, func(t *testing.T) {
+			env := fakeMachine(t, client)
+			plugin, src := loadFixture(t, ccFixture)
+
+			opts := allowPlaintext
+			opts.Launcher = "/opt/agentbridge"
+			plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var written string
+			for _, op := range plans[0].Ops {
+				if op.Kind == adapter.OpWriteFile {
+					written += string(op.After)
+				}
+			}
+			gotWrapped := strings.Contains(written, "--cwd")
+			if gotWrapped != wantWrapped {
+				verb := "did not wrap"
+				if gotWrapped {
+					verb = "wrapped"
+				}
+				t.Errorf("%s %s the command in the launcher; want wrapped=%v\n%s",
+					client, verb, wantWrapped, written)
+			}
+		})
 	}
 }

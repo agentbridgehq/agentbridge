@@ -96,6 +96,20 @@ different file depending on where its user happened to be standing — while the
 configuration looks correct, and every tool that inspects configuration agrees
 that it is correct.
 
+### Both are now worked around
+
+A bridge whose job is making a plugin behave the same everywhere should not
+report this and stop. Where a client ignores the value, the command becomes
+`agentbridge run --cwd <plugin root> -- <original command>`, which changes
+directory and then replaces itself with the real server — the same launcher
+that already injects secrets, so a server needing both is wrapped once rather
+than twice.
+
+Verified against Claude Code: invoked from an unrelated directory, the probe now
+reports its working directory as the plugin root. The three clients that already
+honour the value are left alone, because putting this tool in the launch path of
+every plugin for no benefit is its own kind of cost.
+
 ### And it found the same bug on our side, twice
 
 Writing the case first exposed that **agentbridge was not writing `cwd` at all**

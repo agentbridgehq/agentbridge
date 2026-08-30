@@ -86,6 +86,16 @@ var lossCatalog = map[string]LossInfo{
 		Expected: true,
 		Remedy:   "move the file to skills/<name>/SKILL.md to make the plugin portable.",
 	},
+	LossCwdUnenforceable: {
+		Code:  LossCwdUnenforceable,
+		Title: "working directory could not be enforced",
+		Meaning: "this client accepts a server's working directory and does not use it, so §7.2.1's rule that a " +
+			"plugin server runs in the plugin root cannot be met by writing the value. agentbridge normally " +
+			"routes such a server through its own launcher, which changes directory and then hands over; here " +
+			"no launcher path was available.",
+		Remedy: "make sure the agentbridge binary is on a stable path, or expect a server that resolves relative " +
+			"paths to read files from wherever the client was started.",
+	},
 	LossSecretInPlaintext: {
 		Code:  LossSecretInPlaintext,
 		Title: "credential written as plaintext",

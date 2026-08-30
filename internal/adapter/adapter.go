@@ -199,6 +199,7 @@ const (
 	LossNativeComponentDropped = "client.native_component_dropped"
 	LossFlatSkillRestructured  = "client.flat_skill_restructured"
 	LossSecretInPlaintext      = "client.secret_written_plaintext"
+	LossCwdUnenforceable       = "client.cwd_unenforceable"
 )
 
 // Coverage counts how many of a component type were carried.

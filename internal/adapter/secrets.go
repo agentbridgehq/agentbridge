@@ -191,3 +191,49 @@ func sortedRefKeys(m map[string]secrets.Ref) []string {
 	sortStrings(out)
 	return out
 }
+
+// EnsureCwd makes a server start in its working directory on a client that
+// will not do so itself.
+//
+// §7.2.1 puts a plugin server in the plugin root, and every adapter writes that
+// value explicitly rather than relying on the default. Two clients accept the
+// field and ignore it: a probe launched by VS Code and by Claude Code reported
+// the directory the *client* was started from, and moved with it. A server that
+// opens ./config.json then reads a different file depending on where its user
+// was standing, while every tool that inspects configuration agrees the
+// configuration is correct.
+//
+// So for those clients the command becomes the launcher, which changes
+// directory and then replaces itself with the real command. If the server is
+// already going through the launcher for secrets, the flag joins that
+// invocation rather than nesting a second one.
+//
+// Returns wrapped=false when there was a working directory to enforce and no
+// launcher to do it with. The server is still written: one that starts in the
+// wrong directory is a degraded server, while dropping it is no server at all,
+// and the first is what the fidelity report exists to describe. The caller
+// records the difference rather than deciding for the user.
+func EnsureCwd(s ir.MCPServer, launcher string) (ir.MCPServer, bool) {
+	if s.Transport != ir.TransportStdio || s.Cwd == "" {
+		return s, true
+	}
+	if launcher == "" {
+		return s, false
+	}
+
+	if s.Command == launcher && len(s.Args) > 0 && s.Args[0] == "run" {
+		for _, a := range s.Args {
+			if a == "--cwd" {
+				return s, true
+			}
+		}
+		out := s
+		out.Args = append([]string{"run", "--cwd", s.Cwd}, s.Args[1:]...)
+		return out, true
+	}
+
+	out := s
+	out.Args = append([]string{"run", "--cwd", s.Cwd, "--", s.Command}, s.Args...)
+	out.Command = launcher
+	return out, true
+}

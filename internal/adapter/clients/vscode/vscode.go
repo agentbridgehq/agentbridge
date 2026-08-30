@@ -52,7 +52,7 @@ func (*Adapter) Client() adapter.Client {
 		Skills:     adapter.SupportTranslated,
 		MCP:        adapter.SupportNative,
 		ConfigDoc:  "https://code.visualstudio.com/docs/agents/reference/mcp-configuration",
-		Losses:     adapter.DeclaredLosses(adapter.LossNativeComponentDropped),
+		Losses:     adapter.DeclaredLosses(adapter.LossNativeComponentDropped, adapter.LossCwdUnenforceable),
 	}
 }
 
@@ -258,6 +258,9 @@ func (a *Adapter) spec() adapter.JSONMCPSpec {
 		ServersKey:    []string{"servers"},
 		Encode:        encode,
 		PluginDataDir: a.dataDir,
+		// VS Code accepts a cwd and starts the process somewhere else — a probe
+		// it launched reported the directory VS Code itself was started from.
+		EnforceCwd: true,
 	}
 }
 
