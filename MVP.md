@@ -104,8 +104,8 @@ with `cwd` at the plugin root — checked by a probe reporting its own
 environment, not by reading configuration. Removing both returned **all five
 configuration files to their pre-install bytes**.
 
-Getting there took two fixes, both found by that diff and neither visible in a
-single-plugin test:
+Getting there took four fixes. Two were found by that diff and neither is
+visible in a single-plugin test:
 
 - **An empty container outlived every plugin that used it.** Only the first
   install into an empty config records having created the container; by the time
@@ -115,6 +115,18 @@ single-plugin test:
 - **The same again in the second config file.** VS Code keeps servers in
   `mcp.json` and skills locations in `settings.json`, and the fix for one did
   not reach the other.
+
+Two more were on the clients' side, and a bridge should absorb them rather than
+report them:
+
+- **Two adapters never wrote the working directory at all.** Claude Code and
+  Codex have their own encoders and never called `Materialize`, where §7.2.1's
+  default lives.
+- **Two clients accept the value and ignore it.** VS Code and Claude Code start
+  a server wherever the client itself was started. Those two now go through
+  `agentbridge run --cwd <plugin root> --`, the same launcher that injects
+  secrets, wrapped once when a server needs both. The three clients that honour
+  the value are left alone.
 
 **The corpus has been run against four clients (2026-08-30).** VS Code 5/0/13,
 Cursor 5/1/12, Codex 4/1/13, opencode 4/1/13 (pass/fail/unmeasured). Results in
