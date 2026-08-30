@@ -1,0 +1,91 @@
+name: Publish to npm
+
+# Publishing happens over OIDC trusted publishing, so there is no npm token in
+# this repository and nothing to leak or rotate. npm mints a short-lived
+# credential from the workflow's own identity, the same mechanism Sigstore uses
+# to sign the release artifacts.
+#
+# Two things must be true on npmjs.com before this can work, and npm does not
+# validate either when you save them:
+#
+#   1. The package must already exist. A trusted publisher is configured on a
+#      package's settings page, and there is no page until something has been
+#      published — so the first version has to go up from a laptop with a 2FA
+#      code. See npm/cli#8544.
+#   2. The trusted publisher must name this repository AND this file, exactly:
+#      npm-publish.yml. Renaming this file silently breaks publishing.
+#
+# Trusted publishing also attaches provenance automatically, which is the point:
+# a package that claims to be built from this commit, attested by npm rather
+# than asserted by us.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: read
+  # Lets the job request an OIDC token. Without it npm has no identity to trust
+  # and publishing falls back to asking for a token that does not exist here.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Trusted publishing needs Node >= 22.14.0.
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Use an npm new enough to publish over OIDC
+        # The npm bundled with Node 22 is 10.x, which has no trusted publishing
+        # support and fails with an authentication error rather than saying so.
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Check the package version matches the release
+        # install.js derives the download URL from package.json's version, so a
+        # package published as 0.1.1 against a v0.1.0 release installs a URL
+        # that does not exist. The failure would land on whoever ran
+        # `npm i -g agentbridge`, not on us.
+        run: |
+          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          expected="${tag#v}"
+          actual=$(node -p "require('./npm/package.json').version")
+          if [ "$expected" != "$actual" ]; then
+            echo "npm/package.json is $actual but the release is $tag."
+            echo "Set the version to $expected and commit before publishing."
+            exit 1
+          fi
+          echo "version $actual matches $tag"
+
+      - name: Verify the release artifacts this package will download
+        # Publishing a package whose postinstall 404s is worse than not
+        # publishing: npm caches the version number forever and it cannot be
+        # reused. Checking first costs one request.
+        run: |
+          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          base="https://github.com/${{ github.repository }}/releases/download/${tag}"
+          for a in darwin_arm64.tar.gz darwin_amd64.tar.gz linux_amd64.tar.gz linux_arm64.tar.gz; do
+            url="${base}/agentbridge_${tag#v}_${a}"
+            curl -fsSLI -o /dev/null "$url" || { echo "missing: $url"; exit 1; }
+            echo "ok: $url"
+          done
+          curl -fsSLI -o /dev/null "${base}/checksums.txt" || { echo "missing checksums.txt"; exit 1; }
+
+      - run: npm test
+        working-directory: npm
+
+      - name: Publish
+        run: npm publish --access public
+        working-directory: npm

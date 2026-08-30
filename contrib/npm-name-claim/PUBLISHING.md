@@ -13,28 +13,14 @@ release. Publishing it before a release exists would give anyone who typed
 `postinstall`**, so it cannot fail — it installs two files that explain where
 the project is and how to build it.
 
-## Publishing it
+## Superseded
 
-npm requires a one-time code for publishing, so this is a manual step:
+This placeholder existed only to hold the name while there was no release to
+point at. **v0.1.0 is released**, so publish the real package instead — see
+[`npm/PUBLISHING.md`](../../npm/PUBLISHING.md). A `0.1.0` needs no `0.0.1`
+beneath it, and publishing one now would only put a version on the registry
+that installs nothing.
 
-```bash
-cd contrib/npm-name-claim
-npm publish --otp=XXXXXX
-```
-
-Verify:
-
-```bash
-npm view agentbridge
-```
-
-## Replacing it with the real package
-
-When the first release is tagged and its artifacts exist:
-
-1. Set `version` in [`npm/package.json`](../../npm/package.json) to match the
-   release tag — `install.js` derives the download URL from it, so a mismatch
-   downloads a URL that does not exist.
-2. `cd npm && npm publish --otp=XXXXXX`
-
-`0.1.0` supersedes this `0.0.1` automatically; nothing here needs deleting.
+Keep this directory until the name is actually claimed: if publishing the real
+package is delayed and somebody else takes `agentbridge`, this is still the
+fastest thing to put up.
