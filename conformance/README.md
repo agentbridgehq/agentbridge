@@ -15,10 +15,10 @@ Four clients run: [codex](results/codex.yaml), [opencode](results/opencode.yaml)
 
 | Client | pass | fail | unmeasured |
 |---|---|---|---|
+| VS Code 1.135.0 | 5 | 0 | 13 |
 | Cursor 3.18.9 | 5 | 1 | 12 |
 | Codex 0.144.5 | 4 | 1 | 13 |
 | opencode 1.18.3 | 4 | 1 | 13 |
-| VS Code 1.135.0 | 2 | 0 | 16 |
 
 ### Only one client accepts a conformant package
 
@@ -64,15 +64,27 @@ the package went through a real plugin mechanism — on the others the case was
 placed in a skills directory, which never consults a manifest, so the same
 observation would be evidence about the wrong thing.
 
+### VS Code does not drop skills that collide by name
+
+Six cases ship a skill called `one`. Asked what skills it had, VS Code reported
+the name once. Asked for the full folder behind every skill of that name, it
+listed all six roots separately — so all six loaded, and the first answer was a
+summary rather than a deduplication.
+
+That is worth recording beyond scoring those six cases. Name collision across
+plugins is not hypothetical, and this is the behaviour that decides whether
+flattening every plugin's skills into one shared directory would have been safe.
+Nothing is silently lost, but nothing distinguishes them either, which is why
+the adapter registers one root per package instead.
+
 ### What stays unmeasured, and why
 
 Nine cases per client are about MCP, which no client reads from a package —
 servers come from `mcp.json`, `config.toml` and `opencode.json` instead. Three
 are about rejecting an invalid manifest, unreachable wherever no manifest is
-read. On VS Code a further six are unmeasured because six cases ship a skill
-named `one` and VS Code reported the name without saying which root it came
-from; Cursor attributed every skill to its plugin folder, which is why the same
-six are scored there.
+read. Cases 010 and 011 are counted here too: their skills are observable and
+did load, but each case's primary assertion is about which MCP servers survive,
+so passing them on the skill alone would overstate what was checked.
 
 Claude Code and Gemini CLI are not conformance targets: neither claims to
 implement the specification, which is the gap this project exists to bridge.

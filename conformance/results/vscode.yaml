@@ -23,24 +23,29 @@ method: |
   That means no manifest is consulted, so every manifest-validation case is
   unmeasured for the same reason as on Codex and opencode.
 
-  Read back by asking VS Code to list every skill and its source. It reported the
-  names but grouped them as "AgentBridge corpus" without per-root attribution,
-  so the six cases that all ship a skill named `one` cannot be told apart. Only
-  the cases with distinctive skill names are scored.
+  Read back by asking VS Code to list every skill and its source. Asked once it
+  reported "one" a single time, grouped as "AgentBridge corpus"; asked again for
+  the full folder path behind every skill of that name, it listed all six roots
+  separately. That is worth knowing on its own: **VS Code does not drop skills
+  that collide by name.** Six skills called `one`, from six different roots, were
+  all loaded. Name collision across plugins is not hypothetical, and this is the
+  behaviour that decides whether flattening plugins into a shared skills
+  directory would have been safe. It would not have been legible, but nothing is
+  silently lost.
 
 results:
   - id: 001-minimal-manifest
     outcome: unmeasured
     notes: "No components, so nothing is observable either way."
   - id: 002-unknown-top-level-field
-    outcome: unmeasured
-    notes: "Six cases ship a skill named `one`, and VS Code reported the name once without attributing it to a root. At least one of the six loaded; which cannot be told apart. Asking it for the folder behind each skill would resolve this."
+    outcome: pass
+    notes: "Skill `one` loaded from the 002 root. Not rejected for the unknown top-level field. Whether the field is reported anywhere is not observable from the chat surface."
   - id: 003-non-object-extensions
-    outcome: unmeasured
-    notes: "Six cases ship a skill named `one`, and VS Code reported the name once without attributing it to a root. At least one of the six loaded; which cannot be told apart. Asking it for the folder behind each skill would resolve this."
+    outcome: pass
+    notes: "Skill `one` loaded from the 003 root. Not rejected for the non-object extensions field."
   - id: 004-missing-required-name
     outcome: unmeasured
-    notes: "Not scored: VS Code has no Agent Plugins installer, so the case was registered as a skills root and no manifest was ever consulted. The same `one` ambiguity applies."
+    notes: "Skill `one` loaded from the 004 root, so a component of a manifest-invalid plugin is reachable. Not scored: VS Code has no Agent Plugins installer, the case was registered as a skills root, and no manifest was ever consulted. Recorded rather than scored, as on Codex and opencode."
   - id: 005-invalid-name-consecutive-hyphens
     outcome: unmeasured
     notes: "The case ships no skills, and Cursor's inventory is skill-derived, so a rejected and an accepted plugin look identical."
@@ -58,10 +63,10 @@ results:
     notes: "Nothing to observe."
   - id: 010-mcp-invalid-entry-isolated
     outcome: unmeasured
-    notes: "MCP not observable, and the skill name is ambiguous across six cases."
+    notes: "The skill loaded, but the case's primary assertion is that the valid MCP server survives alongside an invalid one, and VS Code does not read a package's mcp.json."
   - id: 011-mcp-version-mismatch
     outcome: unmeasured
-    notes: "As 010."
+    notes: "As 010: the skill is observable, the MCP assertion is not."
   - id: 012-mcp-command-escapes-root
     outcome: unmeasured
     notes: "MCP only; Cursor does not read a package's mcp.json."
@@ -75,8 +80,8 @@ results:
     outcome: unmeasured
     notes: "MCP only."
   - id: 016-extension-namespace-preserved
-    outcome: unmeasured
-    notes: "Six cases ship a skill named `one`, and VS Code reported the name once without attributing it to a root. At least one of the six loaded; which cannot be told apart. Asking it for the folder behind each skill would resolve this."
+    outcome: pass
+    notes: "Skill `one` loaded from the 016 root; the foreign extension namespace did not prevent loading."
   - id: 017-mcp-empty-servers
     outcome: unmeasured
     notes: "MCP only."

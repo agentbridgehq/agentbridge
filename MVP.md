@@ -87,9 +87,9 @@ fix judged emptiness recursively and read `{"command": "mine"}` as empty,
 because a string has no keys below it — an existing test caught it deleting a
 user's server, which is the only reason it is not in the released binary.
 
-**The corpus has been run against four clients (2026-08-30).** Cursor 5/1/12,
-Codex 4/1/13, opencode 4/1/13, VS Code 2/0/16 (pass/fail/unmeasured). Results
-in [conformance/results/](conformance/results/).
+**The corpus has been run against four clients (2026-08-30).** VS Code 5/0/13,
+Cursor 5/1/12, Codex 4/1/13, opencode 4/1/13 (pass/fail/unmeasured). Results in
+[conformance/results/](conformance/results/).
 
 **Exactly one client loads a conformant package.** Cursor accepted all 18 cases
 carrying only the specification's `plugin.json`, deliberately without

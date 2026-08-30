@@ -164,10 +164,10 @@ agentbridge conformance            # run it against this implementation
 | Target | Status |
 |---|---|
 | agentbridge | 18/18 cases pass |
+| VS Code | 5 pass, 0 fail, 13 unmeasured — [results](../conformance/results/vscode.yaml) |
 | Cursor | 5 pass, 1 fail, 12 unmeasured — [results](../conformance/results/cursor.yaml) |
 | Codex | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/codex.yaml) |
 | opencode | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/opencode.yaml) |
-| VS Code | 2 pass, 0 fail, 16 unmeasured — [results](../conformance/results/vscode.yaml) |
 | Claude Code, Gemini CLI | not conformance targets; neither claims to implement the specification |
 
 **Cursor is the only client that loads a conformant package.** It accepted all
