@@ -66,10 +66,10 @@ Build it with `go build ./conformance/mcp/probe`.
 | Client | pass | fail | unmeasured |
 |---|---|---|---|
 | opencode 1.18.3 | 11 | 0 | 0 — [results](../results/mcp-opencode.yaml) |
+| Cursor 3.18.9 | 11 | 0 | 0 — [results](../results/mcp-cursor.yaml) |
 | Claude Code | 10 | **1** | 0 — [results](../results/mcp-claude-code.yaml) |
 | Codex 0.144.5 | 8 | 0 | 3 — [results](../results/mcp-codex.yaml) |
 | VS Code 1.135.0 | 3 | **1** | 7 — [results](../results/mcp-vscode.yaml) |
-| Cursor 3.18.9 | 2 | 0 | 9 — [results](../results/mcp-cursor.yaml) |
 
 **M10 and M11 are the first cases in either corpus answered by what a process
 received** rather than by what a file says, and they immediately found a bug no
@@ -79,7 +79,8 @@ amount of reading configuration would have.
 
 agentbridge writes `cwd` explicitly for every client, pointing at the plugin
 root. opencode starts the process there. **VS Code and Claude Code do not** —
-both start it wherever the client itself was launched from. Run `claude` from
+both start it wherever the client itself was launched from. Cursor and opencode
+honour it, so this is not a case of the requirement being impractical. Run `claude` from
 `/tmp/cwdcheck` and the server starts in `/tmp/cwdcheck`; the value in the
 configuration has no effect.
 
@@ -107,9 +108,12 @@ That is the more useful half of the finding. A client ignoring the field is a
 bug report to a vendor; not writing the field is ours, and it was invisible
 until something reported where it had actually started.
 
-VS Code and Cursor carry unmeasured cases only because they need a person to
-open an MCP view — Cursor's nine include the two probe cases, which it had not
-launched when this was recorded.
+Cursor turned out to be fully measurable after all: `cursor-agent mcp list` and
+`cursor-agent mcp list-tools` report configured servers and connect to one, and
+connecting is what launches the probe. VS Code is the only client with no way to
+be asked — `code` writes MCP configuration and cannot read it — so its seven
+unmeasured cases stay unmeasured rather than being inferred from the fact that
+neighbouring entries in the same file demonstrably work.
 
 ### Writing the corpus found two bugs in the corpus
 

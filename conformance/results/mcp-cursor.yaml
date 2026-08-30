@@ -9,46 +9,51 @@
 # See conformance/mcp/README.md.
 
 target: cursor
-version: "Cursor 3.18.9"
+version: "Cursor 3.18.9 / cursor-agent"
 platform: "macOS 15 / arm64"
 tested_by: "masihmoloodian"
 tested_on: "2026-08-30"
 method: |
-  Each case was installed with `agentbridge install` into ~/.cursor/mcp.json.
-  Cursor has no CLI that reports MCP state, so every case needs someone to open
-  its MCP view; the probe cases additionally need Cursor to have started the
-  server.
+  Each case was installed with `agentbridge install` into ~/.cursor/mcp.json and
+  read back with `cursor-agent mcp list`, which reports every configured server,
+  and `cursor-agent mcp list-tools <name>`, which connects to one — that is what
+  launches the probe and makes M10 and M11 answerable without a person.
+
+  The probe cases were attributed by clearing the report files, running only
+  cursor-agent, and finding them rewritten. Cursor launches a server with a
+  clean environment carrying none of its own variables, so attribution had to
+  come from timing rather than from an env marker.
 results:
   - id: M01-stdio-server
-    outcome: unmeasured
-    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+    outcome: pass
+    notes: "Listed by `cursor-agent mcp list`."
   - id: M02-http-server
-    outcome: unmeasured
-    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+    outcome: pass
+    notes: "Listed."
   - id: M03-sse-server
-    outcome: unmeasured
-    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+    outcome: pass
+    notes: "Listed. Cursor accepts the legacy transport, as Claude Code does and Codex does not."
   - id: M04-invalid-entry-isolated
-    outcome: unmeasured
-    notes: "Only `good` was written; whether the client offers it is unobserved."
+    outcome: pass
+    notes: "Only `good` is listed."
   - id: M05-unknown-field-isolated
-    outcome: unmeasured
-    notes: "Only `fine` was written; whether the client offers it is unobserved."
+    outcome: pass
+    notes: "Only `fine` is listed."
   - id: M06-empty-servers
     outcome: pass
-    notes: "Nothing was written and nothing broke — observable without asking the client, because the assertion is that an empty set is not an error."
+    notes: "Nothing written, nothing listed, no error."
   - id: M07-insecure-remote-url
     outcome: pass
-    notes: "No plain-HTTP remote server reached the client; agentbridge refused it. The client's own gate was not exercised."
+    notes: "No plain-HTTP remote server reached the client; agentbridge refused it. Cursor's own gate was not exercised."
   - id: M08-loopback-http-allowed
-    outcome: unmeasured
-    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+    outcome: pass
+    notes: "Listed."
   - id: M09-reserved-env-refused
-    outcome: unmeasured
-    notes: "Only `fine` was written; whether the client offers it is unobserved."
+    outcome: pass
+    notes: "Only `fine` is listed."
   - id: M10-spec-env-provided
-    outcome: unmeasured
-    notes: "Written, but Cursor had not launched the probe when this was recorded — the probe's output was from VS Code, identified by the VSCODE_* variables in its environment."
+    outcome: pass
+    notes: "Connected, and the probe recorded PLUGIN_ROOT and PLUGIN_DATA, both absolute."
   - id: M11-cwd-honoured
-    outcome: unmeasured
-    notes: "As M10: not yet launched by Cursor."
+    outcome: pass
+    notes: "**The probe started in the plugin root.** Cursor honours the working directory it is given, which VS Code and Claude Code do not."

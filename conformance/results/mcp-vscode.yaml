@@ -15,11 +15,19 @@ tested_by: "masihmoloodian"
 tested_on: "2026-08-30"
 method: |
   Each case was installed with `agentbridge install` into the real user
-  configuration, which is where VS Code reads MCP servers from. Two cases were
-  answered without asking VS Code anything: M10 and M11 are observed by the probe
-  recording its own environment and working directory when VS Code launched it.
-  The rest need someone to open VS Code's MCP view, and are unmeasured until
-  then.
+  configuration, which is where VS Code reads MCP servers from.
+
+  Two cases were answered without asking VS Code anything. M10 and M11 are
+  observed by the probe recording its own environment and working directory when
+  VS Code launched it — which is proof that VS Code reads this configuration and
+  acts on it.
+
+  The remaining seven ask whether a particular entry is *listed*, and VS Code is
+  the one client with no way to be asked: `code` has --add-mcp for writing and
+  nothing for reading, and the Copilot CLI bundled inside it is a different
+  subsystem that does not read this file. Every other client here answers
+  through its own CLI. These stay unmeasured rather than being inferred from the
+  fact that neighbouring entries in the same file demonstrably work.
 results:
   - id: M01-stdio-server
     outcome: unmeasured
