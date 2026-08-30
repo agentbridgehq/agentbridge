@@ -597,14 +597,16 @@ plugins:
     <div class="setup">
       <div class="st rise">
         <div>
-          <h3>Build it</h3>
-          <p>Go 1.26, no runtime dependencies. <code>make</code> runs vet, the full test suite and the build.</p>
+          <h3>Install it</h3>
+          <p>Verifies a SHA-256 checksum against the release's signed checksum file before writing anything, and the Sigstore signature too when <code>cosign</code> is present. Prefer to build it? <code>git clone</code>, then <code>make</code> — Go 1.26, no runtime dependencies.</p>
           <div class="term">
             <div class="term-bar"><i></i><i></i><i></i><span>terminal</span><button class="copy">copy</button></div>
-<pre><span class="p">$</span> git clone https://github.com/agentbridgehq/agentbridge
-<span class="p">$</span> cd agentbridge
-<span class="p">$</span> make
-<span class="p">$</span> sudo install -m 0755 ./agentbridge /usr/local/bin/</pre>
+<pre><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/agentbridgehq/agentbridge/main/install.sh | sh
+
+agentbridge v0.1.0 (darwin/arm64)
+  checksum  <span class="ok">ok</span>
+  signature <span class="ok">ok</span> (signed by agentbridgehq/agentbridge release workflow)
+  installed /usr/local/bin/agentbridge</pre>
           </div>
         </div>
       </div>
@@ -621,7 +623,8 @@ CLIENT         SKILLS        MCP         CONFIG
 claude-code    translated    translated  ~/.claude/skills
 cursor         <span class="uv">undocumented</span>  native      ~/.cursor/mcp.json
 vscode         <span class="uv">undocumented</span>  native      ~/Library/…/mcp.json
-codex          <span class="uv">undocumented</span>  translated  ~/.codex/config.toml</pre>
+codex          <span class="uv">undocumented</span>  translated  ~/.codex/config.toml
+opencode       translated    translated  ~/.config/opencode/opencode.jsonc</pre>
           </div>
         </div>
       </div>
