@@ -107,3 +107,60 @@ func TestInstallThenRemoveRestoresConfigsExactly(t *testing.T) {
 		})
 	}
 }
+
+// A config the install created from nothing must not be left holding the shape
+// of what was removed.
+//
+// Reclaiming the container empties the document itself, and the same leftover
+// whitespace applies one level up: the file was written as "{\n}" rather than
+// "{}". Small, but it is a file this tool created, so nothing in it was chosen
+// by the user and every byte of it is ours to get right.
+func TestRemoveCollapsesAConfigWeCreated(t *testing.T) {
+	for _, client := range []string{"cursor", "opencode"} {
+		t.Run(client, func(t *testing.T) {
+			env := fakeMachine(t, client)
+			plugin, src := loadFixture(t, ccFixture)
+
+			store, err := receipt.Open(registry.StateDir(env))
+			if err != nil {
+				t.Fatal(err)
+			}
+			plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := registry.ApplyInstall(env, store, plugin, plans, registry.Provenance{}); err != nil {
+				t.Fatal(err)
+			}
+
+			var configPath string
+			for _, p := range plans {
+				if p.Installation.ConfigPath != "" {
+					configPath = p.Installation.ConfigPath
+				}
+			}
+			if configPath == "" {
+				t.Fatal("no config path in the install plans")
+			}
+			if _, err := os.Stat(configPath); err != nil {
+				t.Fatalf("install did not create the config: %v", err)
+			}
+
+			removePlans, err := registry.PlanRemove(env, store, plugin.Name, registry.Selection{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := registry.ApplyRemove(env, store, plugin.Name, removePlans); err != nil {
+				t.Fatal(err)
+			}
+
+			after, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(after); got != "{}\n" {
+				t.Errorf("config we created reads %q after removal, want %q", got, "{}\n")
+			}
+		})
+	}
+}

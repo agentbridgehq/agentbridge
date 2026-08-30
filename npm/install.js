@@ -116,7 +116,7 @@ main().catch((err) => {
   process.stderr.write(`\nagentbridge install failed: ${err.message}\n\n`);
   process.stderr.write(
     'Install another way instead:\n' +
-      '  brew install agentbridge/tap/agentbridge\n' +
+      '  brew install agentbridgehq/tap/agentbridge\n' +
       `  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | sh\n`
   );
   process.exit(1);

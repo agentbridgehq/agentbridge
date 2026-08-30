@@ -429,3 +429,70 @@ func TestNoEmptyDirectoriesInTheWorkingTree(t *testing.T) {
 			"If a test depends on it, build it at runtime with t.TempDir() instead.", dir)
 	}
 }
+
+// Every reference to this project's own GitHub organisation must name the one
+// that exists.
+//
+// It did not, four times over, in three files. install.sh had
+// REPO="agentbridge/agentbridge" — an organisation that is not ours — so every
+// `curl | sh` install failed on the path the README leads with. npm/install.js
+// carried the same constant, so `npm i -g` would have failed the same way. The
+// usage comment at the top of install.sh named it too, and so did the fallback
+// advice npm/install.js prints when an install fails, which pointed at a
+// Homebrew tap under an organisation that has never existed.
+//
+// None of it was found by reading. install.sh was caught by running it against
+// a real published release; the other three by grepping for the string after
+// the fact. The organisation name appears in shell, JavaScript, Markdown, YAML
+// and Ruby across this repository, which is precisely why no single language's
+// tooling was ever going to notice.
+func TestNoReferenceNamesAnOrganisationWeDoNotOwn(t *testing.T) {
+	const ours = "agentbridgehq"
+
+	// Matches github.com/<org>/, raw.githubusercontent.com/<org>/, and the
+	// Homebrew "<org>/tap/<formula>" form, which has no host to anchor on.
+	patterns := []*regexp.Regexp{
+		regexp.MustCompile(`github(?:usercontent)?\.com/([A-Za-z0-9_.-]+)/agentbridge`),
+		regexp.MustCompile(`brew\s+(?:install|tap)\s+([A-Za-z0-9_.-]+)/tap`),
+	}
+
+	skipDir := map[string]bool{
+		".git": true, "node_modules": true, "dist": true, "vendor": true,
+	}
+
+	err := filepath.Walk("../..", func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if skipDir[info.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		switch filepath.Ext(path) {
+		case ".go", ".md", ".js", ".json", ".yaml", ".yml", ".sh", ".rb", ".html", ".toml":
+		default:
+			return nil
+		}
+		// This file names the wrong organisation on purpose, above.
+		if filepath.Base(path) == "release_test.go" {
+			return nil
+		}
+
+		for i, line := range strings.Split(read(t, path), "\n") {
+			for _, re := range patterns {
+				for _, m := range re.FindAllStringSubmatch(line, -1) {
+					if m[1] != ours {
+						t.Errorf("%s:%d names organisation %q, but ours is %q:\n  %s",
+							filepath.Clean(path), i+1, m[1], ours, strings.TrimSpace(line))
+					}
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

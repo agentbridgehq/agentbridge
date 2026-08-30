@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install agentbridge.
 #
-#   curl -fsSL https://raw.githubusercontent.com/agentbridge/agentbridge/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/agentbridgehq/agentbridge/main/install.sh | sh
 #
 # Checksum verification is mandatory and cannot be turned off. The usual
 # curl-pipe-to-shell installer downloads a binary and runs it without checking

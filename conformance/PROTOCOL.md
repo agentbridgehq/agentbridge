@@ -49,7 +49,8 @@ Three questions, in order:
 
 | Client | Documented location | Notes |
 |---|---|---|
-| **Claude Code** | any directory under a skills directory containing `.claude-plugin/plugin.json` | The only client whose plugin layout its vendor documents. Add `.claude-plugin/plugin.json` alongside the case's `plugin.json`, or use `agentbridge install` |
+| **Claude Code** | any directory under a skills directory containing `.claude-plugin/plugin.json` | Add `.claude-plugin/plugin.json` alongside the case's `plugin.json`, or use `agentbridge install` |
+| **opencode** | `~/.config/opencode/skills/`, scanned recursively for `**/SKILL.md`; extra roots via `skills.paths` | Documented, and confirmed against the binary — `opencode debug skill` lists what it loaded. A whole package can be dropped in one directory |
 | **Cursor** | *unknown* | Agent Plugins launch client; where a portable package is installed is not published. **Finding this is the single most valuable outcome of a measurement session** |
 | **VS Code / Copilot** | *unknown* | As above |
 | **Codex** | *unknown* | As above |
@@ -60,6 +61,13 @@ and watch where it writes. If you find the path, that is a bigger result than th
 conformance run itself — it turns `undocumented` into real skill support in
 [docs/clients.md](../docs/clients.md), and it is worth opening an issue about
 before finishing the rest of the cases.
+
+**Prefer the client's own tooling to your own eyes where it exists.** Codex
+reports MCP state with `codex mcp list`, and opencode reports both with
+`opencode mcp list` and `opencode debug skill` — an answer from the vendor's
+binary is worth more than a screenshot, and it is what separates a measured
+result from an impression. Cursor and VS Code have no equivalent, which is
+exactly why they are the two still unmeasured.
 
 ## MCP-only clients
 

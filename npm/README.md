@@ -20,8 +20,8 @@ plugins came from cannot have an installer that downloads a binary and trusts it
 Other ways to install, both of which also verify:
 
 ```bash
-brew install agentbridge/tap/agentbridge
-curl -fsSL https://raw.githubusercontent.com/agentbridge/agentbridge/main/install.sh | sh
+brew install agentbridgehq/tap/agentbridge
+curl -fsSL https://raw.githubusercontent.com/agentbridgehq/agentbridge/main/install.sh | sh
 ```
 
 Source, documentation and issues:

@@ -22,10 +22,11 @@
 
 ---
 
-> **Status: pre-release, private.** Every implementation milestone is built and
-> tested ([MVP.md](MVP.md)). What remains is not code: no release has been cut,
-> the repository is not yet public, and no third-party client has been
-> independently measured. See [What is not done](#what-is-not-done).
+> **Status: v0.1.0 released.** Signed binaries for six platforms, with
+> checksums and SLSA provenance, installable via `install.sh`, Homebrew or npm.
+> Every implementation milestone is built and tested ([MVP.md](MVP.md)).
+> Two clients have been independently measured and four have not. See
+> [What is not done](#what-is-not-done).
 
 ## The problem
 

@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"bytes"
+
 	"github.com/agentbridgehq/agentbridge/internal/configedit"
 	"github.com/agentbridgehq/agentbridge/internal/ir"
 	"github.com/agentbridgehq/agentbridge/internal/safepath"
@@ -201,6 +203,18 @@ func PlanRemoveJSONMCP(spec JSONMCPSpec, inst Installation, pluginName string, k
 	if err != nil {
 		return nil, err
 	}
+
+	// Reclaiming the container can empty the document itself, and the same
+	// leftover whitespace applies one level up: a config the install created
+	// from nothing is left reading "{\n}" rather than "{}". Collapsing it
+	// keeps a file we wrote from carrying a shape nobody chose.
+	if root, err := doc.Keys(nil); err == nil && len(root) == 0 {
+		after = []byte("{}")
+		if bytes.HasSuffix(doc.Original(), []byte("\n")) || !doc.Existed() {
+			after = append(after, '\n')
+		}
+	}
+
 	plan.Ops = []Op{{
 		Kind:   OpWriteFile,
 		Path:   inst.ConfigPath,

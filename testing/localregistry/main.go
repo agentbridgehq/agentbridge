@@ -17,6 +17,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -28,17 +29,36 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: go run ./testing/localregistry <plugin-dir>")
+	// tamper serves a blob that does not match the digest its own manifest
+	// advertises, which is the substitution an OCI pull is supposed to catch.
+	//
+	// It exists because the obvious way to demonstrate that — edit the plugin
+	// directory while the server runs — does not work: the layer is packed
+	// once at startup, so later edits change nothing that is served, and the
+	// install succeeds while appearing to prove the opposite. A flag that
+	// corrupts the bytes deliberately is honest about what is being tested.
+	tamper := flag.Bool("tamper", false,
+		"serve a corrupted layer, so the digest check has something to catch")
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "usage: go run ./testing/localregistry [-tamper] <plugin-dir>")
 		os.Exit(2)
 	}
-	pluginDir := os.Args[1]
+	pluginDir := flag.Arg(0)
 
 	layer, err := tarGzip(pluginDir)
 	if err != nil {
 		log.Fatalf("packing %s: %v", pluginDir, err)
 	}
+	// The digest is taken before corruption, so the manifest keeps advertising
+	// the honest one and the mismatch is exactly what a real substitution
+	// looks like.
 	layerDigest := digestOf(layer)
+	served := layer
+	if *tamper {
+		served = append(append([]byte(nil), layer...), '\n')
+	}
 
 	manifest, err := json.Marshal(map[string]any{
 		"schemaVersion": 2,
@@ -70,6 +90,10 @@ func main() {
 	fmt.Printf("serving %s\n\n", pluginDir)
 	fmt.Printf("  agentbridge install oci://%s/acme/demo:v1.0.0\n", addr)
 	fmt.Printf("  agentbridge scan    oci://%s/acme/demo@%s\n\n", addr, manifestDigest)
+	if *tamper {
+		fmt.Printf("TAMPERING: the blob served does not match the digest the manifest claims.\n")
+		fmt.Printf("An install should refuse it. Add --refresh if you already pulled it clean.\n\n")
+	}
 	fmt.Printf("plain HTTP is accepted only because this is loopback.\nctrl-c to stop.\n\n")
 
 	log.Fatal(http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +106,7 @@ func main() {
 			writeOrLog(w, manifest)
 		case strings.HasSuffix(r.URL.Path, "/blobs/"+layerDigest):
 			w.Header().Set("Content-Type", "application/octet-stream")
-			writeOrLog(w, layer)
+			writeOrLog(w, served)
 		default:
 			http.NotFound(w, r)
 		}

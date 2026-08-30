@@ -26,7 +26,7 @@ Now create a sandbox so nothing here can touch your real setup:
 
 ```bash
 export LAB=/tmp/ab-lab
-rm -rf "$LAB" && mkdir -p "$LAB/home/.cursor" "$LAB/home/.codex"
+rm -rf "$LAB" && mkdir -p "$LAB/home/.cursor" "$LAB/home/.codex" "$LAB/home/.config/opencode"
 export HOME="$LAB/home"
 export AB="$PWD/agentbridge"
 ```
@@ -53,17 +53,25 @@ $AB clients
 CLIENT         SCOPE     SKILLS        MCP         CONFIG
 cursor         user      undocumented  native      /tmp/ab-lab/home/.cursor/mcp.json
 codex          user      undocumented  translated  /tmp/ab-lab/home/.codex/config.toml
+opencode       user      translated    translated  /tmp/ab-lab/home/.config/opencode/opencode.json
 
 Skills are not installed into Cursor, VS Code / Copilot, Codex: these clients load Agent Plugins,
 but their vendors have not documented where packages go, and we will not
 write to a guessed path. MCP servers are installed normally.
 ```
 
-**What to look for.** The two clients are detected because you made those
-directories. `undocumented` is the honest answer, not a failure: those vendors
-have not published where skill packages go, and the tool refuses to guess. This
-paragraph is the product's whole posture in miniature — it would be easy to
-write to a plausible path and claim success.
+**What to look for.** The three clients are detected because you made those
+directories, and the `SKILLS` column already tells you what will happen to each.
+
+`undocumented` is the honest answer, not a failure: those vendors have not
+published where skill packages go, and the tool refuses to guess. That paragraph
+is the product's whole posture in miniature — it would be easy to write to a
+plausible path and claim success.
+
+opencode says `translated` because its vendor *does* document where skills go,
+and that was confirmed against the binary rather than inferred. It is why this
+sandbox includes opencode: without it the walkthrough would never show a skill
+being installed at all.
 
 ```bash
 $AB clients --all
@@ -217,10 +225,32 @@ cat "$HOME/.cursor/mcp.json"
 cat "$HOME/.codex/config.toml"
 ```
 
-**What to look for.** Cursor gets JSON; Codex gets TOML inside a marker-
-delimited managed block. The same plugin, translated per client. Both entries
-are namespaced `acme.hello.hello`, and `PLUGIN_ROOT` / `PLUGIN_DATA` are
-injected per §9.1.
+**What to look for.** The fidelity line differs per client, and that is the
+point:
+
+```
+  !! cursor         user      skills 0/1     mcp 1/1
+  !! codex          user      skills 0/1     mcp 1/1
+  ok opencode       user      skills 1/1     mcp 1/1
+```
+
+Cursor gets JSON; Codex gets TOML inside a marker-delimited managed block; the
+same plugin, translated per client. Both entries are namespaced
+`acme.hello.hello`, and `PLUGIN_ROOT` / `PLUGIN_DATA` are injected per §9.1.
+
+opencode is the one that takes the skill, so check it actually landed where
+opencode looks for it:
+
+```bash
+find "$HOME/.config/opencode/skills" -name SKILL.md
+cat "$HOME/.config/opencode/opencode.json"
+```
+
+Note `"environment"`, not `"env"` — opencode accepts `env` without complaint and
+then silently discards it, so a server configured that way would start with none
+of its environment, including the `PLUGIN_ROOT` and `PLUGIN_DATA` the
+specification requires. The published schema is right and opencode's own bundled
+documentation is wrong; there is a test pinning the correct key.
 
 ```bash
 $AB list
@@ -447,9 +477,32 @@ manifest digest *before* anything downloaded, and that digest is what the lock
 records. Terminal A logs each request so you can see the manifest fetch, the
 digest re-fetch, and the blob.
 
-Watch it refuse a tampered artifact by editing a file in `$LAB/hello` while the
-registry is running, then re-installing with `--refresh`: the layer no longer
-matches the digest the manifest claims.
+Now watch it refuse a substituted artifact. Stop the registry and start it
+again with `-tamper`, which serves a blob that does not match the digest its own
+manifest advertises:
+
+```bash
+go run ./testing/localregistry -tamper /tmp/ab-lab/hello
+```
+
+```bash
+$AB install oci://127.0.0.1:PORT/acme/demo:v1.0.0 --refresh
+```
+
+```
+agentbridge: layer 7d8468dc47e6: blob does not match its digest:
+  expected sha256:7d8468dc47e67481971af73c5979954033002089666de290c38b31a01fecacff
+  actual   sha256:c41c801fec39076916c07cd874319b714bb92fb6f68b5b4e9293d7d8f32fbb95
+the registry served different bytes from the ones the manifest names
+```
+
+Non-zero exit, and nothing is written.
+
+> This used to say "edit a file in `$LAB/hello` while the registry is running".
+> That does not work, and worse, it appears to: the stand-in packs the layer
+> once at startup, so later edits change nothing it serves and the install
+> succeeds. A reader following it would have concluded the check ran and
+> passed. The `-tamper` flag exists so the demonstration is real.
 
 For a fully realistic test, use a real registry instead:
 
@@ -562,13 +615,23 @@ precisely so a client vendor can run it without cloning anything.
 ## 10. Machine-readable everything
 
 ```bash
-$AB scan ./internal/scanner/testdata/hostile --json --fail-on never | jq '.findings[0]'
+$AB scan ./internal/scanner/testdata/hostile --json --fail-on never \
+  | jq -c '.findings[] | {ruleId, severity, file}' | head -3
 $AB install ./internal/scanner/testdata/hostile --json | jq '{refused, reason}'
-$AB clients --json | jq
+$AB clients --json | jq -c '.[].client | {id, skills, mcp}'
+```
+
+```
+{"ruleId":"server.credential_literal","severity":"high","file":"mcp.json"}
+{"refused":true,"reason":"high-severity content findings"}
+{"id":"cursor","skills":"undocumented","mcp":"native"}
 ```
 
 Every command emits JSON, including on failure — a refused install returns the
-findings that blocked it rather than an empty pipe.
+findings that blocked it rather than an empty pipe. Note `ruleId`, and that
+`clients` nests each entry under `client`; a contract test in
+`cmd/agentbridge/json_test.go` asserts every command accepts `--json` so these
+shapes cannot quietly disappear.
 
 ---
 
@@ -597,11 +660,22 @@ Functional things this walkthrough demonstrates:
 
 Known gaps, which no amount of testing here closes:
 
-- **No third-party client has been measured.** `docs/clients.md` reports what we
-  *write*, based on each vendor's documentation — not what the client does with
-  it. Installing Cursor, VS Code, Codex, Claude Code and Gemini CLI and running
-  `conformance --record` against each is the missing work, and it is the most
-  valuable thing left ([MVP.md](MVP.md) M10-2).
-- **The release pipeline has never run.** It is validated by CI on every change,
-  but no tag has been cut ([RELEASING.md](RELEASING.md)).
-- **The name is unverified** as a trademark, npm package or domain (D-02).
+- **Four of six clients are unmeasured.** Codex and opencode confirm what they
+  loaded through their own CLIs — `codex mcp list`, `opencode mcp list`,
+  `opencode debug skill` — which is the vendor's binary answering rather than
+  ours. Cursor, VS Code, Claude Code and Gemini CLI have no equivalent
+  read-back, so `docs/clients.md` reports what we *write* for them, based on
+  each vendor's documentation. Running `conformance --record` against those four
+  is the most valuable work left ([MVP.md](MVP.md) M10-2).
+- **The name is contested.** Not merely unverified: `agentbridge` was taken on
+  GitHub, npm refuses it unscoped as too similar to `agent-bridge`, the
+  `@agentbridge` scope belongs to an unrelated project, and three further
+  published packages use the name in this exact space. Shipping as
+  `@agentbridgehq/agentbridge` (D-02).
+- **Plugin signatures do not exist.** The release binaries are signed; a
+  plugin's provenance is the commit or digest in your lockfile, which is real
+  but is not a signature.
+
+This walkthrough runs against a sandbox. To check the *published* artifacts
+instead — that the installer, the Homebrew tap and the npm package each fetch
+and verify a real release — see [RELEASING.md](RELEASING.md).
