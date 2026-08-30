@@ -19,9 +19,6 @@ make
 sudo install -m 0755 ./agentbridge /usr/local/bin/
 ```
 
-> The repository is private during pre-release. If you cannot reach it, it is
-> not yet open — nothing is wrong with your setup.
-
 ## What it does
 
 - **Installs once, everywhere.** Claude Code wants a directory, Cursor wants

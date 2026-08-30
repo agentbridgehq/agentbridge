@@ -11,6 +11,12 @@ git tag -s v0.1.0 -m "v0.1.0"
 git push origin v0.1.0
 ```
 
+`-s` signs the tag with your GPG key. If you have none, `-a` makes an
+annotated tag and the release is unaffected: what a consumer verifies is the
+Sigstore signature and the SLSA attestation on the artifacts, and both
+authenticate through the workflow's OIDC identity rather than through anything
+on the releaser's machine.
+
 The [release workflow](.github/workflows/release.yml) then runs the tests and
 the licence check, builds six platforms, signs, publishes, and updates the
 Homebrew tap and Scoop bucket.
@@ -39,7 +45,7 @@ cosign verify-blob checksums.txt \
 ```
 
 ```bash
-gh attestation verify agentbridge_0.1.0_linux_amd64.tar.gz --repo agentbridge/agentbridge
+gh attestation verify agentbridge_0.1.0_linux_amd64.tar.gz --repo agentbridgehq/agentbridge
 ```
 
 The identity regexp matters. A signature verified without pinning the identity
@@ -72,8 +78,11 @@ So:
 | Secret | Used for |
 |---|---|
 | `GITHUB_TOKEN` | Provided automatically; publishes the release |
-| `HOMEBREW_TAP_TOKEN` | Push access to `agentbridge/homebrew-tap` |
-| `SCOOP_BUCKET_TOKEN` | Push access to `agentbridge/scoop-bucket` |
+
+That is the whole list today. Homebrew and Scoop publishing are commented out
+in [.goreleaser.yaml](.goreleaser.yaml) until those tap repositories exist, so
+`HOMEBREW_TAP_TOKEN` and `SCOOP_BUCKET_TOKEN` are not read and do not need to
+be set. Uncommenting the publishers is what makes them required.
 
 Signing needs no secret: Sigstore authenticates through the workflow's OIDC
 identity, so there is no long-lived key for anyone to lose or leak.
