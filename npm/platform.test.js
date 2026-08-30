@@ -2,7 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { artifactFor, supportedPairs } = require('./platform');
+const path = require('node:path');
+const fs = require('node:fs');
+const { artifactFor, supportedPairs, binaryPath } = require('./platform');
 const { verifyChecksum, sha256 } = require('./install');
 
 // A wrong mapping produces a confident download of a binary for the wrong
@@ -88,4 +90,38 @@ test('checksum verification rejects an artifact the file does not list', () => {
     () => verifyChecksum('artifact.tar.gz', Buffer.from('x'), checksums),
     /does not list/
   );
+});
+
+// The downloaded binary must not land on the shim.
+//
+// It did. bin/agentbridge is the shim npm links onto the PATH and is shipped in
+// the package; the installer downloaded the real binary to that same name. So
+// the installer's "already present?" check saw the shim and skipped the
+// download, and the shim then found "the binary" — itself — and spawned it,
+// recursing until it was killed. `npm i -g agentbridge` installed a command
+// that hung the first time anyone ran it, and nothing failed loudly enough to
+// notice: the install printed success.
+test('the downloaded binary does not collide with the shim npm puts on the PATH', () => {
+  const root = '/pkg';
+  const shim = path.join(root, 'bin', 'agentbridge');
+
+  assert.notEqual(binaryPath(root, 'darwin'), shim);
+  assert.notEqual(binaryPath(root, 'linux'), shim);
+  assert.notEqual(binaryPath(root, 'win32'), path.join(root, 'bin', 'agentbridge.exe'));
+
+  // Nor anywhere else in bin/, which npm links wholesale.
+  for (const platform of ['darwin', 'linux', 'win32']) {
+    assert.notEqual(
+      path.dirname(binaryPath(root, platform)),
+      path.join(root, 'bin'),
+      `${platform}: the binary must not be downloaded into bin/`
+    );
+  }
+});
+
+// The shim resolves the binary through platform.js rather than computing the
+// path itself, which is what stops the two from drifting apart again.
+test('the shim asks platform.js where the binary is', () => {
+  const shim = fs.readFileSync(path.join(__dirname, 'bin', 'agentbridge'), 'utf8');
+  assert.match(shim, /binaryPath\(/, 'the shim must use platform.js binaryPath()');
 });

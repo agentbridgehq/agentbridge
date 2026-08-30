@@ -12,11 +12,12 @@
 const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
+const { binaryPath } = require('../platform');
 
-const binary = path.join(
-  __dirname,
-  process.platform === 'win32' ? 'agentbridge.exe' : 'agentbridge'
-);
+// Asked of platform.js rather than rebuilt here: this shim is itself called
+// agentbridge and lives in bin/, so a path computed independently is one
+// mistake away from resolving to this file and spawning itself.
+const binary = binaryPath(path.join(__dirname, '..'), process.platform);
 
 if (!fs.existsSync(binary)) {
   process.stderr.write(

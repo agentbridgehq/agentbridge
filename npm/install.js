@@ -19,9 +19,9 @@ const path = require('path');
 const zlib = require('zlib');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { artifactFor } = require('./platform');
+const { artifactFor, binaryPath } = require('./platform');
 
-const REPO = 'agentbridge/agentbridge';
+const REPO = 'agentbridgehq/agentbridge';
 const VERSION = require('./package.json').version;
 const BASE =
   process.env.AGENTBRIDGE_BASE_URL ||
@@ -80,8 +80,8 @@ function extract(archivePath, artifact, destDir) {
 
 async function main() {
   const artifact = artifactFor(VERSION, process.platform, process.arch);
-  const binDir = path.join(__dirname, 'bin');
-  const target = path.join(binDir, artifact.binary);
+  const target = binaryPath(__dirname, process.platform);
+  const destDir = path.dirname(target);
 
   if (fs.existsSync(target)) {
     return;
@@ -102,8 +102,8 @@ async function main() {
     const archivePath = path.join(tmp, artifact.name);
     fs.writeFileSync(archivePath, archive);
 
-    fs.mkdirSync(binDir, { recursive: true });
-    extract(archivePath, artifact, binDir);
+    fs.mkdirSync(destDir, { recursive: true });
+    extract(archivePath, artifact, destDir);
     fs.chmodSync(target, 0o755);
 
     process.stderr.write(`  installed ${target}\n`);

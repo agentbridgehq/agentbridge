@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('path');
+
 // Mapping from Node's platform names to the release artifacts.
 //
 // Separated from the installer so it can be tested without a network, because
@@ -62,4 +64,21 @@ function supportedPairs() {
   return out;
 }
 
-module.exports = { artifactFor, supportedPairs, PLATFORMS, ARCHS };
+// binaryPath is where the downloaded executable lives, and it is deliberately
+// not bin/.
+//
+// bin/agentbridge is the shim npm links onto the PATH, and it is shipped in the
+// package. Downloading the real binary to that same name meant three things
+// claimed one path: the installer's "already present?" check saw the shim and
+// skipped the download, and the shim then found "the binary" — itself — and
+// spawned it, recursing until something ran out. `npm i -g agentbridge`
+// produced a command that hung on first use.
+//
+// The shim and the installer both ask this function, so the two cannot drift
+// apart again.
+function binaryPath(packageRoot, platform) {
+  const name = platform === 'win32' ? 'agentbridge.exe' : 'agentbridge';
+  return path.join(packageRoot, 'vendor', name);
+}
+
+module.exports = { artifactFor, supportedPairs, binaryPath, PLATFORMS, ARCHS };
