@@ -226,3 +226,60 @@ func TestSkillsOnlyPluginDoesNotCreateAnEmptyConfig(t *testing.T) {
 		}
 	}
 }
+
+// The last plugin out of a shared container takes the container with it.
+//
+// Only the first install into an empty config records having created the
+// container. By the time that plugin is removed the container holds the others,
+// so nothing is reclaimed — and by the time it is empty, the receipt that knew
+// we created it has been deleted. The empty object then outlives every plugin
+// that ever used it, which is how a real machine ended up with "mcp": {} after
+// eleven plugins had come and gone.
+func TestLastPluginOutReclaimsASharedContainer(t *testing.T) {
+	env := fakeMachine(t, "opencode")
+	config := filepath.Join(env.HomeDir, ".config", "opencode", "opencode.json")
+	before := "{\n  \"$schema\": \"https://opencode.ai/config.json\"\n}"
+	if err := os.MkdirAll(filepath.Dir(config), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config, []byte(before), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := receipt.Open(registry.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, src := loadFixture(t, ccFixture)
+
+	names := []string{"acme.first", "acme.second"}
+	for _, name := range names {
+		p := *base
+		p.Name = name
+		plans, err := registry.PlanInstall(env, &p, src, registry.Selection{}, allowPlaintext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := registry.ApplyInstall(env, store, &p, plans, registry.Provenance{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, name := range names {
+		plans, err := registry.PlanRemove(env, store, name, registry.Selection{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := registry.ApplyRemove(env, store, name, plans); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	after, err := os.ReadFile(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != before {
+		t.Errorf("a shared container outlived both plugins\n before %q\n after  %q", before, string(after))
+	}
+}

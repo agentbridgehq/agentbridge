@@ -272,6 +272,21 @@ func addAuxRemoval(plan *adapter.Plan, e receipt.Entry) error {
 	return nil
 }
 
+// inheritedContainers returns the containers an earlier install of ours
+// recorded creating in the same file.
+func inheritedContainers(store *receipt.Store, plan *adapter.Plan) [][]string {
+	if plan.Installation.ConfigPath == "" || len(plan.ConfigKeys) == 0 {
+		return nil
+	}
+	for _, e := range store.All() {
+		if e.ConfigPath != plan.Installation.ConfigPath || len(e.CreatedContainers) == 0 {
+			continue
+		}
+		return e.CreatedContainers
+	}
+	return nil
+}
+
 // Provenance records where a plugin came from, for the receipt.
 type Provenance struct {
 	// Source is the pinned reference: a branch or tag already replaced by the
@@ -348,6 +363,21 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 		if err := adapter.Apply(plan); err != nil {
 			return fmt.Errorf("%s (%s): %w", plan.Installation.Client.Name, plan.Installation.Scope, err)
 		}
+		// A container this install found already present may still be one we
+		// created, for an earlier plugin. Only the first install into an empty
+		// config records having created the container; by the time that plugin
+		// is removed the container holds the others, so nothing is reclaimed —
+		// and by the time it is empty, the receipt that knew we made it is
+		// gone. The empty object then outlives every plugin that used it.
+		//
+		// Inheriting the record keeps the knowledge alive for as long as any
+		// of ours is in there, so whichever plugin leaves last takes it with
+		// them.
+		created := plan.CreatedContainers
+		if len(created) == 0 {
+			created = inheritedContainers(store, plan)
+		}
+
 		store.Put(receipt.Entry{
 			Plugin:               p.Name,
 			Client:               plan.Installation.Client.ID,
@@ -359,7 +389,7 @@ func ApplyInstall(env adapter.Env, store *receipt.Store, p *ir.Plugin, plans []*
 			Managed:              prov.Managed,
 			ConfigPath:           plan.Installation.ConfigPath,
 			ConfigKeys:           plan.ConfigKeys,
-			CreatedContainers:    plan.CreatedContainers,
+			CreatedContainers:    created,
 			BlockSections:        plan.BlockSections,
 			PackageDir:           plan.PackageDir,
 			AuxConfigPath:        plan.AuxConfigPath,
