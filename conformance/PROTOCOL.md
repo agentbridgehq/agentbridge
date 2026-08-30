@@ -52,7 +52,7 @@ Three questions, in order:
 | **Claude Code** | any directory under a skills directory containing `.claude-plugin/plugin.json` | Vendor documentation |
 | **opencode** | `~/.config/opencode/skills/`, scanned recursively for `**/SKILL.md`; extra roots via `skills.paths` | Vendor documentation, then confirmed against the binary — `opencode debug skill` lists what it loaded |
 | **VS Code / Copilot** | `~/Library/Application Support/Code/User/agent-plugins`, overridable with `--agent-plugins-dir` or `$VSCODE_AGENT_PLUGINS` | **Read out of the shipped code**, not vendor documentation. `agentPluginsHome` is built beside `mcp.json` in the same profile directory. Unverified — see below |
-| **Cursor** | `~/.cursor/plugins/`, with `local/` for local installs and `cache/<publisher>/<name>/<sha>/` for fetched ones. A package is marked by `.cursor-plugin/plugin.json`, which points at its own components: `"skills": "./skills/"`, `"mcpServers": "./.mcp.json"` | **Read off a real installed plugin** on a developer's machine, plus the directory list in the app bundle. Unverified — see below |
+| **Cursor** | `~/.cursor/plugins/`, with `local/` for local installs and `cache/<publisher>/<name>/<sha>/` for fetched ones. A package is marked by `.cursor-plugin/plugin.json`, which points at its own components: `"skills": "./skills/"`, `"mcpServers": "./.mcp.json"` | **Confirmed.** Read off a real installed plugin, then a package was placed there and Cursor was asked what it had loaded — it listed the skill and named `~/.cursor/plugins/local` itself |
 | **Codex** | *unknown* for skills; MCP via `~/.codex/config.toml` | Vendor documentation for MCP only |
 | **Gemini CLI** | n/a | No skills mechanism. MCP-only cases still apply, via `~/.gemini/settings.json` |
 
@@ -78,12 +78,13 @@ what skills are available.
 
 Removing them is `rm -rf` on the two directories above; nothing else is touched.
 
-### Why the two paths above are still marked unverified
+### Why the VS Code path above is still marked unverified
 
 Finding a path is not the same as watching a client use it, and this project does
-not write to a location it has not seen work. Both were established by reading
-rather than by observation, and neither client exposes a way to ask it what it
-loaded — they are desktop applications, and the check is a person opening one.
+not write to a location it has not seen work. Cursor's was established by reading and then confirmed by asking the client
+directly, which is the standard. VS Code's has only been read: it is a desktop
+application with no way to ask it what it loaded, so the check is a person
+opening it.
 
 A cautionary note from the attempt. The Copilot CLI bundled inside VS Code
 *does* have that read-back — `copilot plugin install`, `copilot plugin list`,

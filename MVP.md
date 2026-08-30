@@ -139,7 +139,7 @@ against the published release and produce a working 0.1.0.
 
 | | Blocked on |
 |---|---|
-| **M10-2** — measure the target clients (§6) | Codex and opencode confirm what they loaded through their own CLIs. For Cursor and VS Code the *install paths* are now found — read out of their shipped code and, for Cursor, off a real installed plugin — and a probe is placed in each. What remains is a person opening each app and looking, because neither exposes a way to ask. See [conformance/PROTOCOL.md](conformance/PROTOCOL.md). |
+| **M10-2** — measure the target clients (§6) | Codex and opencode confirm what they loaded through their own CLIs. **Cursor is closed**: its plugin path was found by reading an installed plugin, then confirmed by Cursor listing the package and naming the directory itself — so Cursor now installs skills. VS Code's path is found (`User/agent-plugins`, read out of its shipped code) but unconfirmed, and a probe is waiting there. The 18-case corpus is still unrun against any GUI client. See [conformance/PROTOCOL.md](conformance/PROTOCOL.md). |
 | **Release automation** | Both package managers work by hand and neither is automated. `brew install agentbridgehq/tap/agentbridge` and `npm i -g @agentbridgehq/agentbridge` were each verified end to end, but the tap formula was hand-written — GoReleaser needs `HOMEBREW_TAP_TOKEN`, a credential scoped to the tap repository, since a workflow's own token cannot write to another repo. npm needs its trusted publisher configured on npmjs.com. Both are one manual step, and neither can be done from here. |
 | **D-02 / M9-4** — the name | Now urgent rather than administrative. `agentbridge` was taken on GitHub; npm refuses it unscoped as too similar to `agent-bridge`; the `@agentbridge` scope belongs to an unrelated framework; and three further published packages carry the name in this exact space, two of them shipping per-client adapters. A name three other projects reached for independently does not distinguish this one. Trademark and domain remain unchecked. |
 
@@ -871,7 +871,7 @@ The interesting design problem was not the API call but **the classifier reading
 
 | Client | Conformant | Priority | Status |
 |---|---|---|---|
-| Cursor | yes | P0 | 🟨 MCP shape verified; plugin path found (`~/.cursor/plugins/`, marker `.cursor-plugin/plugin.json`) but unconfirmed |
+| Cursor | yes | P0 | ✅ **skills and MCP both install.** Plugin path found by reading an installed plugin, then confirmed: Cursor listed the package and named `~/.cursor/plugins/local` itself |
 | VS Code / Copilot | yes | P0 | 🟨 MCP shape verified against its own `--add-mcp`; plugin path found (`User/agent-plugins`) but unconfirmed |
 | Codex | yes | P0 | 🟨 `codex mcp list` reports the server enabled |
 | Claude Code | **no** | P0 — highest strategic value | ⬜ package installs; not measured |
