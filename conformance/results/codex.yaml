@@ -1,0 +1,88 @@
+# A conformance run against one client.
+#
+# Fill in `outcome` for each case: pass | fail | unmeasured.
+# Leave anything you did not personally observe as `unmeasured` — an
+# unmeasured case is a useful, honest datum; a guessed one poisons the table.
+#
+# A failure is a bug report, not a verdict. The likeliest explanations, in
+# order: the corpus is wrong, the installation was wrong, the client is wrong.
+#
+# See conformance/PROTOCOL.md for how to install a case into each client.
+
+target: codex
+version: "codex-cli 0.144.5"          # the client version you tested — a result without one cannot be retired
+platform: "macOS 15 / arm64"         # e.g. macOS 15 / arm64
+tested_by: "masihmoloodian"
+tested_on: "2026-08-30"        # YYYY-MM-DD
+method: |
+  Codex's plugin installer refuses an Agent Plugins package outright:
+  `codex plugin add` fails with "missing plugin.json" because it requires
+  .codex-plugin/plugin.json, not the specification's plugin.json at the package
+  root. Verified by control: adding .codex-plugin/plugin.json to an otherwise
+  unchanged case makes the same package install. So the plugin path could not
+  be exercised at all, and no case is scored through it.
+
+  What was measured instead is the skill loader. Each case's plugin directory
+  was copied unmodified to $CODEX_HOME/skills/<case> with a fresh CODEX_HOME per
+  case, and `codex debug prompt-input` was read — it renders the model-visible
+  skills block with a source locator per skill, so what loaded is unambiguous
+  and no model call is involved.
+
+  That path never consults plugin.json, which is why every manifest-validation
+  case is unmeasured rather than failed.
+
+results:
+  - id: 001-minimal-manifest
+    outcome: unmeasured
+    notes: "No components to observe, and the skills directory never reports whether a plugin 'loaded'. Not answerable by this method."
+  - id: 002-unknown-top-level-field
+    outcome: pass
+    notes: "Skill `one` is available. The plugin was not rejected for the unknown field. Whether the field is reported anywhere is not observable from the CLI."
+  - id: 003-non-object-extensions
+    outcome: pass
+    notes: "Skill `one` is available. Not rejected for the non-object extensions field."
+  - id: 004-missing-required-name
+    outcome: unmeasured
+    notes: "Skill `one` became available, so a component of a manifest-invalid plugin is reachable — but by a path that never reads plugin.json, so this is not evidence about manifest handling. Recorded rather than scored."
+  - id: 005-invalid-name-consecutive-hyphens
+    outcome: unmeasured
+    notes: "The case carries no skills, so the skills directory shows nothing either way."
+  - id: 006-unsupported-spec-version
+    outcome: unmeasured
+    notes: "As 005: no skills to observe."
+  - id: 007-skills-immediate-children-only
+    outcome: fail
+    notes: "Loaded alpha, beta AND deep. The specification requires skills to be immediate children of skills/; skills/group/deep/ must not be found. Both clients scan recursively."
+  - id: 008-skill-directory-without-skill-md
+    outcome: pass
+    notes: "Exactly `real` is available. The directory without a SKILL.md is ignored rather than treated as a skill."
+  - id: 009-no-components
+    outcome: unmeasured
+    notes: "Nothing to observe."
+  - id: 010-mcp-invalid-entry-isolated
+    outcome: unmeasured
+    notes: "The skill loaded, but the assertion is about MCP servers, which this path does not read."
+  - id: 011-mcp-version-mismatch
+    outcome: unmeasured
+    notes: "As 010: the MCP half is not observable by this method."
+  - id: 012-mcp-command-escapes-root
+    outcome: unmeasured
+    notes: "MCP only; not observable."
+  - id: 013-mcp-insecure-url
+    outcome: unmeasured
+    notes: "MCP only; not observable."
+  - id: 014-mcp-reserved-env
+    outcome: unmeasured
+    notes: "MCP only; not observable."
+  - id: 015-mcp-cwd-escapes-root
+    outcome: unmeasured
+    notes: "MCP only; not observable."
+  - id: 016-extension-namespace-preserved
+    outcome: pass
+    notes: "Skill `one` is available; the foreign extension namespace did not prevent loading."
+  - id: 017-mcp-empty-servers
+    outcome: unmeasured
+    notes: "MCP only; not observable."
+  - id: 018-mcp-all-transports
+    outcome: unmeasured
+    notes: "MCP only; not observable."

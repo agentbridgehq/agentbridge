@@ -166,9 +166,23 @@ agentbridge conformance            # run it against this implementation
 | Target | Status |
 |---|---|
 | agentbridge | 18/18 cases pass |
-| Codex | server confirmed loaded via `codex mcp list`; corpus not run |
-| opencode | server and skills confirmed loaded via its own CLI; corpus not run |
-| Claude Code, Cursor, VS Code, Gemini CLI | not measured |
+| Codex | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/codex.yaml) |
+| opencode | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/opencode.yaml) |
+| Cursor, VS Code | not run: no way to ask a desktop application what it loaded |
+| Claude Code, Gemini CLI | not conformance targets; neither claims to implement the specification |
+
+The two runs agree on both halves. **Neither client reads an Agent Plugins
+manifest at all** — Codex requires `.codex-plugin/plugin.json` and rejects a
+conformant package with "missing plugin.json"; opencode has no plugin manifest
+and finds skills by scanning directories. So thirteen cases are unmeasured
+rather than failed: a client that never reads the manifest is not failing to
+validate it.
+
+The one real failure is unanimous. Both load a skill nested at
+`skills/group/deep/`, which §7.1 forbids — skills must be immediate children
+of `skills/`. Two independent implementations making the same choice reads
+more like a requirement implementers do not expect than like two coincidental
+bugs.
 
 Results are contributed as pull requests, and a case nobody ran is recorded as
 `unmeasured` rather than inferred. A blank row invites the reader to assume

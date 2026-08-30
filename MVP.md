@@ -87,6 +87,25 @@ fix judged emptiness recursively and read `{"command": "mine"}` as empty,
 because a string has no keys below it — an existing test caught it deleting a
 user's server, which is the only reason it is not in the released binary.
 
+**The corpus has been run, and no client reads an Agent Plugins manifest
+(2026-08-30).** Codex and opencode were measured against all 18 cases. Every
+manifest-validation case is unmeasured for the same reason: neither client ever
+reads `plugin.json`. Codex demonstrates it loudly — `codex plugin add` on an
+unmodified case returns *"missing plugin.json"*, because it requires
+`.codex-plugin/plugin.json`; adding that file and changing nothing else makes the
+same package install. Claude Code wants `.claude-plugin/`, Cursor wants
+`.cursor-plugin/`. Three vendors, three private manifests, one specification
+none of them reads.
+
+That is the clearest evidence yet for why this project exists, and it is now a
+measurement rather than an assertion.
+
+One real failure, unanimous across both: §7.1 requires skills to be immediate
+children of `skills/`, and both load a skill nested at `skills/group/deep/`.
+Two independent implementations making the same choice reads more like a
+requirement implementers do not expect than like two coincidental bugs — worth
+raising upstream as a question about the requirement.
+
 **Public, and released (2026-08-30).** The repository is public and **v0.1.0 is
 published**: six platforms, checksums, a Sigstore signature and SLSA build
 provenance. The release pipeline succeeded on its first real run, having been
@@ -139,7 +158,7 @@ against the published release and produce a working 0.1.0.
 
 | | Blocked on |
 |---|---|
-| **M10-2** — measure the target clients (§6) | **Every client with a skills mechanism now carries them**, and none reports `undocumented`. Claude Code and opencode from vendor documentation; Cursor, Codex and VS Code from locations their vendors never published, each established by reading the client's own code, installing a package, and having the client report back what it loaded. Gemini CLI has no mechanism and says so. What remains is the 18-case corpus, still unrun against any client — the paths are closed, the behavioural matrix is not. See [conformance/PROTOCOL.md](conformance/PROTOCOL.md). |
+| **M10-2** — measure the target clients (§6) | **Partly done, and the partial result is the interesting one.** The corpus has been run against Codex and opencode (4 pass, 1 fail, 13 unmeasured each). Cursor and VS Code cannot be run without a person driving 18 cases through a GUI. See [conformance/README.md](conformance/README.md) for what the runs found. |
 | **Release automation** | Both package managers work by hand and neither is automated. `brew install agentbridgehq/tap/agentbridge` and `npm i -g @agentbridgehq/agentbridge` were each verified end to end, but the tap formula was hand-written — GoReleaser needs `HOMEBREW_TAP_TOKEN`, a credential scoped to the tap repository, since a workflow's own token cannot write to another repo. npm needs its trusted publisher configured on npmjs.com. Both are one manual step, and neither can be done from here. |
 | **D-02 / M9-4** — the name | Now urgent rather than administrative. `agentbridge` was taken on GitHub; npm refuses it unscoped as too similar to `agent-bridge`; the `@agentbridge` scope belongs to an unrelated framework; and three further published packages carry the name in this exact space, two of them shipping per-client adapters. A name three other projects reached for independently does not distinguish this one. Trademark and domain remain unchecked. |
 

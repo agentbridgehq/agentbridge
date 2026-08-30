@@ -7,6 +7,61 @@ v1.0.0](https://agent-plugins.org/specification).
 Free to use, no attribution required, no dependency on AgentBridge. If you build
 an agent client, this is here to help you check it.
 
+
+## Results so far (2026-08-30)
+
+Two clients have been run: [codex](results/codex.yaml) and
+[opencode](results/opencode.yaml). Each scores **4 pass, 1 fail, 13
+unmeasured**, and the shape of that is the result.
+
+### The finding that dominates everything else
+
+**No client tested consumes an Agent Plugins package as the specification
+defines it.** Each requires its own vendor-prefixed manifest instead:
+
+| Client | Manifest it actually reads |
+|---|---|
+| Claude Code | `.claude-plugin/plugin.json` |
+| Cursor | `.cursor-plugin/plugin.json` |
+| Codex | `.codex-plugin/plugin.json` |
+| opencode, VS Code | none — skills are found by scanning directories |
+
+Codex is the sharpest demonstration because it fails loudly. `codex plugin add`
+on an unmodified corpus case returns **"missing plugin.json"** — while the case
+has a `plugin.json`, at the location the specification puts it. Adding
+`.codex-plugin/plugin.json` and changing nothing else makes the same package
+install, which is the control that turns an inference into a measurement.
+
+So the manifest half of the corpus could not be exercised on any client, and
+those cases are recorded `unmeasured` rather than failed. A client that never
+reads the manifest is not failing to validate it.
+
+### The one real failure, and it is unanimous
+
+**007-skills-immediate-children-only fails on both clients.** §7.1 requires
+skills to be immediate children of `skills/`; the case ships `alpha`, `beta`,
+and a third at `skills/group/deep/` that must not be found. Both clients load
+all three, because both scan recursively.
+
+Two independent implementations making the same choice suggests the
+specification is asking for something implementers do not expect, rather than
+two coincidental bugs. It is worth raising upstream as a question about the
+requirement, not only as a bug against the clients.
+
+### What is still unmeasured, and why
+
+Thirteen cases per client. Nine are about MCP, which neither client reads from a
+package — servers come from `config.toml` and `opencode.json`. Three are about
+rejecting an invalid manifest, unreachable for the reason above. One has no
+observable components at all.
+
+Cursor and VS Code are unrun. Both are desktop applications with no way to ask
+them what they loaded, so eighteen cases each means thirty-six manual
+observations. Claude Code and Gemini CLI are not conformance targets: neither
+claims to implement the specification, which is the gap this project exists to
+bridge.
+
+
 ## Why this exists
 
 The specification leaves more room for divergence than it looks:
