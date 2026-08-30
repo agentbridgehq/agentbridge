@@ -26,6 +26,31 @@ from the deletion the test exists to catch.
 run is not a gate.** CI existed as YAML for weeks. Its first actual execution
 was worth more than any amount of local green.
 
+**Made ready for CI adoption (2026-08-25).** Two gaps stood between a good CLI
+and something a company could deploy, and both are closed:
+
+- **`scan` now finds every plugin beneath a path.** It took exactly one, so a
+  team with several internal plugins had to write a shell loop over directories
+  they enumerated themselves — a list that stops covering plugins added later,
+  which is the failure this scanner exists to prevent. Findings are relocated to
+  be repository-relative, because three plugins can each have
+  `skills/deploy/SKILL.md` and a dashboard given the plugin-relative path
+  annotates whichever it resolves first.
+- **`action.yml`** makes CI adoption three lines of YAML instead of a
+  hand-written download-verify-run script, and verifies the binary against the
+  release checksums before executing it.
+
+Verified end to end from a clean clone against a two-plugin repository: build,
+validate, scan, declare, sync, secret injection, the injected-instruction attack
+caught by *both* the scan job and the lockfile job, deliberate acceptance, and
+removal.
+
+That pass also corrected the documentation. The guides said a gained
+high-severity finding "stops the sync"; it stops the **update**. `sync` holds
+the pin and fails on a digest mismatch, `update` re-resolves and is where the
+content gate applies. Two different messages for two different drifts, now
+distinguished in [ci-integration.md](docs/ci-integration.md).
+
 **What remains is not code.** Three things, and none can be finished by writing Go:
 
 | | Blocked on |

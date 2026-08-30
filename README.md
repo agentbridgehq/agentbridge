@@ -229,7 +229,7 @@ A version bump that grants an agent the network is a different event from one
 that does not — and one that adds an instruction to hide things from you is
 different again. Both appear in the lock diff, so both appear in code review.
 
-**A plugin that gains a high-severity finding stops the sync.** Not because it
+**A plugin that gains a high-severity finding stops the update.** Not because it
 has findings — because it has *new* ones since the version you approved:
 
 ```

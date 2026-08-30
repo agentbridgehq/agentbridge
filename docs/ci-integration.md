@@ -123,13 +123,31 @@ the committed lock honest:
 ```
 
 `sync --dry-run` resolves every declared reference against the lock and writes
-nothing. It fails when a plugin has moved without the lock being updated — the
-same guarantee `npm ci` gives, for the instructions you hand an agent.
+nothing. It fails when anything has drifted from what was committed — the same
+guarantee `npm ci` gives, for the instructions you hand an agent.
 
-It also fails when a plugin has gained a **new** high-severity finding since the
-version you approved. That is the case a lockfile alone cannot catch: the
-maintainer really did edit the file, so the digest changed honestly, and only
-comparing the instruction text against what you accepted shows what happened.
+Two different drifts, and it is worth knowing which you are looking at:
+
+| Message | What happened |
+|---|---|
+| `integrity check failed` | The bytes no longer match the recorded digest. Someone edited a plugin without updating the lock. |
+| `N new high-severity content findings since the locked version` | The plugin legitimately moved to a new commit, and its instruction text gained something it did not have when you approved it. |
+
+The second is the case a lockfile alone cannot catch: the maintainer really did
+edit the file, so the digest changed *honestly*, and only comparing the
+instruction text against what you accepted reveals it.
+
+**`sync` holds the pin; `update` moves it.** So the sequence when a legitimate
+change lands is:
+
+```bash
+agentbridge update --dry-run                 # see what moved, and what the text gained
+agentbridge update                           # take it, if the findings are clean
+agentbridge update --allow-flagged-content   # take it, having read and accepted the findings
+```
+
+Accepting records the findings in `agentbridge.lock`, so the next `sync` is
+quiet and the override keeps meaning something the day a *new* finding appears.
 
 ---
 
