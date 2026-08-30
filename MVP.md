@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-11 · Overall status: **Every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
+Last updated: 2026-08-30 · Overall status: **Every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
 
 **Pushed to GitHub 2026-08-25**, and CI ran for the first time. It found
 **eleven defects within minutes**, two of them in product code: a manifestless
@@ -51,11 +51,47 @@ the pin and fails on a digest mismatch, `update` re-resolves and is where the
 content gate applies. Two different messages for two different drifts, now
 distinguished in [ci-integration.md](docs/ci-integration.md).
 
+**Tested against four real clients on a developer's Mac (2026-08-30).** Claude
+Code, Codex, Cursor, VS Code — and opencode, which had no adapter and now does.
+The install was verified where the vendor ships tooling that can answer:
+`codex mcp list` reports the server `enabled`, and `opencode mcp list` reports
+it `connected`, meaning opencode launched it and completed the MCP handshake.
+Cursor and VS Code have no equivalent read-back; VS Code's own `--add-mcp`
+writes the same shape we do, which is the closest confirmation available.
+
+Two findings came out of it, and neither would have been found by reading:
+
+- **opencode is the second client that can take skills**, and unlike the
+  others the location is documented — its loader scans configured skill
+  directories recursively, so a whole plugin package installs in one place.
+  But its MCP dialect wants environment variables under `environment`, while
+  opencode's own bundled documentation says `env`. A config using `env` is
+  **accepted without complaint and then silently discarded**. Following the
+  vendor's prose would have cost every plugin the `PLUGIN_ROOT` and
+  `PLUGIN_DATA` that §9.1 requires, and the only symptom would have been a
+  plugin that does not work. The schema is right and the prose is wrong;
+  `opencode debug config` reports what was actually resolved, which is how the
+  two were told apart.
+- **Removal did not restore a file.** README and getting-started both invite
+  the reader to install a plugin, remove it, and diff. Removal was
+  semantically exact — no server survived, no hand-written entry was touched —
+  but an emptied object reflowed onto two lines, a config with no trailing
+  newline gained one, and a config that never had an `mcp` key kept an empty
+  one. Only a byte comparison finds that, and nobody had made one. The receipt
+  now records which containers an install created and removal reclaims them
+  while they are still empty; the invitation to diff is a test.
+
+The second is the same shape as the gitignore, the empty directory and CI's
+first run: **a claim nobody had turned into a check.** The first attempt at the
+fix judged emptiness recursively and read `{"command": "mine"}` as empty,
+because a string has no keys below it — an existing test caught it deleting a
+user's server, which is the only reason it is not in the released binary.
+
 **What remains is not code.** Three things, and none can be finished by writing Go:
 
 | | Blocked on |
 |---|---|
-| **M10-2** — measure the six target clients (§6) | Installing each client and watching it, by hand. The corpus, the protocol and the results template are built and ship in the binary. |
+| **M10-2** — measure the target clients (§6) | Partly closed: Codex and opencode confirm what they loaded through their own CLIs (above). Cursor and VS Code are desktop applications with no read-back, so those two still need a person installing each client and watching it. The corpus, the protocol and the results template are built and ship in the binary. |
 | **M8** — cut a first release | The pipeline is written and CI-validated on every pull request, but has never run. Nothing is signed because nothing is published. |
 | **Going public** | The repository is private. `go get`, the npm postinstall and the `curl \| sh` installer all need release artifacts that are publicly downloadable. |
 | **D-02 / M9-4** — trademark check, then launch | The GitHub org `agentbridgehq` and the npm name `agentbridge` are claimed. Trademark and domain remain unchecked. |
@@ -312,7 +348,8 @@ Two upstream surprises worth recording, both handled in `internal/schema`:
 | M2-7 | Adapter: Claude Code (non-conformant) | Skills + MCP land correctly; dropped `extensions` reported | ✅ |
 | M2-8 | Adapter: one more non-conformant client (Zed / Windsurf / Gemini CLI) | Chosen by measured user overlap, not guess | ✅ ² |
 | M2-9 | Dry-run mode (`--dry-run`) showing exact file diffs | No writes; diff is reviewable | ✅ |
-| M2-10 | Clean uninstall | Removes only what we added; user's other config untouched | ✅ |
+| M2-10 | Clean uninstall | Removes only what we added; user's other config untouched | ✅ ⁶ |
+| M2-11 | Adapter: opencode | Skills *and* MCP; the second client that takes skills | ✅ |
 
 ² Gemini CLI was chosen on documentation quality, **not** on measured user
 overlap — we have no telemetry and deliberately none is planned (see [D9](docs/07-open-questions.md)). The
@@ -376,6 +413,8 @@ wrong?" rather than by adding coverage to what was already tested.
 never by pattern-matching the config. A user entry that happens to share our
 `<plugin>.<server>` naming is provably untouched; there is a test for exactly
 that case.
+
+⁶ Uninstall removed everything it wrote from the first day, but did not restore the *file*: an emptied object reflowed, a missing trailing newline appeared, and a container we created stayed behind empty. Found by diffing a real machine against a backup on 2026-08-30, not by the suite. Now enforced by `TestInstallThenRemoveRestoresConfigsExactly`.
 
 ### M3 — Sources & fetch · P0 · ~1 week
 
@@ -780,14 +819,17 @@ The interesting design problem was not the API call but **the classifier reading
 
 | Client | Conformant | Priority | Status |
 |---|---|---|---|
-| Cursor | yes | P0 | ⬜ |
-| VS Code / Copilot | yes | P0 | ⬜ |
-| Codex | yes | P0 | ⬜ |
-| Claude Code | **no** | P0 — highest strategic value | ⬜ |
-| One of Zed / Windsurf / Gemini CLI | no | P0 | ⬜ |
+| Cursor | yes | P0 | ⬜ writes its documented shape; no read-back to confirm |
+| VS Code / Copilot | yes | P0 | ⬜ same, and its own `--add-mcp` writes what we write |
+| Codex | yes | P0 | 🟨 `codex mcp list` reports the server enabled |
+| Claude Code | **no** | P0 — highest strategic value | ⬜ package installs; not measured |
+| One of Zed / Windsurf / Gemini CLI | no | P0 | ⬜ Gemini CLI adapter built, unmeasured |
+| opencode | no | added after the fact | 🟨 `opencode mcp list` reports it connected; skills load |
 | ChatGPT, Kiro | yes | P1 | ⬜ |
 
 Claude Code is P0 despite being harder: it has the densest plugin ecosystem and is absent from the standard, which is precisely the gap that justifies a bridge existing.
+
+opencode was not on this list and is now the **only client besides Claude Code that takes skills** — at a location its vendor documents, which none of the conformant three do. It is the clearest evidence that the target list should follow where skills can actually land rather than who has signed the standard.
 
 ---
 

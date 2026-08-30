@@ -384,11 +384,17 @@ Worth knowing before you build habits on it:
   it is one adapter change and your existing manifests keep working.
 - **There is no plugin registry.** You will be installing your own, your team's,
   or a repository someone gave you. `scan` matters more, not less, in that world.
-- **No client has been independently measured yet.** `docs/clients.md` reports
-  what we *write*, based on each vendor's documentation — not what the client
-  does with it afterwards. If you run `agentbridge conformance --record <client>`
-  against a real client, those results are the single most useful thing you can
-  contribute.
+- **Two clients have been confirmed to load what we write; the rest are
+  reasoned from vendor documentation.** Codex reports an installed server as
+  `enabled` under `codex mcp list`, and opencode reports one as `connected`
+  under `opencode mcp list` — meaning it launched the server and completed the
+  MCP handshake — while `opencode debug skill` lists the installed skills. Both
+  of those are the vendor's own tooling answering, not ours. Cursor and VS Code
+  are desktop applications with no equivalent read-back, so what we write there
+  matches their published schemas and has not been independently confirmed.
+  `docs/clients.md` reports what we *write* in every case. If you run
+  `agentbridge conformance --record <client>` against a real client, those
+  results are the single most useful thing you can contribute.
 - **Signature verification of plugins does not exist yet.** Our own release
   binaries are signed; a plugin's provenance is currently the commit or digest in
   your lockfile, which is real but is not a signature.
