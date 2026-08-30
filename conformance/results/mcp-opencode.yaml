@@ -55,3 +55,6 @@ results:
   - id: M10-spec-env-provided
     outcome: pass
     notes: "**Section 9.1 verified at run time.** opencode launched ./probe, and the probe recorded PLUGIN_ROOT and PLUGIN_DATA in its own environment, both absolute and correct, with cwd defaulting to the plugin root as 7.2.1 requires. This is the first case in either corpus answered by what a process received rather than by what a file says."
+  - id: M11-cwd-honoured
+    outcome: pass
+    notes: "The probe started in the plugin root, which is the cwd agentbridge wrote. Honoured rather than discarded."

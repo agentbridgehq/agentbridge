@@ -55,3 +55,6 @@ results:
   - id: M10-spec-env-provided
     outcome: unmeasured
     notes: "Carried 1/1 and listed, but `codex mcp list` does not launch a server, so the environment the process would receive was not observed. Answering this on Codex needs a real session."
+  - id: M11-cwd-honoured
+    outcome: unmeasured
+    notes: "Carried, but `codex mcp list` does not launch a server, so the working directory the process would start in was not observed."

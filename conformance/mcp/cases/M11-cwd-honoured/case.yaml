@@ -1,0 +1,17 @@
+id: M11-cwd-honoured
+title: The server runs in the working directory it was given
+section: "7.2.1"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["probe"]
+  cwd: plugin_root
+observe: |
+  The probe records its own working directory, so this is answered by where
+  the process actually started rather than by what the configuration says.
+  Section 7.2.1 makes the plugin root the default when cwd is omitted, and
+  agentbridge writes it explicitly for every client rather than relying on
+  that default - so a client failing this case is not falling back to
+  something reasonable, it is discarding a value it was given. A server that
+  resolves anything relative then reads the wrong files, silently, and the
+  configuration looks correct while it happens.

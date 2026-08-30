@@ -1,0 +1,56 @@
+# An MCP configuration corpus run against one client.
+#
+# `outcome` describes the whole path a server takes: portable declaration ->
+# agentbridge's translation -> the client's own configuration -> the client.
+# That is what a user experiences. `notes` records which layer produced the
+# outcome, because "agentbridge refused to write it" and "the client refused it"
+# are different facts and only one of them is about the client.
+#
+# See conformance/mcp/README.md.
+
+target: vscode
+version: "VS Code 1.135.0"
+platform: "macOS 15 / arm64"
+tested_by: "masihmoloodian"
+tested_on: "2026-08-30"
+method: |
+  Each case was installed with `agentbridge install` into the real user
+  configuration, which is where VS Code reads MCP servers from. Two cases were
+  answered without asking VS Code anything: M10 and M11 are observed by the probe
+  recording its own environment and working directory when VS Code launched it.
+  The rest need someone to open VS Code's MCP view, and are unmeasured until
+  then.
+results:
+  - id: M01-stdio-server
+    outcome: unmeasured
+    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+  - id: M02-http-server
+    outcome: unmeasured
+    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+  - id: M03-sse-server
+    outcome: unmeasured
+    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+  - id: M04-invalid-entry-isolated
+    outcome: unmeasured
+    notes: "Only `good` was written; whether the client offers it is unobserved."
+  - id: M05-unknown-field-isolated
+    outcome: unmeasured
+    notes: "Only `fine` was written; whether the client offers it is unobserved."
+  - id: M06-empty-servers
+    outcome: pass
+    notes: "Nothing was written and nothing broke — observable without asking the client, because the assertion is that an empty set is not an error."
+  - id: M07-insecure-remote-url
+    outcome: pass
+    notes: "No plain-HTTP remote server reached the client; agentbridge refused it. The client's own gate was not exercised."
+  - id: M08-loopback-http-allowed
+    outcome: unmeasured
+    notes: "Written into the client's configuration by agentbridge, but whether the client offers it has not been observed — that needs a person looking at the client's MCP view."
+  - id: M09-reserved-env-refused
+    outcome: unmeasured
+    notes: "Only `fine` was written; whether the client offers it is unobserved."
+  - id: M10-spec-env-provided
+    outcome: pass
+    notes: "**Verified at run time.** VS Code launched ./probe on its own — the VSCODE_* variables in the probe's recorded environment identify the launcher — and the process received PLUGIN_ROOT and PLUGIN_DATA, both absolute and correct."
+  - id: M11-cwd-honoured
+    outcome: fail
+    notes: "**VS Code discards the working directory it is given.** agentbridge wrote cwd pointing at the plugin root; the probe started in /Users/masih, the user's home. This is not a client falling back to a reasonable default — the value was supplied and ignored. Any server resolving a relative path reads the wrong files, silently, while the configuration looks correct."

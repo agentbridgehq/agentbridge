@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "probe": {
+      "type": "stdio",
+      "command": "./probe",
+      "args": [],
+      "cwd": "${PLUGIN_ROOT}",
+      "env": {
+        "AGENTBRIDGE_PROBE_OUT": "${PLUGIN_DATA}/probe-cwd.json"
+      }
+    }
+  }
+}

@@ -46,6 +46,7 @@ it is recorded as such rather than as a client pass.
 | M08 | plain HTTP to loopback is allowed — the counterpart to M07 |
 | M09 | a server may not set `PLUGIN_ROOT` or `PLUGIN_DATA` (§9.2) |
 | M10 | the launched subprocess actually receives them (§9.1) |
+| M11 | the server starts in the working directory it was given (§7.2.1) |
 
 ## M10 is the one that needed a new tool
 
@@ -64,19 +65,34 @@ Build it with `go build ./conformance/mcp/probe`.
 
 | Client | pass | fail | unmeasured |
 |---|---|---|---|
-| opencode 1.18.3 | 10 | 0 | 0 — [results](../results/mcp-opencode.yaml) |
-| Codex 0.144.5 | 8 | 0 | 2 — [results](../results/mcp-codex.yaml) |
+| opencode 1.18.3 | 11 | 0 | 0 — [results](../results/mcp-opencode.yaml) |
+| Codex 0.144.5 | 8 | 0 | 3 — [results](../results/mcp-codex.yaml) |
+| VS Code 1.135.0 | 3 | **1** | 7 — [results](../results/mcp-vscode.yaml) |
+| Cursor 3.18.9 | 2 | 0 | 9 — [results](../results/mcp-cursor.yaml) |
 
-Every case that could be delivered was handled correctly by both clients. The
-two unmeasured are Codex: it declines the legacy sse transport, so M03 never
-reached it, and `codex mcp list` reports configured servers without launching
-them, so M10's question about the process environment could not be asked.
+**M10 and M11 are the first cases in either corpus answered by what a process
+received** rather than by what a file says, and they immediately found a bug no
+amount of reading configuration would have.
 
-**M10 passed on opencode, which is the first time §9.1 has been checked against a
-running process** rather than against a file. opencode launched `./probe`, and
-the probe recorded `PLUGIN_ROOT` and `PLUGIN_DATA` in its own environment, both
-absolute and correct, with `cwd` defaulted to the plugin root as §7.2.1
-requires.
+### VS Code discards the working directory it is given
+
+agentbridge writes `cwd` explicitly for every client, pointing at the plugin
+root. opencode starts the process there. **VS Code starts it in the user's home
+directory instead** — the value is supplied and ignored.
+
+The probe proves both halves: it records its own working directory, and the
+`VSCODE_*` variables in its recorded environment identify which client launched
+it. §7.2.1 makes the plugin root the default even when `cwd` is omitted, so this
+is not a client falling back to something reasonable.
+
+The consequence is quiet. A server that opens `./config.json`, or resolves a
+relative data path, reads the wrong file — while the configuration looks
+correct, and every tool that inspects configuration agrees it is correct.
+
+VS Code passes M10: the process does receive `PLUGIN_ROOT` and `PLUGIN_DATA`,
+both absolute. Its seven unmeasured cases are unmeasured only because they need
+a person to open its MCP view; Cursor's nine are the same, plus it had not
+launched the probe when this was recorded.
 
 ### Writing the corpus found two bugs in the corpus
 
