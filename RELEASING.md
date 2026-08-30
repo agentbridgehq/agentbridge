@@ -92,44 +92,45 @@ So the tap is not a consolation prize, it is the only route for a while:
 `brew install agentbridgehq/tap/agentbridge`. Nothing is lost by starting there —
 moving to core later changes the incantation, not the formula.
 
-### Setting it up
+### Where this stands
 
-1. **Create the tap repository.** It must be named `homebrew-tap`; Homebrew
-   derives `agentbridgehq/tap` from that name, and any other name will not
-   resolve.
+[agentbridgehq/homebrew-tap](https://github.com/agentbridgehq/homebrew-tap)
+exists and `brew install agentbridgehq/tap/agentbridge` works today. The
+formula for v0.1.0 was written by hand, because **GoReleaser does not backfill
+tags that were released before the tap existed** — it writes a formula on the
+tags that come after it.
 
-   ```bash
-   gh repo create agentbridgehq/homebrew-tap --public \
-     --description "Homebrew formulae for agentbridge"
-   ```
+What is left is the automation, and it needs one credential.
 
-   For Scoop, the same again with `scoop-bucket`.
+### Finishing it
 
-2. **Create a token GoReleaser can push with.** The workflow's own
+1. **Create a token GoReleaser can push with.** The workflow's own
    `GITHUB_TOKEN` is scoped to *this* repository and cannot write to another
    one, so this is the one place a real credential is needed. Use a
    [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
    limited to the tap repository, with **Contents: Read and write** and nothing
    else. Give it an expiry and a calendar reminder.
 
-3. **Add it as a repository secret** on *this* repository, named
+2. **Add it as a repository secret** on *this* repository, named
    `HOMEBREW_TAP_TOKEN` (and `SCOOP_BUCKET_TOKEN` if you are doing Scoop):
 
    ```bash
    gh secret set HOMEBREW_TAP_TOKEN --repo agentbridgehq/agentbridge
    ```
 
-4. **Uncomment the `brews:` block** in `.goreleaser.yaml` — it is written and
-   already points at `agentbridgehq` — then check it before relying on it:
+3. **Uncomment the `brews:` block** in `.goreleaser.yaml` — written already,
+   pointing at `agentbridgehq` — then check it before relying on it. Do this
+   *after* the secret exists: GoReleaser fails the whole release when a
+   configured publisher has no token, so enabling it early trades a working
+   release for a broken one.
 
    ```bash
    goreleaser check
    goreleaser release --snapshot --clean --skip=publish,sign,sbom
    ```
 
-5. **Cut the next release.** GoReleaser writes `Formula/agentbridge.rb` into the
-   tap on every subsequent tag. It does *not* backfill: v0.1.0 stays absent from
-   the tap unless you re-run the release for that tag.
+4. **Cut the next release.** GoReleaser then writes `Formula/agentbridge.rb`
+   into the tap on every tag, replacing the hand-written one.
 
 ### Checking it actually works
 
@@ -139,13 +140,26 @@ is what catches it before a user does:
 ```bash
 brew tap agentbridgehq/tap
 brew install agentbridgehq/tap/agentbridge
-agentbridge version
+brew test agentbridgehq/tap/agentbridge
 brew audit --strict --online agentbridgehq/tap/agentbridge
 ```
 
-The `test do` block in the formula runs `agentbridge version`, so
-`brew test agentbridge` exercises the binary rather than merely asserting a file
-landed.
+`brew test` runs the formula's `test do` block, which executes
+`agentbridge version` — so it exercises the binary rather than merely asserting
+that a file landed.
+
+`brew audit --strict` reports five remaining style problems, and they are worth
+recognising rather than chasing: a redundant `version` line and four
+`def install` definitions inside blocks. All five are inherent to the formula
+GoReleaser generates, and every GoReleaser-published tap has them. They would
+need addressing for a homebrew-core submission; they do not affect a tap. The
+two that *were* fixable — a description opening with an article, and string
+interpolation in the test block — were fixed in `.goreleaser.yaml`, so the
+pipeline does not reintroduce them.
+
+Note that Homebrew caches the tap's clone: `brew untap` followed by `brew tap`
+can reuse it and audit a stale formula. `rm -rf $(brew --repository)/Library/Taps/agentbridgehq`
+forces a fresh one.
 
 ## Secrets the workflow needs
 

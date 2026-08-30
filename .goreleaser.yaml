@@ -92,9 +92,17 @@ sboms:
 # the taps are convenience on top, and they can be turned on in the release
 # that first has somewhere to publish to.
 #
-# To re-enable: create agentbridgehq/homebrew-tap and agentbridgehq/scoop-bucket,
-# add HOMEBREW_TAP_TOKEN and SCOOP_BUCKET_TOKEN as repository secrets, then
-# restore the blocks below and set owner to "agentbridgehq".
+# agentbridgehq/homebrew-tap now exists and carries a hand-written formula for
+# v0.1.0, because GoReleaser does not backfill tags released before the tap did.
+# What is still missing is HOMEBREW_TAP_TOKEN: a workflow's own GITHUB_TOKEN
+# cannot write to another repository, so GoReleaser needs a scoped credential.
+#
+# Uncomment the brews block only *after* that secret exists. GoReleaser fails
+# the entire release when a configured publisher has no token, so enabling it
+# early trades a working release for a broken one.
+#
+# Scoop needs agentbridgehq/scoop-bucket and SCOOP_BUCKET_TOKEN on the same
+# terms.
 #
 # brews:
 #   - name: agentbridge
@@ -104,10 +112,14 @@ sboms:
 #       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
 #     directory: Formula
 #     homepage: https://github.com/agentbridgehq/agentbridge
-#     description: The supply chain for agent extensions
+#     # `brew audit --strict` rejects a description that opens with an article,
+#     # so this is not the tagline verbatim. It also must not repeat the formula
+#     # name. Both rules bind homebrew-core, and a tap that already satisfies
+#     # them is one less thing to fix when applying there.
+#     description: Supply chain for agent extensions
 #     license: Apache-2.0
 #     test: |
-#       system "#{bin}/agentbridge", "version"
+#       system bin/"agentbridge", "version"
 #
 # scoops:
 #   - repository:
@@ -115,7 +127,7 @@ sboms:
 #       name: scoop-bucket
 #       token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
 #     homepage: https://github.com/agentbridgehq/agentbridge
-#     description: The supply chain for agent extensions
+#     description: Supply chain for agent extensions
 #     license: Apache-2.0
 
 changelog:

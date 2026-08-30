@@ -131,9 +131,17 @@ sudo install -m 0755 ./agentbridge /usr/local/bin/
 
 `make` runs vet, the full test suite and the build.
 
-> **Not yet available:** `brew`. Homebrew and Scoop publishing stay disabled
-> until those tap repositories exist. npm installs the same verified binary:
-> `npm i -g @agentbridgehq/agentbridge`.
+Or, if you would rather use a package manager — both install the same verified
+binary:
+
+```bash
+brew install agentbridgehq/tap/agentbridge
+npm  i -g @agentbridgehq/agentbridge
+```
+
+> `brew install agentbridge`, with no tap prefix, would mean homebrew-core,
+> which has a notability bar this project does not meet yet. Scoop is not set
+> up.
 
 ## Setting it up for a project
 
@@ -337,10 +345,11 @@ Being straight about the gaps:
    least three more published packages carry the name in this exact space. We
    ship as `@agentbridgehq/agentbridge`. Trademark and domain remain
    unchecked ([D-02](MVP.md)).
-2. **`brew` does not work yet.** v0.1.0 is published, signed and verifiable —
-   six platforms, checksums, Sigstore signature and SLSA provenance — and
-   `install.sh` is the supported path. Homebrew and Scoop publishing stay
-   disabled until those tap repositories exist.
+2. **Releases are published; two follow-ups are manual.** v0.1.0 ships six
+   platforms with checksums, a Sigstore signature and SLSA provenance, and
+   installs via `install.sh`, Homebrew or npm. But GoReleaser cannot yet update
+   the tap by itself — that needs a credential scoped to the tap repository,
+   so today's formula was written by hand — and Scoop is not set up at all.
 3. **Two clients have been measured, four have not.** Codex reports an
    installed server as `enabled` under `codex mcp list`, and opencode reports
    one as `connected` — it launched the server and completed the MCP handshake

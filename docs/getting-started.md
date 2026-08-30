@@ -54,9 +54,15 @@ Check:
 agentbridge version
 ```
 
-> `npm i -g @agentbridgehq/agentbridge` installs the same verified binary if you prefer
-> npm. `brew install` does not work yet — Homebrew and Scoop publishing stay
-> disabled until those tap repositories exist. See
+Homebrew and npm install the same verified binary, if you prefer either:
+
+```bash
+brew install agentbridgehq/tap/agentbridge
+npm  i -g @agentbridgehq/agentbridge
+```
+
+> Scoop is not set up. `brew install agentbridge` without the tap prefix would
+> mean homebrew-core, whose notability bar this project does not meet yet — see
 > [RELEASING.md](../RELEASING.md).
 
 ---
