@@ -1,0 +1,58 @@
+# An MCP configuration corpus run against one client.
+#
+# `outcome` describes the whole path a server takes: portable declaration ->
+# agentbridge's translation -> the client's own configuration -> the client.
+# That is what a user experiences. `notes` records which layer produced the
+# outcome, because "agentbridge refused to write it" and "the client refused it"
+# are different facts and only one of them is about the client.
+#
+# See conformance/mcp/README.md.
+
+target: claude-code
+version: "Claude Code (claude mcp list)"
+platform: "macOS 15 / arm64"
+tested_by: "masihmoloodian"
+tested_on: "2026-08-30"
+method: |
+  Each case was installed with `agentbridge install` into the real user
+  configuration and read back with `claude mcp list`, which reports every
+  configured server with a connection status — so both halves are observable
+  without a person watching.
+
+  M10 and M11 go further: the probe records its own environment and working
+  directory, and `claude mcp list` launches servers to check their health, which
+  is what makes them answerable here.
+results:
+  - id: M01-stdio-server
+    outcome: pass
+    notes: "Listed. Fails to connect because the command is a deliberate placeholder, which is not what this case asks."
+  - id: M02-http-server
+    outcome: pass
+    notes: "Listed as (HTTP)."
+  - id: M03-sse-server
+    outcome: pass
+    notes: "Listed as (SSE). Claude Code accepts the legacy transport rather than declining it, unlike Codex."
+  - id: M04-invalid-entry-isolated
+    outcome: pass
+    notes: "Only `good` is listed. The entry with no command never reached the config."
+  - id: M05-unknown-field-isolated
+    outcome: pass
+    notes: "Only `fine` is listed."
+  - id: M06-empty-servers
+    outcome: pass
+    notes: "Nothing written, nothing listed, no error."
+  - id: M07-insecure-remote-url
+    outcome: pass
+    notes: "No plain-HTTP remote server reached the client; agentbridge refused it. Claude Code's own gate was not exercised."
+  - id: M08-loopback-http-allowed
+    outcome: pass
+    notes: "Listed as (HTTP) against 127.0.0.1."
+  - id: M09-reserved-env-refused
+    outcome: pass
+    notes: "Only `fine` is listed."
+  - id: M10-spec-env-provided
+    outcome: pass
+    notes: "Connected, and the probe recorded PLUGIN_ROOT and PLUGIN_DATA — both expanded from Claude Code's own ${CLAUDE_PLUGIN_*} spellings to absolute paths."
+  - id: M11-cwd-honoured
+    outcome: fail
+    notes: "**Claude Code discards the working directory it is given.** `.mcp.json` carries cwd: ${CLAUDE_PLUGIN_ROOT}; the probe started in the directory `claude` itself was invoked from, and moved with it — run from /tmp/cwdcheck, the probe reported /tmp/cwdcheck. Same defect as VS Code, and opencode honours it."

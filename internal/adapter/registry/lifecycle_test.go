@@ -163,6 +163,13 @@ func TestNonConformantClientsReceiveSpecEnvVars(t *testing.T) {
 
 // Spec 7.2.1: an omitted cwd means the plugin root. A client that does not know
 // the plugin exists would otherwise use its own working directory.
+//
+// This ran against Cursor alone, and so missed Claude Code entirely — that
+// adapter has its own encoder rather than going through Materialize, and it
+// wrote no cwd at all. Claude Code then started the server wherever the user
+// was standing, which a probe reporting its own working directory caught and no
+// amount of reading configuration would have. TestEveryClientMakesTheCwdExplicit
+// below now covers all of them.
 func TestDefaultWorkingDirectoryIsMadeExplicit(t *testing.T) {
 	env := fakeMachine(t, "cursor")
 	plugin, src := loadFixture(t, ccFixture)
@@ -349,4 +356,34 @@ func configWrite(t *testing.T, plan *adapter.Plan) []byte {
 	}
 	t.Fatalf("no write to the config path %s in plan ops %+v", plan.Installation.ConfigPath, plan.Ops)
 	return nil
+}
+
+// Every adapter must make the working directory explicit, not just the ones
+// that share the JSON encoder.
+//
+// The requirement is on the client, but a client that does not know a plugin
+// exists cannot honour it — so the value has to be written. Two adapters have
+// their own encoders and one of them silently did not.
+func TestEveryClientMakesTheCwdExplicit(t *testing.T) {
+	for _, client := range []string{"cursor", "vscode", "codex", "claude-code", "opencode"} {
+		t.Run(client, func(t *testing.T) {
+			env := fakeMachine(t, client)
+			plugin, src := loadFixture(t, ccFixture)
+
+			plans, err := registry.PlanInstall(env, plugin, src, registry.Selection{}, allowPlaintext)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var written string
+			for _, op := range plans[0].Ops {
+				if op.Kind == adapter.OpWriteFile && len(op.After) > 0 {
+					written += string(op.After)
+				}
+			}
+			if !strings.Contains(written, "cwd") {
+				t.Errorf("%s writes no cwd, so the server starts wherever the user happens to be:\n%s",
+					client, written)
+			}
+		})
+	}
 }

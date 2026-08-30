@@ -413,7 +413,20 @@ func TestClaudeCodeRoundTrip(t *testing.T) {
 			t.Errorf("server %q lost in the round trip", want.Name)
 			continue
 		}
-		if got.ContentHash != want.ContentHash {
+		// An omitted cwd and an explicit plugin-root cwd are the same server.
+		// §7.2.1 defines the first as meaning the second, and the install
+		// writes it out rather than relying on every client to apply the
+		// default — two of them did not. Comparing the hashes without
+		// normalising that would make a semantically lossless round trip look
+		// lossy, and would punish writing the value down.
+		normalised := want
+		if normalised.Cwd == "" {
+			normalised.Cwd = ir.PlaceholderPluginRoot
+			if _, err := normalised.ComputeContentHash(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got.ContentHash != want.ContentHash && got.ContentHash != normalised.ContentHash {
 			t.Errorf("server %q changed across the round trip:\n  before %+v\n  after  %+v", want.Name, want, got)
 		}
 	}

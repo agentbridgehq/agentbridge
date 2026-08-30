@@ -225,6 +225,13 @@ func renderServer(pluginName string, s ir.MCPServer) (header string, lines []str
 		if len(s.Env) > 0 {
 			lines = append(lines, fmt.Sprintf("env = %s", configedit.TOMLInlineTable(s.Env)))
 		}
+		// §7.2.1: an omitted cwd means the plugin root. Materialize has already
+		// resolved that to an absolute path, so the only way to lose it is not
+		// to write it — which is what happened, and left Codex starting the
+		// server in whatever directory it was launched from.
+		if s.Cwd != "" {
+			lines = append(lines, fmt.Sprintf("cwd = %s", configedit.TOMLString(s.Cwd)))
+		}
 		return header, lines, "", true
 
 	case ir.TransportStreamableHTTP:

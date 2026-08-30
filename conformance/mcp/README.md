@@ -66,6 +66,7 @@ Build it with `go build ./conformance/mcp/probe`.
 | Client | pass | fail | unmeasured |
 |---|---|---|---|
 | opencode 1.18.3 | 11 | 0 | 0 — [results](../results/mcp-opencode.yaml) |
+| Claude Code | 10 | **1** | 0 — [results](../results/mcp-claude-code.yaml) |
 | Codex 0.144.5 | 8 | 0 | 3 — [results](../results/mcp-codex.yaml) |
 | VS Code 1.135.0 | 3 | **1** | 7 — [results](../results/mcp-vscode.yaml) |
 | Cursor 3.18.9 | 2 | 0 | 9 — [results](../results/mcp-cursor.yaml) |
@@ -74,25 +75,41 @@ Build it with `go build ./conformance/mcp/probe`.
 received** rather than by what a file says, and they immediately found a bug no
 amount of reading configuration would have.
 
-### VS Code discards the working directory it is given
+### Two clients discard the working directory they are given
 
 agentbridge writes `cwd` explicitly for every client, pointing at the plugin
-root. opencode starts the process there. **VS Code starts it in the user's home
-directory instead** — the value is supplied and ignored.
+root. opencode starts the process there. **VS Code and Claude Code do not** —
+both start it wherever the client itself was launched from. Run `claude` from
+`/tmp/cwdcheck` and the server starts in `/tmp/cwdcheck`; the value in the
+configuration has no effect.
 
 The probe proves both halves: it records its own working directory, and the
-`VSCODE_*` variables in its recorded environment identify which client launched
-it. §7.2.1 makes the plugin root the default even when `cwd` is omitted, so this
-is not a client falling back to something reasonable.
+`VSCODE_*` and `CLAUDECODE` variables in its recorded environment identify which
+client launched it. §7.2.1 makes the plugin root the default even when `cwd` is
+omitted, so this is not a client falling back to something reasonable — it is a
+supplied value being dropped.
 
-The consequence is quiet. A server that opens `./config.json`, or resolves a
-relative data path, reads the wrong file — while the configuration looks
-correct, and every tool that inspects configuration agrees it is correct.
+The consequence is quiet, which is why it took a running process to find. A
+server that opens `./config.json`, or resolves a relative data path, reads a
+different file depending on where its user happened to be standing — while the
+configuration looks correct, and every tool that inspects configuration agrees
+that it is correct.
 
-VS Code passes M10: the process does receive `PLUGIN_ROOT` and `PLUGIN_DATA`,
-both absolute. Its seven unmeasured cases are unmeasured only because they need
-a person to open its MCP view; Cursor's nine are the same, plus it had not
-launched the probe when this was recorded.
+### And it found the same bug on our side, twice
+
+Writing the case first exposed that **agentbridge was not writing `cwd` at all**
+for Claude Code or Codex. Both adapters have their own encoders rather than
+going through `Materialize`, which is where §7.2.1's default is applied, so an
+omitted `cwd` stayed omitted. The existing test for this ran against Cursor
+alone and so covered neither.
+
+That is the more useful half of the finding. A client ignoring the field is a
+bug report to a vendor; not writing the field is ours, and it was invisible
+until something reported where it had actually started.
+
+VS Code and Cursor carry unmeasured cases only because they need a person to
+open an MCP view — Cursor's nine include the two probe cases, which it had not
+launched when this was recorded.
 
 ### Writing the corpus found two bugs in the corpus
 

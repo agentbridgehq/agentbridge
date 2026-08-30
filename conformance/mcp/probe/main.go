@@ -17,33 +17,15 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
 
 func main() {
-	if out := os.Getenv("AGENTBRIDGE_PROBE_OUT"); out != "" {
-		env := map[string]string{}
-		for _, kv := range os.Environ() {
-			if k, v, ok := strings.Cut(kv, "="); ok {
-				env[k] = v
-			}
-		}
-		keys := make([]string, 0, len(env))
-		for k := range env {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		// Written before the first read, so the file exists even if the client
-		// hangs up without completing a handshake.
-		if f, err := os.Create(out); err == nil {
-			enc := json.NewEncoder(f)
-			enc.SetIndent("", "  ")
-			_ = enc.Encode(map[string]any{"cwd": mustCwd(), "env": env, "keys": keys})
-			_ = f.Close()
-		}
-	}
+	report()
 
 	in := bufio.NewScanner(os.Stdin)
 	in.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
@@ -75,6 +57,60 @@ func main() {
 			result = map[string]any{}
 		}
 		_ = enc.Encode(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": result})
+	}
+}
+
+// report writes what this process was given, before any protocol traffic, so
+// the file exists even if the client hangs up without completing a handshake.
+//
+// It writes twice on purpose. The requested path is the useful one, but it can
+// fail for reasons that are themselves the answer: a client that does not
+// expand ${PLUGIN_DATA} leaves a literal placeholder, and creating a file
+// inside a directory named "${PLUGIN_DATA}" fails. An earlier version skipped
+// silently in that case, which made "the variable was never set" and "the
+// variable was set to something unusable" look identical — and both look like
+// "the client never launched me". The fallback in the temporary directory
+// always succeeds, so there is always something to read.
+func report() {
+	env := map[string]string{}
+	for _, kv := range os.Environ() {
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			env[k] = v
+		}
+	}
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	requested := os.Getenv("AGENTBRIDGE_PROBE_OUT")
+	doc := map[string]any{
+		"cwd":       mustCwd(),
+		"pid":       os.Getpid(),
+		"requested": requested,
+		"env":       env,
+		"keys":      keys,
+	}
+
+	write := func(path string) bool {
+		f, err := os.Create(path)
+		if err != nil {
+			return false
+		}
+		enc := json.NewEncoder(f)
+		enc.SetIndent("", "  ")
+		err = enc.Encode(doc)
+		_ = f.Close()
+		return err == nil
+	}
+
+	wroteRequested := requested != "" && write(requested)
+	doc["wroteRequested"] = wroteRequested
+
+	dir := filepath.Join(os.TempDir(), "agentbridge-probe")
+	if os.MkdirAll(dir, 0o755) == nil {
+		write(filepath.Join(dir, fmt.Sprintf("probe-%d.json", os.Getpid())))
 	}
 }
 

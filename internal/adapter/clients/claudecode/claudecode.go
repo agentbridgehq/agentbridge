@@ -260,9 +260,18 @@ func buildMCP(servers []ir.MCPServer, opts adapter.PlanOptions, f *adapter.Fidel
 			env["PLUGIN_ROOT"] = placeholderRoot
 			env["PLUGIN_DATA"] = placeholderData
 			entry["env"] = env
-			if s.Cwd != "" {
-				entry["cwd"] = toClaudePlaceholders(s.Cwd)
+			// §7.2.1: an omitted cwd means the plugin root. This adapter does
+			// not go through Materialize, which applies that default for every
+			// other client, so writing nothing here left Claude Code to start
+			// the server in whatever directory the user happened to be in — a
+			// plugin server opening ./config.json read a different file
+			// depending on where its user was standing. Found by the MCP
+			// corpus, from a probe reporting its own working directory.
+			cwd := s.Cwd
+			if cwd == "" {
+				cwd = placeholderRoot
 			}
+			entry["cwd"] = toClaudePlaceholders(cwd)
 
 		case ir.TransportStreamableHTTP:
 			entry["type"] = "http"

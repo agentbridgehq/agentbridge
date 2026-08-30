@@ -53,4 +53,4 @@ results:
     notes: "**Verified at run time.** VS Code launched ./probe on its own — the VSCODE_* variables in the probe's recorded environment identify the launcher — and the process received PLUGIN_ROOT and PLUGIN_DATA, both absolute and correct."
   - id: M11-cwd-honoured
     outcome: fail
-    notes: "**VS Code discards the working directory it is given.** agentbridge wrote cwd pointing at the plugin root; the probe started in /Users/masih, the user's home. This is not a client falling back to a reasonable default — the value was supplied and ignored. Any server resolving a relative path reads the wrong files, silently, while the configuration looks correct."
+    notes: "**VS Code discards the working directory it is given.** agentbridge wrote cwd pointing at the plugin root; the probe started in /Users/masih, the user's home. This is not a client falling back to a reasonable default — the value was supplied and ignored. Claude Code does the same. opencode honours it. Any server resolving a relative path reads the wrong files, silently, while the configuration looks correct."
