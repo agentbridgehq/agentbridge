@@ -159,13 +159,11 @@ Everything above is **declared** by the adapters: it says what we write, based
 on each vendor's own documentation. For most clients it does not say what they
 then do with it, because nobody has watched.
 
-Two are further along, and only because their vendors ship a way to ask. Codex
-reports an installed server as ` + "`enabled`" + ` under ` + "`codex mcp list`" + `, and opencode
-reports one as ` + "`connected`" + ` under ` + "`opencode mcp list`" + ` — meaning it launched the
-server and completed the MCP handshake — while ` + "`opencode debug skill`" + ` lists the
-skills it loaded. That is the vendor's own binary answering rather than ours.
-Cursor and VS Code are desktop applications with no equivalent read-back, which
-is exactly why they remain the least verifiable of the set.
+Four have now been measured against the corpus, and the results are below. Codex
+and opencode could be driven from their own CLIs — ` + "`codex debug prompt-input`" + `
+and ` + "`opencode debug skill`" + ` report what was loaded, and with a source path for
+each, so no model call is involved. Cursor and VS Code have no equivalent, so
+those two were read back by a person asking the client what it had loaded.
 
 That distinction is not pedantry. A conformant client may support neither
 component type (§11.1), several requirements cannot be expressed in JSON Schema
@@ -184,23 +182,26 @@ answers one specific question, usable by anyone with no dependency on this tool:
 | Target | Status |
 |---|---|
 | agentbridge | ` + selfConformance(corpus) + ` |
+| Cursor | 5 pass, 1 fail, 12 unmeasured — [results](../conformance/results/cursor.yaml) |
 | Codex | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/codex.yaml) |
 | opencode | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/opencode.yaml) |
-| Cursor, VS Code | not run: no way to ask a desktop application what it loaded |
+| VS Code | 2 pass, 0 fail, 16 unmeasured — [results](../conformance/results/vscode.yaml) |
 | Claude Code, Gemini CLI | not conformance targets; neither claims to implement the specification |
 
-The two runs agree on both halves. **Neither client reads an Agent Plugins
-manifest at all** — Codex requires ` + "`.codex-plugin/plugin.json`" + ` and rejects a
-conformant package with "missing plugin.json"; opencode has no plugin manifest
-and finds skills by scanning directories. So thirteen cases are unmeasured
-rather than failed: a client that never reads the manifest is not failing to
-validate it.
+**Cursor is the only client that loads a conformant package.** It accepted all
+18 cases carrying only the specification's plugin.json. Codex requires
+.codex-plugin/plugin.json and rejects a conformant package with "missing
+plugin.json"; Claude Code requires .claude-plugin/; opencode and VS Code read no
+plugin manifest at all and find skills by scanning directories. That is why most
+cases are unmeasured rather than failed — a client that never reads the manifest
+is not failing to validate it.
 
-The one real failure is unanimous. Both load a skill nested at
-` + "`skills/group/deep/`" + `, which §7.1 forbids — skills must be immediate children
-of ` + "`skills/`" + `. Two independent implementations making the same choice reads
-more like a requirement implementers do not expect than like two coincidental
-bugs.
+Section 7.1 splits the field. Skills must be immediate children of skills/, and
+a case ships one nested deeper that must not be found. Cursor and VS Code load
+only the two legitimate skills and pass; Codex and opencode load all three and
+fail. The two that pass scan one level, the two that fail scan recursively — and
+a requirement that half a small sample gets wrong, in the same direction, is
+worth raising upstream as a question about the requirement.
 
 Results are contributed as pull requests, and a case nobody ran is recorded as
 ` + "`unmeasured`" + ` rather than inferred. A blank row invites the reader to assume

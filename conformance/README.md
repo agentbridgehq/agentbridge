@@ -10,57 +10,72 @@ an agent client, this is here to help you check it.
 
 ## Results so far (2026-08-30)
 
-Two clients have been run: [codex](results/codex.yaml) and
-[opencode](results/opencode.yaml). Each scores **4 pass, 1 fail, 13
-unmeasured**, and the shape of that is the result.
+Four clients run: [codex](results/codex.yaml), [opencode](results/opencode.yaml),
+[cursor](results/cursor.yaml), [vscode](results/vscode.yaml).
 
-### The finding that dominates everything else
+| Client | pass | fail | unmeasured |
+|---|---|---|---|
+| Cursor 3.18.9 | 5 | 1 | 12 |
+| Codex 0.144.5 | 4 | 1 | 13 |
+| opencode 1.18.3 | 4 | 1 | 13 |
+| VS Code 1.135.0 | 2 | 0 | 16 |
 
-**No client tested consumes an Agent Plugins package as the specification
-defines it.** Each requires its own vendor-prefixed manifest instead:
+### Only one client accepts a conformant package
 
-| Client | Manifest it actually reads |
+**Cursor loaded all 18 cases unmodified** — carrying only the specification's
+`plugin.json`, deliberately without `.cursor-plugin/plugin.json`. It is the only
+client tested that does.
+
+The others each require their own manifest, or read none at all:
+
+| Client | What it actually reads |
 |---|---|
-| Claude Code | `.claude-plugin/plugin.json` |
-| Cursor | `.cursor-plugin/plugin.json` |
-| Codex | `.codex-plugin/plugin.json` |
-| opencode, VS Code | none — skills are found by scanning directories |
+| **Cursor** | the specification's `plugin.json` — and its own `.cursor-plugin/plugin.json` |
+| Codex | `.codex-plugin/plugin.json` only. `codex plugin add` on a conformant package returns **"missing plugin.json"** |
+| Claude Code | `.claude-plugin/plugin.json` only |
+| opencode, VS Code | no plugin manifest at all; skills are found by scanning directories |
 
-Codex is the sharpest demonstration because it fails loudly. `codex plugin add`
-on an unmodified corpus case returns **"missing plugin.json"** — while the case
-has a `plugin.json`, at the location the specification puts it. Adding
-`.codex-plugin/plugin.json` and changing nothing else makes the same package
-install, which is the control that turns an inference into a measurement.
+Codex's rejection was confirmed by control: adding `.codex-plugin/plugin.json`
+to an otherwise unchanged case makes the same package install. That is what
+turns the inference into a measurement.
 
-So the manifest half of the corpus could not be exercised on any client, and
-those cases are recorded `unmeasured` rather than failed. A client that never
-reads the manifest is not failing to validate it.
+### §7.1 splits the field, and the split has a cause
 
-### The one real failure, and it is unanimous
+The case ships `alpha`, `beta`, and a third skill at `skills/group/deep/` that
+§7.1 says must not be found, because skills are immediate children of `skills/`.
 
-**007-skills-immediate-children-only fails on both clients.** §7.1 requires
-skills to be immediate children of `skills/`; the case ships `alpha`, `beta`,
-and a third at `skills/group/deep/` that must not be found. Both clients load
-all three, because both scan recursively.
+| | 007 |
+|---|---|
+| Cursor, VS Code | **pass** — `alpha` and `beta` only |
+| Codex, opencode | **fail** — all three |
 
-Two independent implementations making the same choice suggests the
-specification is asking for something implementers do not expect, rather than
-two coincidental bugs. It is worth raising upstream as a question about the
-requirement, not only as a bug against the clients.
+The two that pass scan exactly one level; the two that fail scan recursively.
+Neither behaviour looks deliberate with respect to the specification — one
+happens to match it and one happens not to. A requirement that half of a small
+sample gets wrong, in the same direction, is worth raising upstream as a
+question about the requirement rather than only as four bug reports.
 
-### What is still unmeasured, and why
+### The one manifest failure that could be scored
 
-Thirteen cases per client. Nine are about MCP, which neither client reads from a
-package — servers come from `config.toml` and `opencode.json`. Three are about
-rejecting an invalid manifest, unreachable for the reason above. One has no
-observable components at all.
+**Cursor fails 004-missing-required-name.** A manifest with no `name` must not
+load and must contribute nothing; Cursor listed the plugin and made its skill
+available. It is scored on Cursor alone because Cursor is the only client where
+the package went through a real plugin mechanism — on the others the case was
+placed in a skills directory, which never consults a manifest, so the same
+observation would be evidence about the wrong thing.
 
-Cursor and VS Code are unrun. Both are desktop applications with no way to ask
-them what they loaded, so eighteen cases each means thirty-six manual
-observations. Claude Code and Gemini CLI are not conformance targets: neither
-claims to implement the specification, which is the gap this project exists to
-bridge.
+### What stays unmeasured, and why
 
+Nine cases per client are about MCP, which no client reads from a package —
+servers come from `mcp.json`, `config.toml` and `opencode.json` instead. Three
+are about rejecting an invalid manifest, unreachable wherever no manifest is
+read. On VS Code a further six are unmeasured because six cases ship a skill
+named `one` and VS Code reported the name without saying which root it came
+from; Cursor attributed every skill to its plugin folder, which is why the same
+six are scored there.
+
+Claude Code and Gemini CLI are not conformance targets: neither claims to
+implement the specification, which is the gap this project exists to bridge.
 
 ## Why this exists
 

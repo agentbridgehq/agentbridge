@@ -1,0 +1,85 @@
+# A conformance run against one client.
+#
+# Fill in `outcome` for each case: pass | fail | unmeasured.
+# Leave anything you did not personally observe as `unmeasured` — an
+# unmeasured case is a useful, honest datum; a guessed one poisons the table.
+#
+# A failure is a bug report, not a verdict. The likeliest explanations, in
+# order: the corpus is wrong, the installation was wrong, the client is wrong.
+#
+# See conformance/PROTOCOL.md for how to install a case into each client.
+
+target: cursor
+version: "Cursor 3.18.9"          # the client version you tested — a result without one cannot be retired
+platform: "macOS 15 / arm64"         # e.g. macOS 15 / arm64
+tested_by: "masihmoloodian"
+tested_on: "2026-08-30"        # YYYY-MM-DD
+method: |
+  All 18 cases were copied **unmodified** into ~/.cursor/plugins/local/<case>,
+  carrying only the specification's plugin.json — deliberately without
+  .cursor-plugin/plugin.json, since supplying Cursor's own manifest would have
+  tested Cursor's format rather than the specification's.
+
+  Cursor loaded them. It is the only client tested that accepts a conformant
+  package through its own plugin mechanism, and it attributed every skill to the
+  plugin folder it came from, which is what makes the six cases that all ship a
+  skill named `one` separable here.
+
+  Read back by asking Cursor to list every skill and its source folder. There is
+  no CLI for this, so the observation is a person reading the client's answer.
+
+results:
+  - id: 001-minimal-manifest
+    outcome: unmeasured
+    notes: "No components, so nothing is observable either way."
+  - id: 002-unknown-top-level-field
+    outcome: pass
+    notes: "Skill `one` available, attributed by Cursor to the 002 plugin folder. Not rejected for the unknown field."
+  - id: 003-non-object-extensions
+    outcome: pass
+    notes: "Skill `one` available, attributed to the 003 folder."
+  - id: 004-missing-required-name
+    outcome: fail
+    notes: "The manifest has no `name`, so §5.3 requires the plugin not to load and no component of it to be available. Cursor listed the plugin and made its skill `one` available. Scored here, unlike on the CLI clients, because the package was installed through Cursor's own plugin directory rather than a skills directory."
+  - id: 005-invalid-name-consecutive-hyphens
+    outcome: unmeasured
+    notes: "The case ships no skills, and Cursor's inventory is skill-derived, so a rejected and an accepted plugin look identical."
+  - id: 006-unsupported-spec-version
+    outcome: unmeasured
+    notes: "As 005."
+  - id: 007-skills-immediate-children-only
+    outcome: pass
+    notes: "Exactly `alpha` and `beta`. The skill at skills/group/deep/ was not loaded, which is what §7.1 requires and what Codex and opencode both get wrong."
+  - id: 008-skill-directory-without-skill-md
+    outcome: pass
+    notes: "Exactly `real`. The directory without a SKILL.md was ignored."
+  - id: 009-no-components
+    outcome: unmeasured
+    notes: "Nothing to observe."
+  - id: 010-mcp-invalid-entry-isolated
+    outcome: unmeasured
+    notes: "The skill loaded, but the assertion is about which MCP servers survive, and Cursor's MCP comes from mcp.json rather than from the package."
+  - id: 011-mcp-version-mismatch
+    outcome: unmeasured
+    notes: "As 010."
+  - id: 012-mcp-command-escapes-root
+    outcome: unmeasured
+    notes: "MCP only; Cursor does not read a package's mcp.json."
+  - id: 013-mcp-insecure-url
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 014-mcp-reserved-env
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 015-mcp-cwd-escapes-root
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 016-extension-namespace-preserved
+    outcome: pass
+    notes: "Skill `one` available, attributed to the 016 folder; the foreign extension namespace did not prevent loading."
+  - id: 017-mcp-empty-servers
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 018-mcp-all-transports
+    outcome: unmeasured
+    notes: "MCP only."

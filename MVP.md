@@ -87,24 +87,35 @@ fix judged emptiness recursively and read `{"command": "mine"}` as empty,
 because a string has no keys below it — an existing test caught it deleting a
 user's server, which is the only reason it is not in the released binary.
 
-**The corpus has been run, and no client reads an Agent Plugins manifest
-(2026-08-30).** Codex and opencode were measured against all 18 cases. Every
-manifest-validation case is unmeasured for the same reason: neither client ever
-reads `plugin.json`. Codex demonstrates it loudly — `codex plugin add` on an
-unmodified case returns *"missing plugin.json"*, because it requires
-`.codex-plugin/plugin.json`; adding that file and changing nothing else makes the
-same package install. Claude Code wants `.claude-plugin/`, Cursor wants
-`.cursor-plugin/`. Three vendors, three private manifests, one specification
-none of them reads.
+**The corpus has been run against four clients (2026-08-30).** Cursor 5/1/12,
+Codex 4/1/13, opencode 4/1/13, VS Code 2/0/16 (pass/fail/unmeasured). Results
+in [conformance/results/](conformance/results/).
+
+**Exactly one client loads a conformant package.** Cursor accepted all 18 cases
+carrying only the specification's `plugin.json`, deliberately without
+`.cursor-plugin/plugin.json`. No other client does. Codex requires
+`.codex-plugin/plugin.json` and rejects a conformant package with *"missing
+plugin.json"* — confirmed by control, since adding that one file makes the same
+package install. Claude Code requires `.claude-plugin/`. opencode and VS Code
+read no plugin manifest at all and find skills by scanning directories.
 
 That is the clearest evidence yet for why this project exists, and it is now a
-measurement rather than an assertion.
+measurement rather than an assertion. It also revises an assumption: the three
+clients on the specification's launch list do not behave alike, and the one
+that honours it is not the one whose vendor is loudest about it.
 
-One real failure, unanimous across both: §7.1 requires skills to be immediate
-children of `skills/`, and both load a skill nested at `skills/group/deep/`.
-Two independent implementations making the same choice reads more like a
-requirement implementers do not expect than like two coincidental bugs — worth
-raising upstream as a question about the requirement.
+**§7.1 splits the field, and the split has a mechanical cause.** Skills must be
+immediate children of `skills/`; a case ships one nested deeper. Cursor and VS
+Code load only the two legitimate skills and pass; Codex and opencode load all
+three and fail. The two that pass scan one level, the two that fail scan
+recursively — neither behaviour looks chosen with the requirement in mind. Half
+a small sample getting it wrong in the same direction is worth raising upstream
+as a question about the requirement, not only as four bug reports.
+
+**Cursor also fails 004** — a manifest with no `name` must not load and must
+contribute nothing, and Cursor made its skill available. It is scored on Cursor
+alone, because Cursor is the only client where the package went through a real
+plugin mechanism rather than a skills directory.
 
 **Public, and released (2026-08-30).** The repository is public and **v0.1.0 is
 published**: six platforms, checksums, a Sigstore signature and SLSA build

@@ -1,0 +1,85 @@
+# A conformance run against one client.
+#
+# Fill in `outcome` for each case: pass | fail | unmeasured.
+# Leave anything you did not personally observe as `unmeasured` — an
+# unmeasured case is a useful, honest datum; a guessed one poisons the table.
+#
+# A failure is a bug report, not a verdict. The likeliest explanations, in
+# order: the corpus is wrong, the installation was wrong, the client is wrong.
+#
+# See conformance/PROTOCOL.md for how to install a case into each client.
+
+target: vscode
+version: "VS Code 1.135.0"          # the client version you tested — a result without one cannot be retired
+platform: "macOS 15 / arm64"         # e.g. macOS 15 / arm64
+tested_by: "masihmoloodian"
+tested_on: "2026-08-30"        # YYYY-MM-DD
+method: |
+  VS Code has no Agent Plugins installer, so there is nothing to point at a
+  package. Each case's skills/ directory was registered instead through
+  chat.agentSkillsLocations, which is the documented way to add a skills root and
+  the mechanism the adapter uses.
+
+  That means no manifest is consulted, so every manifest-validation case is
+  unmeasured for the same reason as on Codex and opencode.
+
+  Read back by asking VS Code to list every skill and its source. It reported the
+  names but grouped them as "AgentBridge corpus" without per-root attribution,
+  so the six cases that all ship a skill named `one` cannot be told apart. Only
+  the cases with distinctive skill names are scored.
+
+results:
+  - id: 001-minimal-manifest
+    outcome: unmeasured
+    notes: "No components, so nothing is observable either way."
+  - id: 002-unknown-top-level-field
+    outcome: unmeasured
+    notes: "Six cases ship a skill named `one`, and VS Code reported the name once without attributing it to a root. At least one of the six loaded; which cannot be told apart. Asking it for the folder behind each skill would resolve this."
+  - id: 003-non-object-extensions
+    outcome: unmeasured
+    notes: "Six cases ship a skill named `one`, and VS Code reported the name once without attributing it to a root. At least one of the six loaded; which cannot be told apart. Asking it for the folder behind each skill would resolve this."
+  - id: 004-missing-required-name
+    outcome: unmeasured
+    notes: "Not scored: VS Code has no Agent Plugins installer, so the case was registered as a skills root and no manifest was ever consulted. The same `one` ambiguity applies."
+  - id: 005-invalid-name-consecutive-hyphens
+    outcome: unmeasured
+    notes: "The case ships no skills, and Cursor's inventory is skill-derived, so a rejected and an accepted plugin look identical."
+  - id: 006-unsupported-spec-version
+    outcome: unmeasured
+    notes: "As 005."
+  - id: 007-skills-immediate-children-only
+    outcome: pass
+    notes: "Exactly `alpha` and `beta`. The skill at skills/group/deep/ was not loaded, which is what §7.1 requires and what Codex and opencode both get wrong."
+  - id: 008-skill-directory-without-skill-md
+    outcome: pass
+    notes: "Exactly `real`. The directory without a SKILL.md was ignored."
+  - id: 009-no-components
+    outcome: unmeasured
+    notes: "Nothing to observe."
+  - id: 010-mcp-invalid-entry-isolated
+    outcome: unmeasured
+    notes: "MCP not observable, and the skill name is ambiguous across six cases."
+  - id: 011-mcp-version-mismatch
+    outcome: unmeasured
+    notes: "As 010."
+  - id: 012-mcp-command-escapes-root
+    outcome: unmeasured
+    notes: "MCP only; Cursor does not read a package's mcp.json."
+  - id: 013-mcp-insecure-url
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 014-mcp-reserved-env
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 015-mcp-cwd-escapes-root
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 016-extension-namespace-preserved
+    outcome: unmeasured
+    notes: "Six cases ship a skill named `one`, and VS Code reported the name once without attributing it to a root. At least one of the six loaded; which cannot be told apart. Asking it for the folder behind each skill would resolve this."
+  - id: 017-mcp-empty-servers
+    outcome: unmeasured
+    notes: "MCP only."
+  - id: 018-mcp-all-transports
+    outcome: unmeasured
+    notes: "MCP only."
