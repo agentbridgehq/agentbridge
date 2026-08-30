@@ -17,9 +17,15 @@ Publishing from CI uses **trusted publishing** — OIDC, no token, no 2FA prompt
 But a trusted publisher is configured on a package's settings page, and there is
 no settings page until the package exists.
 
-So **the first publish must come from a laptop, with a 2FA code.** Everything
+So **the first publish must come from a laptop, approved with 2FA.** Everything
 after it can be tokenless. This is a known npm limitation, not a
 misconfiguration ([npm/cli#8544](https://github.com/npm/cli/issues/8544)).
+
+This is also where npm itself is heading, so the CI path is not merely
+convenient. Tokens that bypass 2FA lost account and package management rights
+in July 2026 and lose direct publishing in January 2027, when npm moves
+publishing to OIDC trusted publishing. Setting it up now is arriving early
+rather than adopting something optional.
 
 ---
 
@@ -44,14 +50,32 @@ postinstall 404s:
 node -p "require('./package.json').version"    # must equal the release tag without the v
 ```
 
-Then, from this directory:
+### Enrolling 2FA
+
+**`npm profile enable-2fa` no longer works, and the error explains why only on
+the second attempt.** npm stopped accepting new TOTP enrolments in October
+2025: an authenticator code is shareable and replayable, which is precisely the
+weakness a registry cannot afford. WebAuthn is origin-bound and phishing-
+resistant, so it is the only method now offered.
+
+Enrol from the web, at `https://www.npmjs.com/settings/<your-username>/tfa`.
+On a Mac, Touch ID works as the authenticator; so does a passkey in iCloud
+Keychain or 1Password, or a physical key such as a YubiKey. **Register a second
+factor while you are there** — a phone passkey or a spare key — because a
+single Touch ID enrolment is bound to one machine, and recovery codes are the
+only other way back in.
+
+### Publishing
 
 ```bash
-npm publish --access public --otp=123456
+npm publish --access public
 ```
 
-`--otp` is the six-digit code from your authenticator app. It is valid for about
-30 seconds, so read it when you are ready to press enter rather than before.
+There is no six-digit code to type. On an account with WebAuthn 2FA, npm CLI
+11.9 and later open a verification page in the browser and complete the
+ceremony there — you approve with Touch ID or your key, and the CLI continues.
+`--otp` still exists, but it is part of that machine-readable handoff rather
+than something you fill in by hand.
 
 **Verify what landed**, rather than trusting the success message:
 

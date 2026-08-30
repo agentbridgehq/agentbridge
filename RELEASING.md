@@ -175,7 +175,7 @@ v0.1.0 shipped on 2026-08-30. What has not happened yet:
 - [ ] Verify the `agentbridge` name and trademark ([D-02](MVP.md)) — the module
       path, npm name, Homebrew tap and Scoop bucket all assume it.
 - [ ] Publish the npm package: [npm/PUBLISHING.md](npm/PUBLISHING.md). The first
-      version has to go up by hand with a 2FA code; CI can take over after that.
+      version has to go up by hand, approved with 2FA; CI takes over after that.
 - [ ] Create `homebrew-tap` and `scoop-bucket`, then uncomment the publishers.
 
 ### What the first release taught
