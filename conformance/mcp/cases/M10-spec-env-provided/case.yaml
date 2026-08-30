@@ -1,0 +1,18 @@
+id: M10-spec-env-provided
+title: The subprocess receives PLUGIN_ROOT and PLUGIN_DATA
+section: "9.1"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["probe"]
+  env_seen: ["PLUGIN_ROOT", "PLUGIN_DATA"]
+observe: |
+  The probe writes the environment it was started with to
+  $AGENTBRIDGE_PROBE_OUT and then speaks enough MCP to stay connected, so
+  the question section 9.1 actually asks - whether the process receives
+  PLUGIN_ROOT and PLUGIN_DATA - is answered by reading that file rather than
+  by inspecting configuration. The command is ./probe, not
+  ${PLUGIN_ROOT}/probe: a stdio command must be a bare executable name or a
+  plugin-relative path beginning with ./, and the client is what turns the
+  second form into an absolute path. Writing the placeholder here was the
+  first draft's mistake, caught by agentbridge's own validator.

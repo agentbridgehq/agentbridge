@@ -1,0 +1,57 @@
+# An MCP configuration corpus run against one client.
+#
+# `outcome` describes the whole path a server takes: portable declaration ->
+# agentbridge's translation -> the client's own configuration -> the client.
+# That is what a user experiences. `notes` records which layer produced the
+# outcome, because "agentbridge refused to write it" and "the client refused it"
+# are different facts and only one of them is about the client.
+#
+# See conformance/mcp/README.md.
+
+target: opencode
+version: "opencode 1.18.3"
+platform: "macOS 15 / arm64"
+tested_by: "masihmoloodian"
+tested_on: "2026-08-30"
+method: |
+  Each case was turned into a minimal plugin carrying only that case's mcp.json,
+  installed with `agentbridge install` into an isolated client home, and the
+  client was then asked what servers it had. Both halves are recorded: whether
+  the translation carried the server into the client's own dialect, and whether
+  the client then offered it.
+
+  Read back with `opencode mcp list`, which reports `connected` — it launches the
+  server and completes the MCP handshake, which is what makes M10 answerable
+  here.
+
+results:
+  - id: M01-stdio-server
+    outcome: pass
+    notes: "Carried 1/1 and listed."
+  - id: M02-http-server
+    outcome: pass
+    notes: "Carried 1/1 and listed as type `remote`."
+  - id: M03-sse-server
+    outcome: pass
+    notes: "Carried 1/1 and listed. opencode accepts the legacy transport rather than declining it."
+  - id: M04-invalid-entry-isolated
+    outcome: pass
+    notes: "Carried 1/1 — `good` only."
+  - id: M05-unknown-field-isolated
+    outcome: pass
+    notes: "Carried 1/1 — `fine` only."
+  - id: M06-empty-servers
+    outcome: pass
+    notes: "Nothing written, nothing listed, no error."
+  - id: M07-insecure-remote-url
+    outcome: pass
+    notes: "No plain-HTTP remote server reached the client. Refused at the translation layer, so opencode's own gate was not exercised."
+  - id: M08-loopback-http-allowed
+    outcome: pass
+    notes: "Carried 1/1 and listed."
+  - id: M09-reserved-env-refused
+    outcome: pass
+    notes: "Carried 1/1 — `fine` only."
+  - id: M10-spec-env-provided
+    outcome: pass
+    notes: "**Section 9.1 verified at run time.** opencode launched ./probe, and the probe recorded PLUGIN_ROOT and PLUGIN_DATA in its own environment, both absolute and correct, with cwd defaulting to the plugin root as 7.2.1 requires. This is the first case in either corpus answered by what a process received rather than by what a file says."

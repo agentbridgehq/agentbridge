@@ -1,0 +1,57 @@
+# An MCP configuration corpus run against one client.
+#
+# `outcome` describes the whole path a server takes: portable declaration ->
+# agentbridge's translation -> the client's own configuration -> the client.
+# That is what a user experiences. `notes` records which layer produced the
+# outcome, because "agentbridge refused to write it" and "the client refused it"
+# are different facts and only one of them is about the client.
+#
+# See conformance/mcp/README.md.
+
+target: codex
+version: "codex-cli 0.144.5"
+platform: "macOS 15 / arm64"
+tested_by: "masihmoloodian"
+tested_on: "2026-08-30"
+method: |
+  Each case was turned into a minimal plugin carrying only that case's mcp.json,
+  installed with `agentbridge install` into an isolated client home, and the
+  client was then asked what servers it had. Both halves are recorded: whether
+  the translation carried the server into the client's own dialect, and whether
+  the client then offered it.
+
+  Read back with `codex mcp list`. Note that this lists configured servers
+  without launching them, which is why M10 is unmeasured here: the case is about
+  what the process receives, and nothing was started.
+
+results:
+  - id: M01-stdio-server
+    outcome: pass
+    notes: "Carried 1/1 and listed. Baseline holds."
+  - id: M02-http-server
+    outcome: pass
+    notes: "Carried 1/1 and listed. The portable `streamable-http` became a url entry in the managed TOML block."
+  - id: M03-sse-server
+    outcome: unmeasured
+    notes: "agentbridge declined to write it, with the declared loss client.transport_unsupported: the legacy HTTP+SSE transport is not documented for Codex. So Codex was never asked, and this is a translation result rather than a client one."
+  - id: M04-invalid-entry-isolated
+    outcome: pass
+    notes: "Carried 1/1 — `good` reached the config and `bad` did not. The invalid entry was isolated before the client ever saw it."
+  - id: M05-unknown-field-isolated
+    outcome: pass
+    notes: "Carried 1/1 — `fine` reached the config, `odd` did not. Skipped for failing the schema, not for the field being unrecognised."
+  - id: M06-empty-servers
+    outcome: pass
+    notes: "Nothing written, nothing listed, no error."
+  - id: M07-insecure-remote-url
+    outcome: pass
+    notes: "No plain-HTTP remote server reached the client. Refused at the translation layer, so Codex's own gate was not exercised — the end-to-end property holds, the client's behaviour is unknown."
+  - id: M08-loopback-http-allowed
+    outcome: pass
+    notes: "Carried 1/1 and listed. The loopback exception is honoured rather than the scheme being banned outright."
+  - id: M09-reserved-env-refused
+    outcome: pass
+    notes: "Carried 1/1 — `fine` only. The server setting PLUGIN_ROOT never reached the config."
+  - id: M10-spec-env-provided
+    outcome: unmeasured
+    notes: "Carried 1/1 and listed, but `codex mcp list` does not launch a server, so the environment the process would receive was not observed. Answering this on Codex needs a real session."

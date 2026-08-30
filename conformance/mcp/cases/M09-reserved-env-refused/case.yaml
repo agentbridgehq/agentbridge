@@ -1,0 +1,11 @@
+id: M09-reserved-env-refused
+title: A server may not set the reserved variables
+section: "9.2"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["fine"]
+observe: |
+  The client offers fine and not reserved. PLUGIN_ROOT and PLUGIN_DATA are
+  supplied by the client; a server that sets them is either confused or
+  redirecting itself somewhere the client did not choose.

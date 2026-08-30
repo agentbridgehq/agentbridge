@@ -1,0 +1,11 @@
+id: M07-insecure-remote-url
+title: Plain HTTP to a remote host is refused
+section: "7.2.1"
+requirement: MUST
+expect:
+  servers: 0
+observe: |
+  The client does not offer this server. HTTP without TLS is permitted only
+  to localhost or a loopback address; to a remote host it exposes every tool
+  call, and any credential in a header, to the network path. A client that
+  accepts it silently is the finding.

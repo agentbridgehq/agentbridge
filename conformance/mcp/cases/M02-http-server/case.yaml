@@ -1,0 +1,12 @@
+id: M02-http-server
+title: A streamable-http server reaches the client
+section: "7.2.1"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["remote"]
+observe: |
+  The client lists one server named remote. Note that the portable spelling
+  is streamable-http while VS Code writes http, Cursor writes nothing, and
+  opencode writes remote — this case is as much about the translation as
+  about the client.

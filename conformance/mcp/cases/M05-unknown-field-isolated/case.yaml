@@ -1,0 +1,16 @@
+id: M05-unknown-field-isolated
+title: A server carrying an unknown field is skipped alone
+section: "7.2.2"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["fine"]
+observe: |
+  Only fine is offered. This case was first written the other way round,
+  expecting the unknown field to be tolerated, and that was wrong: the
+  published mcp schema sets additionalProperties to false on every server
+  definition, so an unrecognised key makes that entry invalid. The forward
+  compatibility rule in section 5.2 governs the manifest's top level, not
+  the inside of a server. What is worth testing is therefore isolation - one
+  invalid entry must not take a valid sibling with it - and it is a
+  different kind of invalidity from the missing command in M04.

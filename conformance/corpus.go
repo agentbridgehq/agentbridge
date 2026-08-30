@@ -38,6 +38,23 @@ var Files embed.FS
 // Root is the directory prefix inside Files.
 const Root = "cases"
 
+// MCPFiles holds the MCP configuration corpus.
+//
+// It is a separate set because it asks a different question. The cases above
+// point a client at a plugin package; these deliver a server through the
+// client's own configuration file, which is how servers actually reach every
+// client measured so far — none of them reads a package's mcp.json. Keeping
+// them apart means a result from one cannot be read as a result from the other.
+//
+// The probe directory is excluded: it is Go source for a helper binary, not a
+// case, and embedding it would put it in the corpus digest.
+//
+//go:embed all:mcp/cases mcp/README.md
+var MCPFiles embed.FS
+
+// MCPRoot is the directory prefix inside MCPFiles.
+const MCPRoot = "mcp/cases"
+
 // Digest is the content address of the embedded corpus.
 //
 // Used to name the exported copy, so a build carrying a different corpus never

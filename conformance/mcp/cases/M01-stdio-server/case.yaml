@@ -1,0 +1,11 @@
+id: M01-stdio-server
+title: A stdio server reaches the client
+section: "7.2.1"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["alpha"]
+observe: |
+  The client lists one server named alpha. This is the baseline: if it
+  fails, nothing else in this corpus means anything, because the translation
+  never arrived.

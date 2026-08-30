@@ -1,0 +1,11 @@
+id: M08-loopback-http-allowed
+title: Plain HTTP to loopback is allowed
+section: "7.2.1"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["local"]
+observe: |
+  The client lists local. The counterpart to M07: refusing loopback HTTP
+  would break every locally-run server, so the rule has to distinguish the
+  two rather than ban the scheme.

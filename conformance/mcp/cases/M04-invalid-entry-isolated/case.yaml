@@ -1,0 +1,12 @@
+id: M04-invalid-entry-isolated
+title: One malformed entry does not take the others with it
+section: "7.2.2"
+requirement: MUST
+expect:
+  servers: 1
+  named: ["good"]
+observe: |
+  The client lists good and not bad. A server with no command cannot start,
+  but it must not prevent the rest of the file from loading. This is the
+  case most likely to be got wrong in a way nobody notices until a
+  colleague's config breaks yours.

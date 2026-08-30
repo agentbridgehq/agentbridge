@@ -1,0 +1,9 @@
+id: M06-empty-servers
+title: An empty server set is not an error
+section: "7.2.1"
+requirement: MUST
+expect:
+  servers: 0
+observe: |
+  The client starts normally and lists no servers from this file. Nothing is
+  reported as broken.

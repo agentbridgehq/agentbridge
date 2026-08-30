@@ -1,0 +1,11 @@
+id: M03-sse-server
+title: An sse server reaches the client, or is refused clearly
+section: "7.2.1"
+requirement: SHOULD
+expect:
+  servers: 1
+  named: ["legacy"]
+observe: |
+  The client lists one server named legacy. sse is the deprecated transport,
+  so a client that declines it is not wrong — but it must say so rather than
+  accept the entry and never connect. Record which of the two happened.
