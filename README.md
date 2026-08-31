@@ -14,6 +14,12 @@
 </p>
 
 <p align="center">
+  Built on <a href="https://agent-plugins.org/specification"><strong>Agent Plugins 1.0.0</strong></a>:
+  it takes a conformant plugin as its input format, and installs it into clients
+  that implement the standard and clients that have never heard of it alike.
+</p>
+
+<p align="center">
   <a href="docs/index.html">Visual walkthrough</a> ·
   <a href="docs/getting-started.md">Getting started</a> ·
   <a href="docs/">All documentation</a> ·
@@ -22,11 +28,11 @@
 
 ---
 
-> **Status: v0.1.0 released.** Signed binaries for six platforms, with
-> checksums and SLSA provenance, installable via `install.sh`, Homebrew or npm.
-> Every implementation milestone is built and tested ([MVP.md](MVP.md)).
-> Two clients have been independently measured and four have not. See
-> [What is not done](#what-is-not-done).
+> **Status: v0.2.0 released.** Signed binaries for six platforms, with checksums
+> and SLSA provenance, installable via `install.sh`, Homebrew or npm. Skills and
+> MCP servers install into every client that has a mechanism for them, and each
+> was verified by asking the client itself what it had loaded — not by reading
+> the file we wrote. See [What is not done](#what-is-not-done).
 
 ## The problem
 
@@ -40,9 +46,10 @@ extended with a **plugin**, and a plugin carries two kinds of thing:
   the database, call the internal API. It runs on your machine, with your access.
 
 On 2026-08-06, [Agent Plugins 1.0](https://agent-plugins.org/) standardised
-**the shape of that folder**. That is all it standardised, deliberately. It
-defines nothing about where a plugin comes from, how it is installed, how it
-stays current, or whether it is safe.
+**the shape of that folder**, and that is the format AgentBridge reads. It is
+all the specification standardises, deliberately: it defines nothing about where
+a plugin comes from, how it is installed, how it stays current, or whether it is
+safe.
 
 The industry now has **a package format with no package manager.** Imagine
 npm's `package.json` existing — but no registry, no lockfile, and no audit.
@@ -349,20 +356,28 @@ Being straight about the gaps:
    least three more published packages carry the name in this exact space. We
    ship as `@agentbridgehq/agentbridge`. Trademark and domain remain
    unchecked ([D-02](MVP.md)).
-2. **Releases are published; two follow-ups are manual.** v0.1.0 ships six
-   platforms with checksums, a Sigstore signature and SLSA provenance, and
-   installs via `install.sh`, Homebrew or npm. But GoReleaser cannot yet update
-   the tap by itself — that needs a credential scoped to the tap repository,
-   so today's formula was written by hand — and Scoop is not set up at all.
-3. **Two clients have been measured, four have not.** Codex reports an
-   installed server as `enabled` under `codex mcp list`, and opencode reports
-   one as `connected` — it launched the server and completed the MCP handshake
-   — while `opencode debug skill` lists the installed skills. That is the
-   vendor's own tooling answering, not ours. Cursor and VS Code are desktop
-   applications with no equivalent read-back, so what we write there matches
-   their published schemas and is unconfirmed. The full
-   [conformance corpus](conformance/README.md) of 18 cases still needs a human
-   watching each client; [clients.md](docs/clients.md) reports what we *write*.
+2. **The Homebrew tap does not update itself.** Releases ship six platforms with
+   checksums, a Sigstore signature and SLSA provenance, and install via
+   `install.sh`, Homebrew or npm — npm now publishes itself over OIDC with no
+   token. But GoReleaser cannot write to the tap without a credential scoped to
+   that repository, so the current formula was written by hand, and Scoop is not
+   set up at all.
+3. **Two of six clients could not be fully measured.** The
+   [conformance corpus](conformance/README.md) has been run against Codex,
+   opencode, Cursor and VS Code, and a
+   [second corpus](conformance/mcp/README.md) covers MCP servers as clients
+   actually receive them — results in
+   [conformance/results](conformance/results). What remains unmeasured is
+   mostly one thing: **no client reads a package's `mcp.json`**, so nine cases
+   were never delivered to the thing being asked, and VS Code has no way to be
+   asked what it has loaded at all.
+
+   Two findings came out of it that no amount of reading configuration would
+   have. **Only Cursor accepts a conformant package** — Codex requires
+   `.codex-plugin/plugin.json` and rejects one with *"missing plugin.json"*,
+   Claude Code requires `.claude-plugin/`. And **VS Code and Claude Code accept
+   a server's working directory and ignore it**, which AgentBridge now works
+   around by launching those servers through its own wrapper.
 4. **Plugin signature verification does not exist.** Our own release binaries
    are signed; a plugin's provenance is currently the commit or digest in your
    lockfile, which is real but is not a signature.
