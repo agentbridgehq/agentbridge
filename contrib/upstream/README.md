@@ -1,7 +1,19 @@
 # Upstream contributions to the Agent Plugins specification
 
-Drafts, ready to post. Nothing here has been submitted — that needs a human with
-a GitHub account and a view on timing.
+Drafts. The two issues are posted; the discussion is not.
+
+| | Status |
+|---|---|
+| [`issue-name-pattern-lookahead.md`](issue-name-pattern-lookahead.md) | Posted 2026-08-31 — [#76](https://github.com/agentplugins/agent-plugins-spec/issues/76) |
+| [`issue-schema-text-conflict.md`](issue-schema-text-conflict.md) | Posted 2026-08-31 — [#77](https://github.com/agentplugins/agent-plugins-spec/issues/77) |
+| [`discussion-conformance-suite.md`](discussion-conformance-suite.md) | Not posted. Send after the two issues have been seen |
+
+Every claim in both was re-checked against the live specification and schema
+immediately before posting: the `name` pattern is byte-identical to the one
+quoted, Go's `regexp` refuses it with the error shown, `additionalProperties` is
+`false` at the manifest root, `extensions` is typed as an object, and the §5.2
+and §8.1 sentences are quoted word for word — including the line establishing
+that these are the only two non-fatal schema violations.
 
 Their [CONTRIBUTING](https://github.com/agentplugins/agent-plugins-spec/blob/main/CONTRIBUTING.md)
 sets the shape of all three:
