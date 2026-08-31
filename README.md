@@ -107,6 +107,7 @@ files, not prose. Your code scanner reads source, and this is not source.
 | Updates hide changes | Reports findings that are **new since the version you approved** — the thing a lockfile alone structurally cannot do |
 | Tokens end up in config files | Secrets live in your OS keychain and are injected at launch; they never touch a file you could commit |
 | "Why isn't it working?" | `doctor` separates problems you can fix from permanent differences between clients |
+| Nobody knows what a client really supports | A [conformance corpus](conformance/README.md) for the specification itself — 18 plugin packages plus [11 more](conformance/mcp/README.md) for MCP, usable by any vendor with no dependency on this tool. [Run against four clients](conformance/results), which is how the differences above stopped being assumptions |
 
 ## Install
 

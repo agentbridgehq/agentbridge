@@ -95,10 +95,11 @@ moving to core later changes the incantation, not the formula.
 ### Where this stands
 
 [agentbridgehq/homebrew-tap](https://github.com/agentbridgehq/homebrew-tap)
-exists and `brew install agentbridgehq/tap/agentbridge` works today. The
-formula for v0.1.0 was written by hand, because **GoReleaser does not backfill
-tags that were released before the tap existed** — it writes a formula on the
-tags that come after it.
+exists and `brew install agentbridgehq/tap/agentbridge` works today. Both
+formulae so far were written by hand: GoReleaser does not backfill a tag
+released before the tap existed, and it still cannot write to the tap at all
+without a token. The consequence showed up immediately — v0.2.0 shipped to
+GitHub and npm while the tap kept serving 0.1.0 to anyone following the README.
 
 What is left is the automation, and it needs one credential.
 
@@ -184,13 +185,15 @@ release path; scope it to the tap repository alone.
 
 ## Still outstanding
 
-v0.1.0 shipped on 2026-08-30. What has not happened yet:
+v0.2.0 is out on GitHub, Homebrew and npm. What has not happened yet:
 
 - [ ] Verify the `agentbridge` name and trademark ([D-02](MVP.md)) — the module
       path, npm name, Homebrew tap and Scoop bucket all assume it.
-- [ ] Publish the npm package: [npm/PUBLISHING.md](npm/PUBLISHING.md). The first
-      version has to go up by hand, approved with 2FA; CI takes over after that.
-- [ ] Create `homebrew-tap` and `scoop-bucket`, then uncomment the publishers.
+- [ ] **Give GoReleaser `HOMEBREW_TAP_TOKEN`.** The tap exists and works, but
+      cannot update itself, so both formulae so far were written by hand — and
+      the tap sat a release behind until someone noticed. That is precisely the
+      failure the token removes.
+- [ ] Create `scoop-bucket` and uncomment the Scoop publisher.
 
 ### What the first release taught
 

@@ -2,7 +2,7 @@
 
 **Living tracker.** Update the Status column as work lands. Everything here is Phase 1 from [docs/04-roadmap.md](docs/04-roadmap.md).
 
-Last updated: 2026-08-30 · Overall status: **v0.1.0 released; every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
+Last updated: 2026-08-31 · Overall status: **v0.2.0 released; every implementation item is built, tested and audited** — including M11 (skill content scanner), M3-5 (OCI registry source) and M11-11 (the model pass), all three pulled forward from Phase 2.
 
 **Pushed to GitHub 2026-08-25**, and CI ran for the first time. It found
 **eleven defects within minutes**, two of them in product code: a manifestless
@@ -158,8 +158,9 @@ contribute nothing, and Cursor made its skill available. It is scored on Cursor
 alone, because Cursor is the only client where the package went through a real
 plugin mechanism rather than a skills directory.
 
-**Public, and released (2026-08-30).** The repository is public and **v0.1.0 is
-published**: six platforms, checksums, a Sigstore signature and SLSA build
+**Public, and released.** The repository is public and **v0.2.0 is published**
+— to GitHub, Homebrew and npm, the last of those over OIDC with no token. v0.1.0
+was the first: six platforms, checksums, a Sigstore signature and SLSA build
 provenance. The release pipeline succeeded on its first real run, having been
 rehearsed locally first — which is how two defects were caught before they
 could ship rather than after.
