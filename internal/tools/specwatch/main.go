@@ -148,7 +148,27 @@ func checkSchemas(r *Report) {
 	}
 }
 
-// checkSpecVersions looks for a specification release we do not implement.
+// specStatus reads the "Status:" line a specification document carries, so a
+// working draft is not mistaken for a release. Returns "unknown" when the
+// document cannot be read or says nothing, which is treated as not published.
+func specStatus(version string) string {
+	raw, err := fetch(rawBase + "spec/" + version + ".md")
+	if err != nil {
+		return "unknown"
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "**Status:") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "**Status:")
+		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(line), "**"))
+	}
+	return "unknown"
+}
+
+// checkSpecVersions looks for a published specification release we do not
+// implement. A version drafted in the open is not one.
 func checkSpecVersions(r *Report) {
 	raw, err := fetch(treeAPI)
 	if err != nil {
@@ -185,8 +205,23 @@ func checkSpecVersions(r *Report) {
 		if version == schema.SpecVersion {
 			continue
 		}
+		// A file under spec/ is not necessarily a release. The specification
+		// carries its own state on a "Status:" line, and a version is drafted
+		// in the open long before it is published — 1.1.0 appeared as a
+		// working draft twelve days after 1.0.0 shipped, with only the version
+		// and status lines changed. Reporting that as a version we fail to
+		// implement is a nightly alarm that can never be actioned and never
+		// stops, which is how a drift check trains people to ignore it.
+		status := specStatus(version)
+		if !strings.EqualFold(status, "published") {
+			r.add(OK, "spec versions",
+				fmt.Sprintf("%s exists upstream but is a %s, not a release; we implement %s",
+					version, strings.ToLower(status), schema.SpecVersion),
+				"")
+			continue
+		}
 		r.add(Drift, "spec versions",
-			fmt.Sprintf("a specification version this build does not implement exists upstream: %s (we implement %s)",
+			fmt.Sprintf("a published specification version this build does not implement exists upstream: %s (we implement %s)",
 				version, schema.SpecVersion),
 			"read the new specification, extend internal/schema, and add conformance cases for whatever changed")
 	}
