@@ -75,6 +75,27 @@ the schema on disk actively suggests the wrong thing.
 
 We would suggest (1), possibly with (2). Happy to send a patch.
 
+## A related ambiguity, weaker in kind
+
+Not a contradiction, and we are not sure it needs anything — but it is the
+mistake we actually made, so it may be worth a sentence somewhere.
+
+`mcp.schema.json` sets `additionalProperties: false` on every server definition.
+Writing a conformance case, we asserted that an unrecognised field inside a
+server entry must be tolerated, reasoning from §5.2's forward-compatibility
+rule. Our own validator rejected the case, correctly: §5.2 governs the
+manifest's top level, and nothing extends it to the inside of a server.
+
+We now think the schema is right and our reading was wrong. But §5.2 is the only
+place the specification discusses tolerating unknown fields, it does not say
+where that tolerance stops, and the two documents can each be read as
+authoritative on the question. An implementer who generalises §5.2 one level too
+far builds a client that accepts plugins the specification does not — the
+opposite error to the two above, and quieter, because nothing rejects anything.
+
+A clause in §5.2 saying the rule applies to the manifest's top-level fields and
+not to nested objects would have prevented it.
+
 ## Related
 
 The conformance checklist in Appendix A lists "Report and ignore unknown

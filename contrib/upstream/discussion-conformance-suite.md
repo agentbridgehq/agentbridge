@@ -9,7 +9,7 @@ is.*
 
 ---
 
-**Title:** Offering a conformance corpus for 1.0.0 — 18 cases, Apache-2.0, no tooling dependency
+**Title:** Offering a conformance corpus for 1.0.0 — Apache-2.0, no tooling dependency, and what running it found
 
 The [technical charter](https://github.com/agentplugins/agent-plugins-spec/blob/main/GOVERNANCE.md)
 lists "managing reference implementations and test suites" among the TSC's
@@ -18,6 +18,10 @@ as possible future work. While implementing a loader against 1.0.0 we built one,
 and would rather donate it than maintain a parallel version.
 
 This is an offer of an artifact, not a proposal to change the portable contract.
+
+We have also now run it against four clients, and the results are below. They
+are the reason we think a corpus is worth holding centrally rather than the
+reason we built one.
 
 ## What it is
 
@@ -63,9 +67,68 @@ any client with a validator gets the rest right for free:
 | 9.2 | A reserved environment name invalidates the server |
 | 10.1 | A version mismatch disables MCP without failing the plugin |
 
+A second corpus covers the same MCP requirements through each client's own
+configuration file, which is the only path any of them actually reads. Two of
+its cases are answered by a probe that records the environment and working
+directory it was launched with: §9.1 and §7.2.1 describe what a *process*
+receives, and a client that writes the right value into a file it then fails to
+apply looks correct everywhere except at run time.
+
 The two §5.2/§8.1 cases are the ones we would most like other implementers to
 run: they are the cases where following the published schema literally produces
 a non-conformant client (see the accompanying issue).
+
+## What running it found
+
+Four clients, on macOS, in August 2026: Codex 0.144.5, opencode 1.18.3, Cursor
+3.18.9 and VS Code 1.135.0. Full method and per-case notes are in the
+[results](https://github.com/agentbridgehq/agentbridge/tree/main/conformance/results),
+including which observations came from a client's own CLI and which required a
+person looking at a window.
+
+We are reporting **behaviour, not verdicts**. Every one of these has a plausible
+reading in which the specification, not the implementation, is the thing worth
+changing — which is exactly why we would rather raise them here than publish a
+scoreboard.
+
+**1. §7.2 is, in practice, not implemented anywhere we looked.** No client reads
+a package's `mcp.json`. Servers reach every one of them through the client's own
+configuration file instead — `~/.cursor/mcp.json`, `config.toml`,
+`opencode.json`, VS Code's own `mcp.json`. Nine of the eighteen cases could not
+be delivered to the thing they were asking about. We wrote a
+[second corpus](https://github.com/agentbridgehq/agentbridge/tree/main/conformance/mcp)
+for the paths servers actually take, because the first one had no way to reach
+them.
+
+**2. One client of four loads a package as the specification defines it.**
+Cursor accepts an unmodified case. `codex plugin add` on the same directory
+returns `missing plugin.json` — it requires `.codex-plugin/plugin.json`, and
+adding that one file with nothing else changed makes the same package install.
+Claude Code requires `.claude-plugin/`. Three vendors have each introduced a
+private manifest at a private path.
+
+**3. §7.1 splits the field, and the split has a mechanical cause.** The case
+ships `alpha`, `beta`, and a third skill at `skills/group/deep/` that must not
+be found. Cursor and VS Code load two; Codex and opencode load three. The two
+that pass scan exactly one level; the two that fail scan recursively. Neither
+behaviour looks chosen with the requirement in mind, and when half a small
+sample gets a MUST wrong in the same direction we think that is more likely to
+be a question about the requirement than four independent bugs. **Is
+"immediate children only" load-bearing, or would `**/SKILL.md` be acceptable?**
+
+**4. §7.2.1's working directory is accepted and ignored by two of five.** A
+server started by VS Code or Claude Code runs in the directory the *client* was
+started from, not the plugin root — verified by a small MCP server that reports
+its own working directory, since this is invisible in configuration. A plugin
+that opens `./config.json` therefore reads a different file depending on where
+its user was standing.
+
+**5. The published schema and §5.2 disagree about unknown fields inside a server
+entry.** We wrote a corpus case asserting such a field is tolerated, on the
+strength of §5.2, and our own validator rejected it: the MCP schema sets
+`additionalProperties: false` on every server definition. We now believe §5.2
+governs the manifest's top level only — but a first-time reader made the other
+assumption, and the two documents can both be read as authoritative.
 
 ## Why it might be worth having centrally
 
@@ -84,7 +147,13 @@ thing however carefully it is written.
 ## What we are offering
 
 - The 18 cases and the JSON index, Apache-2.0, with no attribution required.
-- Rewriting them into whatever layout the maintainers prefer.
+- The second corpus for MCP servers as clients actually receive them — eleven
+  cases covering transport spelling, isolation of a malformed entry, the
+  loopback exception to the HTTPS rule, the reserved environment names, and two
+  that are answered by a small MCP server reporting the environment and working
+  directory it was started with, because §9.1 and §7.2.1 are about what a
+  process receives and cannot be checked by reading a file.
+- Rewriting either into whatever layout the maintainers prefer.
 - Continuing to extend them as we find more requirements worth pinning down.
 
 We are happy for this to be adopted wholesale, cherry-picked, used as a starting
@@ -93,11 +162,20 @@ corpus stays where it is and remains free to use.
 
 ## What we are not claiming
 
-We have measured **no** third-party client. Our own loader passes all 18 cases;
-that is a statement about our implementation and nothing else. We have
-deliberately not published pass or fail results for anyone else's software, and
-would not without running the cases and saying who ran them and against which
-version.
+**None of the above is an assertion that any client is non-conformant.** Each
+result is a recorded observation of one version on one platform on one day, with
+the method written down beside it, and a case we could not deliver is recorded
+as `unmeasured` rather than failed — a client that never reads a manifest is not
+failing to validate one.
+
+We also got two of our own cases wrong on the first pass, both caught by an
+implementation that already enforced the rules. That is the argument for a
+shared corpus rather than against one: a case is a claim about what the
+specification requires, and claims benefit from review by the people who wrote
+it.
+
+Our own loader passes all 18. That is a statement about our implementation and
+nothing else.
 
 Happy to open a pull request in whatever shape is most useful, or to leave it
 here if the appetite is not there.
