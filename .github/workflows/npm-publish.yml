@@ -59,7 +59,15 @@ jobs:
           # a runner on an older line fails while installing npm rather than
           # while publishing, which reads like an unrelated problem.
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+          # No registry-url on purpose. It makes setup-node write an .npmrc
+          # containing //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}, and
+          # NODE_AUTH_TOKEN does not exist here because the whole point is that
+          # there is no token. npm then authenticates as nobody rather than
+          # exchanging its OIDC identity, and the registry answers 404 — "could
+          # not be found or you do not have permission" — which reads like a
+          # missing package or an unsaved trusted publisher rather than a
+          # credential we supplied and left blank. The default registry is
+          # already registry.npmjs.org, so the setting bought nothing.
 
       - name: Require an npm that can publish over OIDC
         # Trusted publishing needs npm >= 11.5.1 and Node >= 22.14.0. An npm
