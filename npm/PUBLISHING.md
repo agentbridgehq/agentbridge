@@ -127,9 +127,15 @@ anyway.
 
 ## 3. Every publish after that
 
-Bump `version` in [`package.json`](package.json) to match the release tag,
-commit, then publish a GitHub release — the workflow runs on
-`release: published`, or on demand from the Actions tab.
+Bump `version` in [`package.json`](package.json) to match the release tag and
+**commit that before tagging** — the workflow refuses to publish when the two
+disagree, and the tag is what starts it.
+
+It runs on the tag, not on `release: published`. The obvious trigger does not
+work: GitHub raises no workflow event for a release created with `GITHUB_TOKEN`,
+which is how GoReleaser creates it, so v0.2.0 shipped and this workflow never
+ran or reported anything. Firing on the tag means both workflows start together,
+so the job waits for the release before publishing.
 
 It refuses to publish if the package version and the release tag disagree, or if
 any artifact the postinstall would download is missing. Both checks exist

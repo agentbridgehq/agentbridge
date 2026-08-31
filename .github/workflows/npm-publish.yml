@@ -19,9 +19,19 @@ name: Publish to npm
 # a package that claims to be built from this commit, attested by npm rather
 # than asserted by us.
 
+# Triggered by the tag, not by `release: published`.
+#
+# The obvious trigger does not work here and fails silently, which is worse than
+# failing. GitHub does not raise workflow events for a release created using
+# GITHUB_TOKEN, to stop a workflow triggering itself — and GoReleaser creates
+# the release with exactly that token. v0.2.0 shipped, the release appeared, and
+# this workflow never ran or reported anything.
+#
+# The tag fires reliably. The job then waits for the release the other workflow
+# is building, because the two now start at the same moment.
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -67,13 +77,34 @@ jobs:
           fi
           echo "node $(node --version), npm $have"
 
+      - name: Wait for the release to be published
+        # The release workflow starts on the same tag push and takes a couple of
+        # minutes to build, sign and upload. Publishing to npm before its
+        # artifacts exist would put a package on the registry whose postinstall
+        # 404s, and an npm version cannot be reused.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ github.event.release.tag_name || inputs.tag || github.ref_name }}"
+          for i in $(seq 1 60); do
+            if gh release view "$tag" --repo "${{ github.repository }}" \
+                 --json assets --jq '.assets[].name' 2>/dev/null | grep -q checksums.txt; then
+              echo "release $tag is published"
+              exit 0
+            fi
+            echo "waiting for release $tag ($i/60)"
+            sleep 10
+          done
+          echo "release $tag did not appear; is the release workflow failing?"
+          exit 1
+
       - name: Check the package version matches the release
         # install.js derives the download URL from package.json's version, so a
         # package published as 0.1.1 against a v0.1.0 release installs a URL
         # that does not exist. The failure would land on whoever ran
         # `npm i -g @agentbridgehq/agentbridge`, not on us.
         run: |
-          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          tag="${{ github.event.release.tag_name || inputs.tag || github.ref_name }}"
           expected="${tag#v}"
           actual=$(node -p "require('./npm/package.json').version")
           if [ "$expected" != "$actual" ]; then
@@ -88,7 +119,7 @@ jobs:
         # publishing: npm caches the version number forever and it cannot be
         # reused. Checking first costs one request.
         run: |
-          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          tag="${{ github.event.release.tag_name || inputs.tag || github.ref_name }}"
           base="https://github.com/${{ github.repository }}/releases/download/${tag}"
           for a in darwin_arm64.tar.gz darwin_amd64.tar.gz linux_amd64.tar.gz linux_arm64.tar.gz; do
             url="${base}/agentbridge_${tag#v}_${a}"
