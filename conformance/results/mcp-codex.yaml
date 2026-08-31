@@ -9,7 +9,7 @@
 # See conformance/mcp/README.md.
 
 target: codex
-version: "codex-cli 0.144.5"
+version: "codex-cli 0.144.5 (see the note below: 0.151.0 changes the premise)"
 platform: "macOS 15 / arm64"
 tested_by: "masihmoloodian"
 tested_on: "2026-08-30"
@@ -23,6 +23,27 @@ method: |
   Read back with `codex mcp list`. Note that this lists configured servers
   without launching them, which is why M10 is unmeasured here: the case is about
   what the process receives, and nothing was started.
+
+# SUPERSEDED IN PART, 2026-08-31. Everything below measures the *translation*
+# path — agentbridge writing into `config.toml` — and that path is unchanged.
+# What has changed is the assumption underneath it. Codex 0.144.5, the version
+# measured here, contains no Agent Plugins MCP support at all: zero occurrences
+# of `${PLUGIN_ROOT}`, zero of `Agent Plugins MCP config`. Codex 0.151.0
+# contains 2 and 17 respectively, alongside `.plugin-data` and the string
+# `MCP servers from this plugin available in this session:`. Two of those
+# messages are spec enforcement quoted almost verbatim:
+#
+#   "Agent Plugins MCP config resolves outside the plugin root; disabling MCP"
+#   "failed to create Agent Plugins data directory; disabling stdio MCP servers"
+#
+# So Codex now reads a package's own `mcp.json`, which the run below had no
+# reason to test for. Reported by Juexin Wang as landing in 0.147.0
+# (openai/codex#38438). Not yet re-measured live: observing a plugin server
+# start needs an authenticated session, and `codex mcp list` shows configured
+# servers only — plugin servers are session-scoped by that message's own
+# wording. What *was* re-checked on 0.151.0: `codex plugin add` on an
+# unmodified conformant package still fails with `missing plugin.json`, and
+# adding `.codex-plugin/plugin.json` still makes the same package install.
 
 results:
   - id: M01-stdio-server

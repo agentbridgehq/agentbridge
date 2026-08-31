@@ -81,7 +81,7 @@ a non-conformant client (see the accompanying issue).
 ## What running it found
 
 Four clients, on macOS, in August 2026: Codex 0.144.5, opencode 1.18.3, Cursor
-3.18.9 and VS Code 1.135.0. Full method and per-case notes are in the
+3.18.9 and VS Code 1.135.0. Codex has moved since — see finding 1. Full method and per-case notes are in the
 [results](https://github.com/agentbridgehq/agentbridge/tree/main/conformance/results),
 including which observations came from a client's own CLI and which required a
 person looking at a window.
@@ -91,21 +91,40 @@ reading in which the specification, not the implementation, is the thing worth
 changing — which is exactly why we would rather raise them here than publish a
 scoreboard.
 
-**1. §7.2 is, in practice, not implemented anywhere we looked.** No client reads
-a package's `mcp.json`. Servers reach every one of them through the client's own
-configuration file instead — `~/.cursor/mcp.json`, `config.toml`,
-`opencode.json`, VS Code's own `mcp.json`. Nine of the eighteen cases could not
-be delivered to the thing they were asking about. We wrote a
+**1. §7.2 was implemented by nobody when we measured, and by Codex a week
+later.** At the time of the run no client read a package's `mcp.json`; servers
+reached all four through the client's own configuration file instead —
+`~/.cursor/mcp.json`, `config.toml`, `opencode.json`, VS Code's own `mcp.json`.
+Nine of the eighteen cases had no path to the thing they were asking about,
+which is why we wrote a
 [second corpus](https://github.com/agentbridgehq/agentbridge/tree/main/conformance/mcp)
-for the paths servers actually take, because the first one had no way to reach
-them.
+for the routes servers actually take.
 
-**2. One client of four loads a package as the specification defines it.**
-Cursor accepts an unmodified case. `codex plugin add` on the same directory
-returns `missing plugin.json` — it requires `.codex-plugin/plugin.json`, and
-adding that one file with nothing else changed makes the same package install.
-Claude Code requires `.claude-plugin/`. Three vendors have each introduced a
-private manifest at a private path.
+That has since changed under us, and we would rather say so than let the finding
+stand. Codex 0.144.5 contains no Agent Plugins MCP support — zero occurrences of
+`${PLUGIN_ROOT}`, zero of `Agent Plugins MCP config`. Codex 0.151.0 contains two
+and seventeen, along with `.plugin-data` and two strings that are §4.1 and §9.2
+enforcement quoted almost verbatim: *"Agent Plugins MCP config resolves outside
+the plugin root; disabling MCP"* and *"failed to create Agent Plugins data
+directory; disabling stdio MCP servers"*. Juexin Wang reports it landing in
+0.147.0 ([openai/codex#38438](https://github.com/openai/codex/issues/38438)).
+We have not yet watched a plugin server start — that needs an authenticated
+session, and `codex mcp list` shows configured servers only — so we are
+reporting the change rather than a re-measurement. **The useful lesson is about
+the suite, not the client: a result like this one is stale within a week, so the
+value is in a corpus anyone can re-run, not in the numbers we happen to publish
+with it.**
+
+**2. One client of four loads a package as the specification defines it, and
+finding 1 does not change that.** Cursor accepts an unmodified case. `codex
+plugin add` on the same directory returns `missing plugin.json` — still true on
+0.151.0, re-checked after the above — because it requires
+`.codex-plugin/plugin.json`, and adding that one file with nothing else changed
+makes the same package install. Claude Code requires `.claude-plugin/`. Three
+vendors have each introduced a private manifest at a private path. Reading the
+spec's `mcp.json` and accepting the spec's package are separate things, and
+Codex is now the case that shows they can come apart: it understands the
+contents without accepting the container.
 
 **3. §7.1 splits the field, and the split has a mechanical cause.** The case
 ships `alpha`, `beta`, and a third skill at `skills/group/deep/` that must not
