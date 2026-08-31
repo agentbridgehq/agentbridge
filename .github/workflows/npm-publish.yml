@@ -140,5 +140,9 @@ jobs:
         working-directory: npm
 
       - name: Publish
-        run: npm publish --access public
+        # Verbose on purpose. Publishing happens a handful of times a year and
+        # only ever matters when it fails; the default output says "need auth"
+        # without saying whether the OIDC exchange was attempted, which is the
+        # one thing worth knowing when there is no token to be missing.
+        run: npm publish --access public --loglevel verbose
         working-directory: npm
