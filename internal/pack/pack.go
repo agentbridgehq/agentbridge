@@ -167,7 +167,6 @@ func selectClients(clients []string) ([]string, error) {
 		known[c] = true
 	}
 	seen := map[string]bool{}
-	var out []string
 	for _, c := range clients {
 		c = strings.TrimSpace(c)
 		if c == "" {
@@ -176,11 +175,7 @@ func selectClients(clients []string) ([]string, error) {
 		if !known[c] {
 			return nil, fmt.Errorf("pack does not write a manifest for %q; it writes for %s", c, strings.Join(Clients, ", "))
 		}
-		if seen[c] {
-			continue
-		}
 		seen[c] = true
-		out = append(out, c)
 	}
 	// Emit in the canonical order regardless of the order asked for, so the
 	// output of two equivalent invocations is identical.
