@@ -111,7 +111,7 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	// that does not exist yet.
 	plan.Ops = append([]adapter.Op{adapter.CopyTreeOp(target, src.Path(), "install plugin package", ".cursor-plugin/plugin.json")}, plan.Ops...)
 
-	manifest, err := buildManifest(p)
+	manifest, err := BuildManifest(p, false)
 	if err != nil {
 		return nil, err
 	}
@@ -130,14 +130,27 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	return plan, nil
 }
 
-// buildManifest writes .cursor-plugin/plugin.json.
+// BuildManifest writes .cursor-plugin/plugin.json.
+//
+// Exported because `agentbridge pack` writes the same manifest into an author's
+// package. Calling one function from both places is what makes "what pack
+// emits is what the adapter installs" true by construction rather than by a
+// test that could drift.
 //
 // "skills" is declared explicitly rather than left to convention, which is what
 // the plugins Cursor ships itself do. "mcpServers" is deliberately omitted:
 // those go to ~/.cursor/mcp.json, and naming them here as well would register
 // every server twice.
-func buildManifest(p *ir.Plugin) ([]byte, error) {
+func BuildManifest(p *ir.Plugin, declareMCP bool) ([]byte, error) {
 	m := map[string]any{"name": p.Name, "skills": "./skills/"}
+	// Two callers, two truths. When agentbridge installs, the servers are
+	// already going to ~/.cursor/mcp.json and naming them here would register
+	// each one twice. When `pack` writes into an author's source tree nothing
+	// else is writing anything, so the manifest is the only thing that can
+	// point Cursor at the package's own servers.
+	if declareMCP && len(p.MCPServers) > 0 {
+		m["mcpServers"] = "./mcp.json"
+	}
 	setIfNotEmpty(m, "version", p.Version)
 	setIfNotEmpty(m, "description", p.Description)
 	setIfNotEmpty(m, "homepage", p.Homepage)

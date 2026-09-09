@@ -128,6 +128,9 @@ func TestJSONCommandsEmitOnlyJSON(t *testing.T) {
 		{"update", []string{"update", "--json"}},
 		{"inspect", []string{"inspect", benign, "--json"}},
 		{"validate", []string{"validate", benign, "--json"}},
+		// --dry-run because every other row here is read-only and this one
+		// would otherwise write four manifests into a checked-in fixture.
+		{"pack", []string{"pack", benign, "--dry-run", "--json"}},
 		{"validate a package with violations", []string{"validate", hostile, "--json"}},
 		{"scan clean", []string{"scan", benign, "--json"}},
 		{"scan with findings", []string{"scan", hostile, "--json"}},
@@ -264,7 +267,7 @@ func TestEveryCommandIsCoveredByTheJSONContract(t *testing.T) {
 		// than a --json gap. Each is covered with real arguments in the table
 		// above; exempting them here only skips the argument-less form.
 		"inspect": true, "validate": true, "scan": true, "secret": true,
-		"install": true, "sync": true, "remove": true,
+		"install": true, "sync": true, "remove": true, "pack": true,
 	}
 
 	inSwitch := false

@@ -162,6 +162,50 @@ Design for that. A plugin whose value is entirely in its skills will be inert in
 several popular clients through no fault of yours, and it is better to know
 before you publish.
 
+## Make it install where the specification alone is not enough
+
+```bash
+agentbridge pack .
+```
+
+A conformant package installs, unmodified, into Cursor and into Codex 0.153.4
+or later. In Claude Code it does nothing at all, because Claude Code looks for
+`.claude-plugin/plugin.json` and finds no plugin without it. `pack` writes the
+small vendor manifests that close that gap, into your source tree, for you to
+commit:
+
+| File | Why |
+|---|---|
+| `.claude-plugin/plugin.json` | Claude Code ignores the package without it |
+| `.mcp.json` | your servers in Claude Code's dialect — see below |
+| `.codex-plugin/plugin.json` | required by Codex up to 0.151; ignored by newer versions |
+| `.cursor-plugin/plugin.json` | names your skills and servers rather than relying on convention |
+
+**The `.mcp.json` is not a duplicate.** Claude Code's manifest can point at an
+MCP file by path, so pointing it at your own `mcp.json` looks like it should
+work. It does not, and it fails silently: the specification says
+`${PLUGIN_ROOT}`, Claude Code expands `${CLAUDE_PLUGIN_ROOT}`, and an
+unrecognized placeholder is passed through as literal text rather than
+rejected. Your server would start with a dollar sign and a brace in its command
+and no error anywhere. So `pack` writes a translated copy and leaves your
+portable `mcp.json` untouched as the source of truth.
+
+Everything it writes is derived from your `plugin.json`, so running it twice
+changes nothing and it will not appear in a diff unless something real moved.
+It refuses to run on a package that does not validate, because copying a
+mistake into four more files only makes it look sanctioned.
+
+In CI, `--check` fails the build when a manifest is missing or someone edited
+one by hand:
+
+```bash
+agentbridge pack --check .
+```
+
+Use `--client` if you only support some of them. Skipping `pack` entirely is a
+reasonable choice if your users are all on Cursor or current Codex — it buys
+you nothing there.
+
 ## Publishing
 
 Nothing in v1.0.0 defines distribution — no registry, no naming authority, no

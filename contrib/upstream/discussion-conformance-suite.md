@@ -115,16 +115,22 @@ the suite, not the client: a result like this one is stale within a week, so the
 value is in a corpus anyone can re-run, not in the numbers we happen to publish
 with it.**
 
-**2. One client of four loads a package as the specification defines it, and
-finding 1 does not change that.** Cursor accepts an unmodified case. `codex
-plugin add` on the same directory returns `missing plugin.json` — still true on
-0.151.0, re-checked after the above — because it requires
-`.codex-plugin/plugin.json`, and adding that one file with nothing else changed
-makes the same package install. Claude Code requires `.claude-plugin/`. Three
-vendors have each introduced a private manifest at a private path. Reading the
-spec's `mcp.json` and accepting the spec's package are separate things, and
-Codex is now the case that shows they can come apart: it understands the
-contents without accepting the container.
+**2. One client of four loaded a package as the specification defines it. It is
+two now, and the second changed while this was being written.** Cursor accepts
+an unmodified case. `codex plugin add` on the same directory returned
+`missing plugin.json` through 0.151.0, because it required
+`.codex-plugin/plugin.json` — confirmed by control, since adding that one file
+with nothing else changed made the same package install. On **0.153.4 that is
+fixed**: the unmodified package installs and `codex debug prompt-input` shows
+its skill reaching the model. Claude Code still requires `.claude-plugin/`.
+
+We are reporting this the way we found it, out of order and self-correcting,
+because it is the most useful thing in this post. **Two of our Codex findings
+expired within a fortnight of being taken, and both expired in the direction of
+the specification.** Neither was wrong when measured. A published table would
+have been wrong twice by now; a corpus that anyone can re-run would have caught
+both the day they changed. That is the argument for the suite, and it is a
+better argument than any of our individual results.
 
 **3. §7.1 splits the field, and the split has a mechanical cause.** The case
 ships `alpha`, `beta`, and a third skill at `skills/group/deep/` that must not

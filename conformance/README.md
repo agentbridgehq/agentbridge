@@ -31,13 +31,21 @@ The others each require their own manifest, or read none at all:
 | Client | What it actually reads |
 |---|---|
 | **Cursor** | the specification's `plugin.json` — and its own `.cursor-plugin/plugin.json` |
-| Codex | `.codex-plugin/plugin.json` only. `codex plugin add` on a conformant package returns **"missing plugin.json"** |
+| Codex | the specification's `plugin.json` as of 0.153.4. Up to 0.151.0, `.codex-plugin/plugin.json` only — `codex plugin add` on a conformant package returned **"missing plugin.json"** |
 | Claude Code | `.claude-plugin/plugin.json` only |
 | opencode, VS Code | no plugin manifest at all; skills are found by scanning directories |
 
-Codex's rejection was confirmed by control: adding `.codex-plugin/plugin.json`
-to an otherwise unchanged case makes the same package install. That is what
-turns the inference into a measurement.
+Codex's rejection was confirmed by control: on 0.151.0, adding
+`.codex-plugin/plugin.json` to an otherwise unchanged case makes the same
+package install. That is what turned the inference into a measurement — and
+the measurement has since expired. On 0.153.4 the control is unnecessary: a
+package carrying only the specification's `plugin.json` installs, and
+`codex debug prompt-input` shows its skill reaching the model.
+
+That is the second Codex finding to go stale in a fortnight; the first was
+§7.2, which no client implemented when measured and Codex implemented in
+0.147.0. Neither was wrong when taken. Both are the reason this directory
+holds a corpus you can re-run rather than a scoreboard you have to trust.
 
 ### §7.1 splits the field, and the split has a cause
 

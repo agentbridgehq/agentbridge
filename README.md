@@ -282,6 +282,7 @@ the day something genuinely new appears.
 |---|---|
 | `clients` | Agent clients on this machine, and what each accepts |
 | `validate <dir>` | Check a plugin against Agent Plugins v1.0.0 |
+| `pack <dir>` | Write the vendor manifests a package needs to install natively — `--check` in CI |
 | `scan <ref>` | Read the instruction text for content that steers an agent — **scans every plugin in a repository** |
 | `install <ref>` | Install into every client — add `--dry-run` to see the exact diffs first |
 | `list` | What is installed, and where it came from |
@@ -374,11 +375,12 @@ Being straight about the gaps:
    asked what it has loaded at all.
 
    Two findings came out of it that no amount of reading configuration would
-   have. **Only Cursor accepts a conformant package** — Codex requires
-   `.codex-plugin/plugin.json` and rejects one with *"missing plugin.json"*,
-   Claude Code requires `.claude-plugin/`. And **VS Code and Claude Code accept
-   a server's working directory and ignore it**, which AgentBridge now works
-   around by launching those servers through its own wrapper.
+   have. **Cursor and Codex accept a conformant package; Claude Code does not**
+   — it requires `.claude-plugin/`. Codex is a correction: up to 0.151.0 it
+   rejected one with *"missing plugin.json"*, and on 0.153.4 it installs the
+   same bytes. And **VS Code and Claude Code accept a server's working
+   directory and ignore it**, which AgentBridge now works around by launching
+   those servers through its own wrapper.
 4. **Plugin signature verification does not exist.** Our own release binaries
    are signed; a plugin's provenance is currently the commit or digest in your
    lockfile, which is real but is not a signature.

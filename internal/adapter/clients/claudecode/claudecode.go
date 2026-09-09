@@ -116,7 +116,7 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	// Code plugin is most of what makes it useful.
 	plan.Ops = append(plan.Ops, adapter.CopyTreeOp(target, src.Path(), "install plugin package", ".claude-plugin/plugin.json", ".mcp.json"))
 
-	manifest, err := buildManifest(p)
+	manifest, err := BuildManifest(p)
 	if err != nil {
 		return nil, err
 	}
@@ -178,10 +178,10 @@ func (a *Adapter) PlanRemove(inst adapter.Installation, pluginName string) (*ada
 	}, nil
 }
 
-// buildManifest writes Claude Code's manifest, restoring anything the importer
+// BuildManifest writes Claude Code's manifest, restoring anything the importer
 // preserved from an original Claude Code plugin so a round trip through the
 // portable format does not quietly lose manifest fields.
-func buildManifest(p *ir.Plugin) ([]byte, error) {
+func BuildManifest(p *ir.Plugin) ([]byte, error) {
 	manifest := map[string]any{}
 
 	if raw, ok := p.Extensions[ir.ExtensionNamespaceClaudeCode]; ok {
@@ -345,4 +345,26 @@ func setIfNotEmpty(m map[string]any, key, value string) {
 func isDir(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
+}
+
+// BuildPackageMCP renders the .mcp.json that Claude Code reads from inside a
+// plugin package, for `agentbridge pack` rather than for an install.
+//
+// It exists so that one translation serves both. Claude Code spells the
+// placeholders ${CLAUDE_PLUGIN_ROOT} and ${CLAUDE_PLUGIN_DATA}, so a package
+// carrying the specification's own mcp.json hands it ${PLUGIN_ROOT} — text it
+// does not expand and passes through literally. That is the single reason a
+// conformant package cannot simply be pointed at: the manifest's mcpServers
+// field does accept a path, but the file it names has to be in Claude Code's
+// dialect. So pack writes a translated copy beside the portable one.
+//
+// No PlanOptions: an author's package is source. There is no keychain to read
+// and no launcher to wrap, and §9.2 says the env values here are visible
+// package data that must not carry credentials in the first place. The
+// working-directory loss is expected and dropped for the same reason — the
+// launcher belongs to an install, not to a package.
+func BuildPackageMCP(servers []ir.MCPServer) ([]byte, int, error) {
+	var discard adapter.Fidelity
+	raw, carried, _, err := buildMCP(servers, adapter.PlanOptions{}, &discard, "")
+	return raw, carried, err
 }

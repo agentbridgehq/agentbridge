@@ -6,8 +6,8 @@
 // registry, a reviewable lockfile, secrets held in the OS credential store, and
 // a scanner that reads the instruction text before it reaches an agent.
 //
-// What remains is not code — no release has been cut and no third-party client
-// has been measured. See MVP.md, and README's "What is not done".
+// Conformance results for the clients this has been measured against are in
+// conformance/results/. See MVP.md, and README's "What is not done".
 package main
 
 import (
@@ -57,6 +57,8 @@ func run(args []string) error {
 		return remove(args[1:])
 	case "validate":
 		return validateCmd(args[1:])
+	case "pack":
+		return packCmd(args[1:])
 	case "scan":
 		return scanCmd(args[1:])
 	case "doctor":
@@ -97,6 +99,8 @@ Usage:
   agentbridge clients                  List agent clients detected on this machine
   agentbridge inspect <dir>            Load a plugin and print its normalized form
   agentbridge validate <dir>           Check a plugin against Agent Plugins v1.0.0
+  agentbridge pack <dir>               Write the vendor manifests a package needs to
+                                       install natively; --check for CI
   agentbridge scan <ref>               Read instructions for content that steers an agent;
                                        scans every plugin in a directory tree
   agentbridge doctor [plugin]          Explain why a plugin is not doing anything
@@ -132,8 +136,7 @@ Common flags:
 
 Flags may appear before or after the argument. Every command supports --json.
 
-This is a pre-release build: no release has been cut and no third-party client
-has been measured against the conformance corpus. See MVP.md.
+Conformance results for six clients are in conformance/results/.
 `)
 }
 

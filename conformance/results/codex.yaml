@@ -9,8 +9,20 @@
 #
 # See conformance/PROTOCOL.md for how to install a case into each client.
 
+# RETIRED IN PART, 2026-09-09. The premise of the run below — that Codex will
+# not install an Agent Plugins package at all — no longer holds. On codex-cli
+# 0.153.4 a package carrying only the specification's plugin.json and a skills/
+# directory installs with `codex plugin add`, and `codex debug prompt-input`
+# shows the skill reaching the model. Re-checked on 0.151.0 first, where the
+# old rejection still reproduces, so the change landed between the two.
+#
+# The per-case results below stay as they are: they measure the skill loader,
+# which was reached by copying each case into $CODEX_HOME/skills and is
+# unaffected. What is now wrong is the reason given for taking that route.
+# Re-running the corpus through the plugin path on 0.153.4 is the open work.
+
 target: codex
-version: "codex-cli 0.144.5"          # the client version you tested — a result without one cannot be retired
+version: "codex-cli 0.144.5"          # superseded; see the note above
 platform: "macOS 15 / arm64"         # e.g. macOS 15 / arm64
 tested_by: "masihmoloodian"
 tested_on: "2026-08-30"        # YYYY-MM-DD

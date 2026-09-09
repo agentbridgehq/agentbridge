@@ -172,13 +172,19 @@ agentbridge conformance            # run it against this implementation
 | opencode | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/opencode.yaml) |
 | Claude Code, Gemini CLI | not conformance targets; neither claims to implement the specification |
 
-**Cursor is the only client that loads a conformant package.** It accepted all
-18 cases carrying only the specification's plugin.json. Codex requires
-.codex-plugin/plugin.json and rejects a conformant package with "missing
-plugin.json"; Claude Code requires .claude-plugin/; opencode and VS Code read no
-plugin manifest at all and find skills by scanning directories. That is why most
-cases are unmeasured rather than failed — a client that never reads the manifest
-is not failing to validate it.
+**Two clients load a conformant package, and the second one arrived while we
+were writing this down.** Cursor accepted all 18 cases carrying only the
+specification's plugin.json. Codex did not: up to and including 0.151.0 it
+required .codex-plugin/plugin.json and rejected a conformant package with
+"missing plugin.json". On 0.153.4 the same unmodified package installs and its
+skills reach the model, measured against both versions. Claude Code still
+requires .claude-plugin/; opencode and VS Code read no plugin manifest at all
+and find skills by scanning directories. That is why most cases are unmeasured
+rather than failed — a client that never reads the manifest is not failing to
+validate it.
+
+Two Codex findings went stale inside a fortnight, which is the argument for a
+corpus anyone can re-run rather than a table we publish and defend.
 
 Section 7.1 splits the field. Skills must be immediate children of skills/, and
 a case ships one nested deeper that must not be found. Cursor and VS Code load

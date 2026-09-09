@@ -132,13 +132,14 @@ report them:
 Cursor 5/1/12, Codex 4/1/13, opencode 4/1/13 (pass/fail/unmeasured). Results in
 [conformance/results/](conformance/results/).
 
-**Exactly one client loads a conformant package.** Cursor accepted all 18 cases
-carrying only the specification's `plugin.json`, deliberately without
-`.cursor-plugin/plugin.json`. No other client does. Codex requires
-`.codex-plugin/plugin.json` and rejects a conformant package with *"missing
-plugin.json"* — confirmed by control, since adding that one file makes the same
-package install. Claude Code requires `.claude-plugin/`. opencode and VS Code
-read no plugin manifest at all and find skills by scanning directories.
+**Two clients load a conformant package; one of them started during the
+project.** Cursor accepted all 18 cases carrying only the specification's
+`plugin.json`, deliberately without `.cursor-plugin/plugin.json`. Codex up to
+0.151.0 did not — it required `.codex-plugin/plugin.json` and rejected a
+conformant package with *"missing plugin.json"*, confirmed by control. On
+0.153.4 the same unmodified package installs and its skill reaches the model.
+Claude Code still requires `.claude-plugin/`. opencode and VS Code read no
+plugin manifest at all and find skills by scanning directories.
 
 That is the clearest evidence yet for why this project exists, and it is now a
 measurement rather than an assertion. It also revises an assumption: the three
