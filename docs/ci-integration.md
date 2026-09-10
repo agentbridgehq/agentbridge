@@ -156,6 +156,65 @@ quiet and the override keeps meaning something the day a *new* finding appears.
 
 ---
 
+## Decide what may be installed at all
+
+The scanner judges a plugin on its contents. A policy decides what your
+organisation permits regardless of contents, and it is a file in the
+repository rather than a service — nothing to log in to, no network call on the
+enforcement path, so it works on an air-gapped runner.
+
+`agentbridge.policy.yaml`, at the repository root or in `~/.agentbridge`:
+
+```yaml
+version: 1
+sources:
+  allow: ["github.com/acme/*"]        # * stops at a /, ** crosses it
+  deny:  ["github.com/acme/experimental-*"]
+  local: deny                         # closes the "copy it to /tmp" route
+capabilities:
+  deny: [network]                     # inferred from the package, not claimed by it
+plugins:
+  deny: ["some-plugin"]
+```
+
+It is enforced by `install`, `sync` and `update`, and there is **no flag to
+override it**. A rule a developer can step past on the command line is a
+warning with extra ceremony, and the person who wrote it is not there to be
+asked. The way to make an exception is to edit the file, in a pull request
+somebody reviews.
+
+Every policy found is enforced and they restrict rather than grant, so a
+user-level file cannot re-permit what the project forbade — adding one can only
+narrow.
+
+### What was installed before the rule existed
+
+A policy adopted today says nothing about the preceding six months. `--audit`
+checks the machine against it:
+
+```bash
+agentbridge policy --audit
+```
+
+```
+1 of 4 installed plugin(s) breach the policy in force:
+
+  legacy-thing  (claude-code, cursor, vscode)
+    capabilities.deny    legacy-thing has the network capability, which is denied
+
+Nothing was changed. Remove one with `agentbridge remove <name>`.
+```
+
+Non-zero exit when anything breaches, with `--json` for a report. It reports
+rather than removes, deliberately: a rule edit should not reach into every
+developer's machine and delete things, so the blast radius of a typo in this
+file stays at "the build failed".
+
+**What this is not.** It binds the machines that run this binary against the
+policy files they can find. Someone determined to install a plugin by hand
+still can. The value is that the supported path is the governed one, and that
+you have evidence it was — not that the unsupported path is impossible.
+
 ## Machine-readable output
 
 Every command takes `--json`, including on failure:

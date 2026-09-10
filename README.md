@@ -291,6 +291,7 @@ the day something genuinely new appears.
 | `sync` / `update` | Converge on `agentbridge.yaml` + `.lock` |
 | `secret set/list/rm/scan` | Keep credentials out of client configs |
 | `losses` | What each client might not carry, and why |
+| `policy` | The org rules in force — `--audit` checks what is already installed |
 | `conformance [--list]` | Run the Agent Plugins conformance corpus against any client |
 | `inspect <dir>` | A plugin's normalized form and inferred capabilities |
 | `cache`, `version`, `run` | |

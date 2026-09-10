@@ -13,6 +13,7 @@ import (
 	"github.com/agentbridgehq/agentbridge/internal/adapter/receipt"
 	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
 	"github.com/agentbridgehq/agentbridge/internal/lockfile"
+	"github.com/agentbridgehq/agentbridge/internal/policy"
 	"github.com/agentbridgehq/agentbridge/internal/scanner"
 	"github.com/agentbridgehq/agentbridge/internal/workspace"
 )
@@ -723,5 +724,73 @@ func TestAFailedResolveDoesNotUninstallTheWorkingPlugin(t *testing.T) {
 	}
 	if len(after.ForPlugin("acme.keeper")) == 0 {
 		t.Error("a plugin that failed to resolve was uninstalled from the machine; it was still declared")
+	}
+}
+
+// TestSyncEnforcesPolicyAndLeavesTheInstallAlone.
+//
+// Sync is the unattended path, so a rule added on Monday has to reach the
+// machine that syncs on Tuesday without anyone re-running an install by hand.
+// It is also the path CI takes, which is where an organisation finds out
+// whether its rules actually hold.
+//
+// The second half matters as much as the first. A newly adopted policy must
+// not reach into every developer's machine and uninstall things: a typo in a
+// YAML file should not have that blast radius. The rule blocks the sync and
+// reports; removing is a decision somebody makes with `agentbridge remove`.
+func TestSyncEnforcesPolicyAndLeavesTheInstallAlone(t *testing.T) {
+	env := fakeMachine(t)
+	repo := pluginRepo(t, "acme.db", "1.0.0")
+	project := t.TempDir()
+
+	res := declare(t, env, project, fileURL(repo)+"@v1.0.0")
+	sync(t, env, res, workspace.Options{Prune: true})
+
+	store, err := receipt.Open(adapterreg.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(store.ForPlugin("acme.db")) == 0 {
+		t.Fatal("the plugin did not install, so this test would prove nothing")
+	}
+
+	// A policy is adopted afterwards that this plugin does not satisfy.
+	rule := &policy.Policy{Path: "test-policy"}
+	rule.Version = 1
+	rule.Sources.Local = policy.LocalAllow
+	rule.Plugins.Deny = []string{"acme.db"}
+
+	store, err = receipt.Open(adapterreg.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := workspace.Sync(context.Background(), res, store, workspace.Options{
+		Env: env, Prune: true, Policies: []*policy.Policy{rule},
+	})
+	if err != nil {
+		t.Fatalf("Sync returned a hard error rather than a per-plugin failure: %v", err)
+	}
+
+	var blocked *workspace.PluginResult
+	for i := range result.Plugins {
+		if result.Plugins[i].Err != nil {
+			blocked = &result.Plugins[i]
+		}
+	}
+	if blocked == nil {
+		t.Fatal("a plugin the policy denies by name was synced anyway")
+	}
+	if len(blocked.Violations) == 0 {
+		t.Error("the failure carries no violations, so a report cannot name the rule")
+	} else if blocked.Violations[0].Rule != "plugins.deny" {
+		t.Errorf("rule = %q, want plugins.deny", blocked.Violations[0].Rule)
+	}
+
+	after, err := receipt.Open(adapterreg.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.ForPlugin("acme.db")) == 0 {
+		t.Error("adopting a policy uninstalled an existing plugin; it should block and report, not reach out and delete")
 	}
 }

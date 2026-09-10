@@ -97,6 +97,11 @@ func runSync(fs *flag.FlagSet, opts syncFlags) error {
 		return err
 	}
 
+	policies, err := loadPolicies(env)
+	if err != nil {
+		return err
+	}
+
 	result, err := workspace.Sync(context.Background(), res, store, workspace.Options{
 		Env:          env,
 		Update:       update,
@@ -108,6 +113,7 @@ func runSync(fs *flag.FlagSet, opts syncFlags) error {
 		Plan:         planOptions(false),
 		AllowFlagged: opts.allowFlagged,
 		Classifier:   model,
+		Policies:     policies,
 	})
 	if err != nil {
 		return err

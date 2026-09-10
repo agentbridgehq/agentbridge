@@ -99,6 +99,36 @@ func runWithEnv(t *testing.T, extra []string, args ...string) result {
 	return result{stdout: out.String(), stderr: errBuf.String(), exit: code}
 }
 
+// runIn executes the CLI in a directory the caller controls, with a home
+// derived from it, so two invocations share state. The policy tests need that:
+// installing and then auditing are one story, and a fresh home between them
+// would leave nothing to audit.
+func runIn(t *testing.T, workDir string, args ...string) result {
+	t.Helper()
+
+	home := filepath.Join(workDir, ".home")
+	if err := os.MkdirAll(filepath.Join(home, ".cursor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(binary, args...)
+	cmd.Dir = workDir
+	cmd.Env = append(os.Environ(), "HOME="+home, "USERPROFILE="+home)
+
+	var out, errBuf strings.Builder
+	cmd.Stdout = &out
+	cmd.Stderr = &errBuf
+	err := cmd.Run()
+
+	code := 0
+	if exit, ok := err.(*exec.ExitError); ok {
+		code = exit.ExitCode()
+	} else if err != nil {
+		t.Fatalf("running %v: %v", args, err)
+	}
+	return result{stdout: out.String(), stderr: errBuf.String(), exit: code}
+}
+
 func abs(t *testing.T, rel string) string {
 	t.Helper()
 	p, err := filepath.Abs(rel)
@@ -397,5 +427,98 @@ func TestClassifierRejectsAPlaintextRemoteEndpoint(t *testing.T) {
 	}
 	if !strings.Contains(got.stderr, "https") {
 		t.Errorf("the error does not name the problem: %s", got.stderr)
+	}
+}
+
+// A policy refusal must carry the rules that caused it, for the same reason an
+// install refusal carries its findings: a CI log saying "blocked by policy"
+// without saying which rule sends somebody reading YAML by hand, and a script
+// that can see only "refused" has to run the tool again to learn why.
+func TestPolicyRefusalIsMachineReadable(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "agentbridge.policy.yaml"),
+		[]byte("version: 1\nsources:\n  local: deny\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := runIn(t, dir, "install", abs(t, "../../internal/scanner/testdata/benign"), "--json")
+	if got.exit == 0 {
+		t.Fatal("a policy forbidding local directories did not block a local install")
+	}
+
+	var refusal struct {
+		Refused    bool `json:"refused"`
+		Violations []struct {
+			Policy string `json:"policy"`
+			Rule   string `json:"rule"`
+			Detail string `json:"detail"`
+		} `json:"violations"`
+		Remedy string `json:"remedy"`
+	}
+	if err := json.Unmarshal([]byte(got.stdout), &refusal); err != nil {
+		t.Fatalf("the refusal is not JSON: %v\n%s", err, truncate(got.stdout))
+	}
+	if !refusal.Refused {
+		t.Error("refused is not set")
+	}
+	if len(refusal.Violations) == 0 {
+		t.Fatal("the refusal carries no violations, so nothing says which rule blocked it")
+	}
+	v := refusal.Violations[0]
+	if v.Rule != "sources.local" {
+		t.Errorf("rule = %q, want sources.local", v.Rule)
+	}
+	// Naming the file is what makes the rule findable. Without it the reader
+	// knows they are blocked and not where to go.
+	if v.Policy == "" {
+		t.Error("the violation does not name the policy file it came from")
+	}
+	if refusal.Remedy == "" {
+		t.Error("no remedy: a refusal should say what to do next")
+	}
+}
+
+// The audit is the org-facing half: a policy adopted today says nothing about
+// what was installed yesterday, and a control that cannot see its own
+// violations is one nobody can act on.
+func TestPolicyAuditReportsInstalledBreaches(t *testing.T) {
+	dir := t.TempDir()
+
+	// Install with no policy in force.
+	if got := runIn(t, dir, "install", abs(t, "../../internal/scanner/testdata/benign")); got.exit != 0 {
+		t.Skipf("could not install into this environment: %s", truncate(got.stderr))
+	}
+
+	// Adopt a policy afterwards that the install would not have satisfied.
+	if err := os.WriteFile(filepath.Join(dir, "agentbridge.policy.yaml"),
+		[]byte("version: 1\nsources:\n  local: deny\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := runIn(t, dir, "policy", "--audit", "--json")
+	var report struct {
+		Checked  int `json:"checked"`
+		Findings []struct {
+			Plugin     string   `json:"plugin"`
+			Clients    []string `json:"clients"`
+			Violations []struct {
+				Rule string `json:"rule"`
+			} `json:"violations"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(got.stdout), &report); err != nil {
+		t.Fatalf("audit output is not JSON: %v\n%s", err, truncate(got.stdout))
+	}
+	if report.Checked == 0 {
+		t.Fatal("the audit checked nothing, so it proves nothing")
+	}
+	if len(report.Findings) == 0 {
+		t.Fatal("a plugin installed before the policy existed was not reported as breaching it")
+	}
+	if got.exit == 0 {
+		t.Error("the audit exited 0 with findings; CI would not notice")
+	}
+	if len(report.Findings[0].Clients) == 0 {
+		t.Error("the finding does not say which clients have it, which is the blast radius")
 	}
 }

@@ -73,6 +73,8 @@ func run(args []string) error {
 		return conformanceCmd(args[1:])
 	case "losses":
 		return lossesCmd(args[1:])
+	case "policy":
+		return policyCmd(args[1:])
 	case "cache":
 		return cacheCmd(args[1:])
 	case "secret":
@@ -111,6 +113,7 @@ Usage:
   agentbridge list                     List plugins installed by agentbridge
   agentbridge cache [--clear]          Show or clear the fetched-package cache
   agentbridge losses                   What each client might not carry, and why
+  agentbridge policy                   The org rules in force, and where each comes from
   agentbridge conformance [--list]     Run the Agent Plugins conformance corpus
   agentbridge version                  Print the version and target spec version
   agentbridge secret set|list|rm|scan  Keep credentials out of client configs
@@ -342,6 +345,17 @@ func install(args []string) error {
 		return err
 	}
 	if err := scanGate(src, result.Plugin, model, *allowFlagged, *asJSON); err != nil {
+		return err
+	}
+	// After the scan, because a plugin that fails both should hear about the
+	// content first: that finding is about the plugin itself, while a policy
+	// refusal is about this organisation's rules and may not apply to the next
+	// reader of the same package.
+	policies, err := loadPolicies(env)
+	if err != nil {
+		return err
+	}
+	if err := policyGate(result.Plugin, resolved, policies, *asJSON); err != nil {
 		return err
 	}
 

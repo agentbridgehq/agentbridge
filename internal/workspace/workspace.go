@@ -34,6 +34,7 @@ import (
 	importreg "github.com/agentbridgehq/agentbridge/internal/importer/registry"
 	"github.com/agentbridgehq/agentbridge/internal/ir"
 	"github.com/agentbridgehq/agentbridge/internal/lockfile"
+	"github.com/agentbridgehq/agentbridge/internal/policy"
 	"github.com/agentbridgehq/agentbridge/internal/safepath"
 	"github.com/agentbridgehq/agentbridge/internal/scanner"
 	"github.com/agentbridgehq/agentbridge/internal/source"
@@ -69,6 +70,12 @@ type Options struct {
 	// through sync, unattended, and is exactly what a lockfile alone cannot
 	// catch: the digest changes honestly, and the content is the problem.
 	AllowFlagged bool
+	// Policies are the org rules in force. Sync is gated as well as install
+	// because the unattended path is the one that matters: a rule added on
+	// Monday has to reach the machine that syncs on Tuesday without anybody
+	// re-running an install by hand. It is also the path CI takes, which is
+	// where an organisation actually finds out whether its rules hold.
+	Policies []*policy.Policy
 }
 
 // PluginResult is what happened to one declared plugin.
@@ -84,6 +91,10 @@ type PluginResult struct {
 	// Delta is that scan compared against the findings accepted when this
 	// plugin was last locked. Nil when the scan could not run.
 	Delta *scanner.Delta
+	// Violations are the policy rules this plugin broke, when that is why it
+	// failed. Carried separately from Err so a report can name the rules
+	// rather than only the first one's text.
+	Violations []policy.Violation
 	// Err records a failure for this plugin alone. One plugin that cannot be
 	// resolved must not stop the rest, for the same reason the specification
 	// isolates component failures: a partially working machine beats a machine
@@ -249,6 +260,29 @@ func Sync(ctx context.Context, res lockfile.Resolution, store *receipt.Store, op
 }
 
 // syncOne resolves, imports and installs a single declared plugin.
+// PolicySubject describes a resolved plugin to the policy engine.
+//
+// Exported because `install` asks the same question from the command line and
+// `sync` asks it unattended, and the two must not be able to disagree about
+// what a source is called. A rule that holds in CI and not on a laptop is
+// worse than no rule.
+//
+// The source is the repository rather than the commit: a rule about where code
+// may come from should not need rewriting every time a tag moves.
+func PolicySubject(p *ir.Plugin, resolved *source.Resolved) policy.Subject {
+	s := policy.Subject{Name: p.Name, Capabilities: p.Capabilities}
+	if resolved.Ref.Kind == source.KindLocal {
+		s.Local = true
+		s.Source = resolved.Ref.Path
+		return s
+	}
+	s.Source = resolved.Ref.URL
+	if s.Source == "" {
+		s.Source = resolved.Ref.Raw
+	}
+	return s
+}
+
 func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cache, store *receipt.Store, opts Options) PluginResult {
 	result := PluginResult{Entry: entry}
 
@@ -287,6 +321,16 @@ func syncOne(ctx context.Context, entry lockfile.ScopedEntry, cache *source.Cach
 		return result
 	}
 	result.Plugin = imported.Plugin
+
+	// Before the content scan, unlike install. There the reader is a person who
+	// benefits from hearing about the package itself first; here the reader is
+	// a build log, and "this source is not allowed" is the more actionable of
+	// the two — it is also cheaper, needing no file reads.
+	if v := policy.Check(opts.Policies, PolicySubject(imported.Plugin, resolved)); len(v) > 0 {
+		result.Violations = v
+		result.Err = fmt.Errorf("blocked by policy: %s", v[0].Detail)
+		return result
+	}
 
 	root, err := safepath.NewRoot(resolved.Dir)
 	if err != nil {
