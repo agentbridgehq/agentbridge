@@ -658,3 +658,70 @@ func TestJSONReportsWhyAPluginFailed(t *testing.T) {
 		t.Errorf("the reason does not say what happened: %q", decoded.Plugins[0].Error)
 	}
 }
+
+// TestAFailedResolveDoesNotUninstallTheWorkingPlugin.
+//
+// This was real, and it was the worst shape a bug can take: `sync` against a
+// source it could not resolve removed the plugin from every client on the
+// machine, and then printed "Nothing was changed".
+//
+// The mechanism was that the declared set was built from the plugins that
+// resolved successfully, so a failing one fell out of it and pruning read that
+// as "the user deleted this from their manifest". Pruning runs before the
+// failure aborts the writes, so the removal had already happened by the time
+// anything was reported. An unreachable network, or the integrity check that
+// exists to protect a tampered package, was enough to destroy a working
+// install of it.
+func TestAFailedResolveDoesNotUninstallTheWorkingPlugin(t *testing.T) {
+	env := fakeMachine(t)
+	repo := pluginRepo(t, "acme.keeper", "1.0.0")
+	project := t.TempDir()
+
+	// A local directory, so the lock's digest is checked against the files on
+	// every sync rather than served from the fetch cache.
+	res := declare(t, env, project, repo)
+	sync(t, env, res, workspace.Options{Prune: true})
+
+	store, err := receipt.Open(adapterreg.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(store.ForPlugin("acme.keeper")) == 0 {
+		t.Fatal("the plugin did not install, so this test would prove nothing")
+	}
+
+	// The package changes underneath the lock: a tampered checkout, a partial
+	// write, a colleague editing a vendored copy. It is still declared.
+	write(t, repo, "skills/query/SKILL.md", "---\nname: query\ndescription: changed\n---\nother\n")
+
+	store, err = receipt.Open(adapterreg.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := workspace.Sync(context.Background(), res, store,
+		workspace.Options{Env: env, Prune: true})
+	if err != nil {
+		t.Fatalf("Sync returned a hard error rather than a per-plugin failure: %v", err)
+	}
+
+	failed := false
+	for _, p := range result.Plugins {
+		if p.Err != nil {
+			failed = true
+		}
+	}
+	if !failed {
+		t.Fatal("removing the source did not make the plugin fail to resolve")
+	}
+	if len(result.Pruned) != 0 {
+		t.Errorf("pruned %v after a failed resolve; a declared plugin is still declared", result.Pruned)
+	}
+
+	after, err := receipt.Open(adapterreg.StateDir(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.ForPlugin("acme.keeper")) == 0 {
+		t.Error("a plugin that failed to resolve was uninstalled from the machine; it was still declared")
+	}
+}

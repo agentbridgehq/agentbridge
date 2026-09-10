@@ -171,12 +171,35 @@ func Sync(ctx context.Context, res lockfile.Resolution, store *receipt.Store, op
 		}
 	}()
 
+	// Seeded from the lock, before anything is resolved, because a plugin's
+	// name has to be known even when resolving it fails.
+	//
+	// Pruning asks "is this still declared?", and the answer must come from the
+	// manifest. Deriving it from what resolved successfully answers a different
+	// question — "did this work?" — and gets it catastrophically wrong in the
+	// one case that matters: a package whose digest no longer matches would
+	// fail, fall out of the declared set, and be uninstalled from every client
+	// on the machine, by the integrity check that exists to protect it. The run
+	// then reported "Nothing was changed", because the failure aborts the
+	// writes that come afterwards and pruning is not one of them.
 	declared := map[string]bool{}
+	for path, lock := range before {
+		if _, ours := out.Locks[path]; !ours {
+			continue
+		}
+		for _, p := range lock.Plugins {
+			if stillDeclared(res, p.Source) {
+				declared[p.Name] = true
+			}
+		}
+	}
 
+	failed := false
 	for _, entry := range res.Entries {
 		result := syncOne(ctx, entry, cache, store, opts)
 		out.Plugins = append(out.Plugins, result)
 		if result.Err != nil {
+			failed = true
 			continue
 		}
 		declared[result.Plugin.Name] = true
@@ -196,7 +219,12 @@ func Sync(ctx context.Context, res lockfile.Resolution, store *receipt.Store, op
 		lock.Plugins = keep
 	}
 
-	if opts.Prune {
+	// A failed entry means the declared set is incomplete: a plugin the lock
+	// has never heard of — a first install that could not be fetched — is
+	// indistinguishable from one that was genuinely un-declared. Removing
+	// things from a picture known to be partial is not a risk worth taking for
+	// a tidy-up, so pruning waits until a run that resolved cleanly.
+	if opts.Prune && !failed {
 		pruned, err := prune(opts.Env, store, declared, opts)
 		if err != nil {
 			return nil, err
