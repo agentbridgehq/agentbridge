@@ -214,7 +214,7 @@ func auditInstalled(env adapter.Env, policies []*policy.Policy, asJSON bool) err
 		s := policy.Subject{
 			Name:         e.Plugin,
 			Source:       e.SourceIdentity,
-			Local:        e.SourceIdentity == "" || strings.HasPrefix(e.SourceIdentity, "/"),
+			Local:        isLocalSource(e.SourceIdentity),
 			Capabilities: capabilitiesFromNames(recorded),
 		}
 		v := policy.Check(policies, s)
@@ -286,6 +286,28 @@ func policyWorkspaces(env adapter.Env) []lockfile.Workspace {
 		lockfile.UserWorkspace(adapterreg.StateDir(env)),
 		lockfile.ProjectWorkspace(projectDir),
 	}
+}
+
+// isLocalSource asks the source package rather than inspecting the string.
+//
+// The obvious test — does it start with a "/" — is true on Unix and false for
+// C:\Users\… on Windows, so a local install there would be classified as
+// remote and a `sources.local: deny` rule would silently not apply to it. That
+// is the fail-open direction, and it is the third time in this repository that
+// hand-rolled path reasoning has been wrong on Windows in particular. The
+// parser already knows how to classify a reference on every platform we build
+// for; an unparseable one is treated as local, because that is the more
+// restrictive reading and a rule should not be skipped over a value we could
+// not understand.
+func isLocalSource(identity string) bool {
+	if identity == "" {
+		return true
+	}
+	ref, err := source.ParseRef(identity)
+	if err != nil {
+		return true
+	}
+	return ref.Kind == source.KindLocal
 }
 
 // capabilitiesFromNames turns a lock's capability list back into the struct
