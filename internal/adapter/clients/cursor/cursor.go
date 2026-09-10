@@ -111,7 +111,7 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 	// that does not exist yet.
 	plan.Ops = append([]adapter.Op{adapter.CopyTreeOp(target, src.Path(), "install plugin package", ".cursor-plugin/plugin.json")}, plan.Ops...)
 
-	manifest, err := BuildManifest(p, false)
+	manifest, err := BuildManifest(p, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -141,15 +141,26 @@ func (a *Adapter) Plan(inst adapter.Installation, p *ir.Plugin, src *safepath.Ro
 // the plugins Cursor ships itself do. "mcpServers" is deliberately omitted:
 // those go to ~/.cursor/mcp.json, and naming them here as well would register
 // every server twice.
-func BuildManifest(p *ir.Plugin, declareMCP bool) ([]byte, error) {
+func BuildManifest(p *ir.Plugin, declareMCP, translated bool) ([]byte, error) {
 	m := map[string]any{"name": p.Name, "skills": "./skills/"}
 	// Two callers, two truths. When agentbridge installs, the servers are
 	// already going to ~/.cursor/mcp.json and naming them here would register
 	// each one twice. When `pack` writes into an author's source tree nothing
 	// else is writing anything, so the manifest is the only thing that can
 	// point Cursor at the package's own servers.
+	//
+	// Which file it names depends on whether anything needs expanding. Cursor
+	// expands ${CLAUDE_PLUGIN_ROOT} and ${CURSOR_PLUGIN_ROOT} and leaves the
+	// specification's ${PLUGIN_ROOT} as literal text, so a package using
+	// placeholders has to be pointed at the translated .mcp.json — the same
+	// file Claude Code reads, which is how Figma's own Cursor plugin is built.
+	// With no placeholders in play the portable file is named instead.
 	if declareMCP && len(p.MCPServers) > 0 {
-		m["mcpServers"] = "./mcp.json"
+		if translated {
+			m["mcpServers"] = "./.mcp.json"
+		} else {
+			m["mcpServers"] = "./mcp.json"
+		}
 	}
 	setIfNotEmpty(m, "version", p.Version)
 	setIfNotEmpty(m, "description", p.Description)

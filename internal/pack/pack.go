@@ -11,9 +11,17 @@
 //
 // The reason the command exists is the finding in conformance/README.md: three
 // vendors have each introduced a private manifest at a private path, and an
-// unmodified Agent Plugins package installs in only one of the clients we
-// measured. Adding a handful of small files fixes that, and the shapes of
-// those files are exactly what this project has spent its time measuring.
+// unmodified Agent Plugins package installs in two of the clients we measured
+// — Cursor, and Codex from 0.153.4. Adding a handful of small files covers the
+// rest, and the shapes of those files are exactly what this project has spent
+// its time measuring.
+//
+// The manifests are the visible half. The other half is placeholders: Claude
+// Code and Cursor each expand a spelling of their own and pass the
+// specification's ${PLUGIN_ROOT} through as literal text, so a package pointed
+// at its own mcp.json starts a server with a dollar sign in its command and
+// reports nothing. That is what pack's translated .mcp.json is for, and it is
+// the part an author is least likely to discover unaided.
 //
 // What pack does not do is invent. Where a client's behaviour has not been
 // measured, the gap is reported rather than guessed at, because a manifest
@@ -154,7 +162,41 @@ func Build(p *ir.Plugin, clients []string) ([]File, []Gap, error) {
 			gaps = append(gaps, g...)
 		}
 	}
+
+	files, err = merge(files)
+	if err != nil {
+		return nil, nil, err
+	}
 	return files, gaps, nil
+}
+
+// merge collapses files that two clients both want.
+//
+// Claude Code and Cursor are pointed at the same translated .mcp.json, because
+// Cursor expands Claude Code's placeholder spelling as well as its own. That is
+// one file with two reasons, so it is written once and attributed to both.
+//
+// If two clients ever want the same path with *different* bytes, that is not
+// something to resolve by ordering — whichever ran last would win silently and
+// one client would be quietly misconfigured. It is an error, and it should be
+// an error here rather than a bug report later.
+func merge(files []File) ([]File, error) {
+	byPath := map[string]int{}
+	var out []File
+	for _, f := range files {
+		i, seen := byPath[f.Path]
+		if !seen {
+			byPath[f.Path] = len(out)
+			out = append(out, f)
+			continue
+		}
+		if !bytes.Equal(out[i].Content, f.Content) {
+			return nil, fmt.Errorf("%s and %s both want %s with different contents",
+				out[i].Client, f.Client, f.Path)
+		}
+		out[i].Client += ", " + f.Client
+	}
+	return out, nil
 }
 
 // selectClients resolves the --client selection to a stable, deduplicated list.
@@ -220,7 +262,7 @@ func claudeCodeFiles(p *ir.Plugin) ([]File, []Gap, error) {
 			Client:  ClaudeCode,
 			Path:    ".mcp.json",
 			Content: mcp,
-			Why:     "the same servers in Claude Code's dialect, because it expands ${CLAUDE_PLUGIN_ROOT} and not ${PLUGIN_ROOT}",
+			Why:     "the servers in ${CLAUDE_PLUGIN_ROOT} spelling, which Claude Code and Cursor expand and neither reads as ${PLUGIN_ROOT}",
 		})
 		if carried < len(p.MCPServers) {
 			gaps = append(gaps, Gap{
@@ -232,14 +274,31 @@ func claudeCodeFiles(p *ir.Plugin) ([]File, []Gap, error) {
 	return files, gaps, nil
 }
 
-// cursorFiles writes .cursor-plugin/plugin.json.
+// cursorFiles writes .cursor-plugin/plugin.json, and points it at the
+// translated MCP file rather than at the package's portable one.
 //
-// Cursor is the one client that already accepts an unmodified conformant
-// package, so this manifest is not what makes the plugin work — it is what
-// makes the components explicit, which is what the plugins Cursor ships itself
-// do.
+// Cursor accepts an unmodified conformant package and finds mcp.json by
+// convention — the plugins Cursor publishes itself rely on exactly that. So it
+// is tempting to leave MCP alone here. The trap is placeholders. Cursor's
+// expander is two lines and both of them are somebody else's spelling:
+//
+//	replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, root)
+//	replace(/\$\{CURSOR_PLUGIN_ROOT\}/g, root)
+//
+// The specification's ${PLUGIN_ROOT} is not there, in the CLI bundle or in the
+// desktop application, and an unexpanded placeholder is left as literal text.
+// A conformant package pointed at its own mcp.json therefore starts a server
+// with a dollar sign and a brace in its command — the identical silent failure
+// Claude Code has, arrived at from the other direction.
+//
+// What saves it is that Cursor expands Claude Code's spelling too, so the file
+// pack already writes for Claude Code serves both and no third dialect is
+// needed. When there are no placeholders to expand, the portable file is named
+// instead, because then it is the honest answer.
 func cursorFiles(p *ir.Plugin) ([]File, []Gap, error) {
-	manifest, err := cursor.BuildManifest(p, true)
+	translated := usesPlaceholders(p.MCPServers)
+
+	manifest, err := cursor.BuildManifest(p, len(p.MCPServers) > 0, translated)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cursor manifest: %w", err)
 	}
@@ -250,18 +309,56 @@ func cursorFiles(p *ir.Plugin) ([]File, []Gap, error) {
 		Why:     "names the package's skills and servers explicitly rather than by convention",
 	}}
 
+	// The translated file is Claude Code's, byte for byte. Emitting it under
+	// the Cursor label as well keeps `pack --client=cursor` correct on its own,
+	// and Plan collapses the duplicate when both clients are selected.
+	if translated {
+		mcp, _, err := claudecode.BuildPackageMCP(p.MCPServers)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cursor mcp: %w", err)
+		}
+		files = append(files, File{
+			Client:  Cursor,
+			Path:    ".mcp.json",
+			Content: mcp,
+			Why:     "the servers in ${CLAUDE_PLUGIN_ROOT} spelling, which Claude Code and Cursor expand and neither reads as ${PLUGIN_ROOT}",
+		})
+	}
+
 	var gaps []Gap
-	if usesPlaceholders(p.MCPServers) {
-		// Stated rather than assumed. Our own measurement of ${PLUGIN_ROOT}
-		// under Cursor went through agentbridge, which substitutes absolute
-		// paths before Cursor ever sees the value, so it says nothing about
-		// what Cursor does with a placeholder in a package's own mcp.json.
+	if usesPluginData(p.MCPServers) {
+		// Measured, not assumed: PLUGIN_DATA appears nowhere in Cursor's CLI
+		// bundle or in Cursor.app. There is no CURSOR_PLUGIN_DATA to translate
+		// into, so unlike the root this one has no expressible form.
 		gaps = append(gaps, Gap{
 			Client: Cursor,
-			Detail: "this manifest points Cursor at ./mcp.json, but whether Cursor expands ${PLUGIN_ROOT} there is unmeasured; test before relying on it",
+			Detail: "${PLUGIN_DATA} has no Cursor equivalent — it has no per-plugin data directory at all — so a server needing one will not get it here",
 		})
 	}
 	return files, gaps, nil
+}
+
+// usesPluginData reports whether any server depends on ${PLUGIN_DATA}
+// specifically. The root has a translation in every client measured; the data
+// directory does not, so the two are worth separating.
+func usesPluginData(servers []ir.MCPServer) bool {
+	for _, s := range servers {
+		if strings.Contains(s.Command, ir.PlaceholderPluginData) ||
+			strings.Contains(s.Cwd, ir.PlaceholderPluginData) {
+			return true
+		}
+		for _, a := range s.Args {
+			if strings.Contains(a, ir.PlaceholderPluginData) {
+				return true
+			}
+		}
+		for _, v := range s.Env {
+			if strings.Contains(v, ir.PlaceholderPluginData) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // codexFiles writes .codex-plugin/plugin.json.

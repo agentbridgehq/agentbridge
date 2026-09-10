@@ -274,39 +274,96 @@ func TestEveryWrittenPathStaysInsideThePackage(t *testing.T) {
 	}
 }
 
-// TestCursorManifestNamesTheSpecFile. Cursor is pointed at the package's own
-// mcp.json rather than given a translated copy, which is only correct while
-// nothing needs rewriting for it. If that ever changes, this test is the place
-// it should fail.
-func TestCursorManifestNamesTheSpecFile(t *testing.T) {
-	raw := build(t, plugin(), "cursor")[".cursor-plugin/plugin.json"]
-	var m map[string]any
-	if err := json.Unmarshal(raw, &m); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+// TestCursorIsPointedAtAFileItCanActuallyExpand.
+//
+// Cursor finds mcp.json by convention — Stripe's published plugin declares no
+// mcpServers at all and ships one — so naming the portable file looks right and
+// is right until a placeholder appears. Cursor's expander handles
+// ${CLAUDE_PLUGIN_ROOT} and ${CURSOR_PLUGIN_ROOT} and nothing else, in both the
+// CLI bundle and the desktop application, and leaves anything else as literal
+// text. So a package that uses placeholders must be pointed at the translated
+// file instead, and one that does not should still name the portable one.
+func TestCursorIsPointedAtAFileItCanActuallyExpand(t *testing.T) {
+	declared := func(p *ir.Plugin) any {
+		t.Helper()
+		var m map[string]any
+		if err := json.Unmarshal(build(t, p, "cursor")[".cursor-plugin/plugin.json"], &m); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if m["skills"] != "./skills/" {
+			t.Errorf("skills = %v, want ./skills/", m["skills"])
+		}
+		return m["mcpServers"]
 	}
-	if m["mcpServers"] != "./mcp.json" {
-		t.Errorf("mcpServers = %v, want ./mcp.json", m["mcpServers"])
+
+	if got := declared(plugin()); got != "./.mcp.json" {
+		t.Errorf("with placeholders, mcpServers = %v, want ./.mcp.json", got)
 	}
-	if m["skills"] != "./skills/" {
-		t.Errorf("skills = %v, want ./skills/", m["skills"])
+
+	noPlaceholders := plugin()
+	noPlaceholders.MCPServers = []ir.MCPServer{{
+		Name: "remote", Transport: ir.TransportStreamableHTTP, URL: "https://example.com/mcp",
+	}}
+	if got := declared(noPlaceholders); got != "./mcp.json" {
+		t.Errorf("without placeholders, mcpServers = %v, want ./mcp.json", got)
 	}
 }
 
-// TestUnmeasuredBehaviourIsReportedNotGuessed. Cursor's expansion of the
-// specification's placeholders inside a package has not been measured, and the
-// output says so. This is the project's standing rule in test form: silence
-// must not read as confirmation.
-func TestUnmeasuredBehaviourIsReportedNotGuessed(t *testing.T) {
+// TestCursorAloneStillGetsItsMCPFile. `pack --client=cursor` must produce a
+// package that works on its own; it cannot rely on Claude Code having been
+// packed too, even though the file the two share is identical.
+func TestCursorAloneStillGetsItsMCPFile(t *testing.T) {
+	got := build(t, plugin(), "cursor")
+	if _, ok := got[".mcp.json"]; !ok {
+		t.Fatal("packing for Cursor alone omitted the translated .mcp.json it points at")
+	}
+	both := build(t, plugin(), "claude-code", "cursor")
+	if string(both[".mcp.json"]) != string(got[".mcp.json"]) {
+		t.Error("the file Cursor gets differs from the one Claude Code gets; they are meant to be the same bytes")
+	}
+}
+
+// TestASharedFileIsWrittenOnce. Two clients wanting the same path is normal
+// here. Two clients wanting the same path with different bytes is not, and
+// resolving it by ordering would leave one of them quietly misconfigured.
+func TestASharedFileIsWrittenOnce(t *testing.T) {
+	files, _, err := Build(plugin(), []string{"claude-code", "cursor"})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	seen := map[string]int{}
+	for _, f := range files {
+		seen[f.Path]++
+	}
+	for path, n := range seen {
+		if n > 1 {
+			t.Errorf("%s is emitted %d times", path, n)
+		}
+	}
+	for _, f := range files {
+		if f.Path == ".mcp.json" && !strings.Contains(f.Client, ",") {
+			t.Errorf(".mcp.json is attributed to %q; both clients rely on it", f.Client)
+		}
+	}
+}
+
+// TestWhatPackingCannotFixIsSaidOutLoud.
+//
+// ${PLUGIN_ROOT} has a translation for Cursor. ${PLUGIN_DATA} does not: neither
+// PLUGIN_DATA nor CURSOR_PLUGIN_DATA appears anywhere in Cursor's CLI bundle or
+// in Cursor.app, because it has no per-plugin data directory to point at. That
+// is a real hole in what packing can achieve and the output has to say so,
+// because silence would read as success.
+func TestWhatPackingCannotFixIsSaidOutLoud(t *testing.T) {
 	_, gaps, err := Build(plugin(), []string{"cursor"})
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
 	if len(gaps) == 0 {
-		t.Fatal("packing for Cursor reported no gap despite unmeasured placeholder expansion")
+		t.Fatal("packing for Cursor reported no gap despite ${PLUGIN_DATA} having no equivalent there")
 	}
 
-	// A plugin whose servers need no expansion has nothing to be uncertain
-	// about, and should not be warned at.
+	// A plugin that never asks for a data directory has nothing to warn about.
 	p := plugin()
 	p.MCPServers = []ir.MCPServer{{Name: "remote", Transport: ir.TransportStreamableHTTP, URL: "https://example.com/mcp"}}
 	_, gaps, err = Build(p, []string{"cursor"})
@@ -314,7 +371,7 @@ func TestUnmeasuredBehaviourIsReportedNotGuessed(t *testing.T) {
 		t.Fatalf("Build: %v", err)
 	}
 	if len(gaps) != 0 {
-		t.Errorf("warned about placeholder expansion for a plugin that uses no placeholders: %v", gaps)
+		t.Errorf("warned about ${PLUGIN_DATA} for a plugin that never uses it: %v", gaps)
 	}
 }
 

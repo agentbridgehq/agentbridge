@@ -8,6 +8,41 @@
 #
 # See conformance/mcp/README.md.
 
+# EXTENDED, 2026-09-10, with the one thing this run could not see.
+#
+# Everything below goes through ~/.cursor/mcp.json, which agentbridge writes
+# after substituting absolute paths for ${PLUGIN_ROOT} and ${PLUGIN_DATA}. So
+# the M-cases that appear to show Cursor handling placeholders show nothing of
+# the kind: Cursor never saw one. What a *package's* own mcp.json gets is a
+# different question, and it is the question `agentbridge pack` had to answer.
+#
+# Read off Cursor itself rather than inferred. The whole of its expansion is:
+#
+#   .replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, root)
+#   .replace(/\$\{CURSOR_PLUGIN_ROOT\}/g, root)
+#
+# in the cursor-agent bundle (2026.08.25-3e8eec8), and CURSOR_PLUGIN_ROOT is
+# present in Cursor.app as well. Two findings follow, neither of which any case
+# below could have produced:
+#
+#   - The specification's ${PLUGIN_ROOT} is not expanded. Cursor understands
+#     Claude Code's spelling and its own, and leaves anything else as literal
+#     text, so a conformant package pointed at its own mcp.json starts a server
+#     with a dollar sign and a brace in its command. This is the same silent
+#     failure Claude Code has, reached from the other side, and it is why
+#     `pack` points Cursor's manifest at the translated .mcp.json instead —
+#     which works precisely because Cursor accepts Claude Code's spelling.
+#
+#   - ${PLUGIN_DATA} has no equivalent at all. Neither PLUGIN_DATA nor
+#     CURSOR_PLUGIN_DATA appears anywhere in the bundle or the application:
+#     Cursor has no per-plugin data directory. Unlike the root, this one cannot
+#     be translated into anything, so `pack` reports it as a gap rather than
+#     pretending to have solved it.
+#
+# Not a scored case because the corpus has none for it. Recorded here because
+# it is the fact a plugin author most needs and the one the table would
+# otherwise imply the opposite of.
+
 target: cursor
 version: "Cursor 3.18.9 / cursor-agent"
 platform: "macOS 15 / arm64"

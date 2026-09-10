@@ -177,18 +177,32 @@ commit:
 | File | Why |
 |---|---|
 | `.claude-plugin/plugin.json` | Claude Code ignores the package without it |
-| `.mcp.json` | your servers in Claude Code's dialect — see below |
+| `.mcp.json` | your servers in a spelling Claude Code and Cursor both expand — see below |
 | `.codex-plugin/plugin.json` | required by Codex up to 0.151; ignored by newer versions |
 | `.cursor-plugin/plugin.json` | names your skills and servers rather than relying on convention |
 
-**The `.mcp.json` is not a duplicate.** Claude Code's manifest can point at an
-MCP file by path, so pointing it at your own `mcp.json` looks like it should
-work. It does not, and it fails silently: the specification says
-`${PLUGIN_ROOT}`, Claude Code expands `${CLAUDE_PLUGIN_ROOT}`, and an
-unrecognized placeholder is passed through as literal text rather than
-rejected. Your server would start with a dollar sign and a brace in its command
-and no error anywhere. So `pack` writes a translated copy and leaves your
-portable `mcp.json` untouched as the source of truth.
+**The `.mcp.json` is not a duplicate.** Both Claude Code and Cursor can be
+pointed at an MCP file by path, so naming your own `mcp.json` looks like it
+should work. It does not, and it fails silently in both:
+
+| Client | Expands | Not expanded |
+|---|---|---|
+| Claude Code | `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}` | `${PLUGIN_ROOT}` |
+| Cursor | `${CLAUDE_PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}` | `${PLUGIN_ROOT}` |
+| Codex 0.147+ | `${PLUGIN_ROOT}`, `${PLUGIN_DATA}` | — |
+
+An unrecognized placeholder is passed through as literal text rather than
+rejected, so your server would start with a dollar sign and a brace in its
+command and no error anywhere. `pack` writes one translated copy in the
+spelling Claude Code and Cursor share, points both at it, and leaves your
+portable `mcp.json` untouched as the source of truth — which is also how
+Figma's own Cursor plugin is laid out.
+
+**One thing packing cannot fix.** Cursor has no per-plugin data directory —
+there is no `CURSOR_PLUGIN_DATA` to translate into — so a server that needs
+`${PLUGIN_DATA}` will not get one there. `pack` reports that rather than
+quietly emitting something that looks right. If your server needs somewhere to
+write, take the path as configuration instead of assuming the placeholder.
 
 Everything it writes is derived from your `plugin.json`, so running it twice
 changes nothing and it will not appear in a diff unless something real moved.
