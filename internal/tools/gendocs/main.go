@@ -13,12 +13,54 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/agentbridgehq/agentbridge/internal/adapter"
 	adapterreg "github.com/agentbridgehq/agentbridge/internal/adapter/registry"
 	"github.com/agentbridgehq/agentbridge/internal/conformance"
+	"gopkg.in/yaml.v3"
 )
+
+// clientResult renders one row of the conformance table by counting the
+// results file, rather than by someone remembering to retype a number.
+//
+// The rows used to be hand-written while the agentbridge row was computed, and
+// the hand-written ones went stale twice in a fortnight — both times for Codex,
+// both times in the direction of the client having improved. A table that
+// disagrees with the file it links to is worse than no table, because the link
+// makes it look checked.
+func clientResult(resultsDir, name, file string) string {
+	raw, err := os.ReadFile(filepath.Join(resultsDir, file))
+	if err != nil {
+		return "| " + name + " | results unavailable |"
+	}
+	var doc struct {
+		Version string `yaml:"version"`
+		Results []struct {
+			Outcome string `yaml:"outcome"`
+		} `yaml:"results"`
+	}
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return "| " + name + " | results unreadable |"
+	}
+	counts := map[string]int{}
+	for _, r := range doc.Results {
+		counts[r.Outcome]++
+	}
+	var parts []string
+	for _, k := range []string{"pass", "fail", "unmeasured"} {
+		if counts[k] > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", counts[k], k))
+		}
+	}
+	version := doc.Version
+	if version != "" {
+		version = " (" + version + ")"
+	}
+	return fmt.Sprintf("| %s%s | %s — [results](../conformance/results/%s) |",
+		name, version, strings.Join(parts, ", "), file)
+}
 
 // fence renders a fenced code block. Written as a helper because a raw string
 // literal cannot contain the backticks a fence is made of.
@@ -63,6 +105,10 @@ func main() {
 // relative to the caller made the generated page depend on where the generator
 // ran from, which is exactly the kind of drift this file exists to prevent.
 func Render(corpus string) string {
+	// The results live beside the corpus, and both the generator and its test
+	// call this with different relative roots. Deriving one from the other is
+	// what keeps `make docs` and `go test ./internal/tools/gendocs` agreeing.
+	resultsDir := filepath.Join(filepath.Dir(corpus), "results")
 	var b strings.Builder
 
 	b.WriteString(`# Client compatibility
@@ -182,10 +228,11 @@ answers one specific question, usable by anyone with no dependency on this tool:
 | Target | Status |
 |---|---|
 | agentbridge | ` + selfConformance(corpus) + ` |
-| VS Code | 5 pass, 0 fail, 13 unmeasured — [results](../conformance/results/vscode.yaml) |
-| Cursor | 5 pass, 1 fail, 12 unmeasured — [results](../conformance/results/cursor.yaml) |
-| Codex | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/codex.yaml) |
-| opencode | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/opencode.yaml) |
+` + clientResult(resultsDir, "VS Code", "vscode.yaml") + `
+` + clientResult(resultsDir, "Cursor", "cursor.yaml") + `
+` + clientResult(resultsDir, "Codex", "codex.yaml") + `
+` + clientResult(resultsDir, "Codex via the skills directory", "codex-skills-directory.yaml") + `
+` + clientResult(resultsDir, "opencode", "opencode.yaml") + `
 | Claude Code, Gemini CLI | not conformance targets; neither claims to implement the specification |
 
 **Two clients load a conformant package, and the second one arrived while we
@@ -202,12 +249,15 @@ validate it.
 Two Codex findings went stale inside a fortnight, which is the argument for a
 corpus anyone can re-run rather than a table we publish and defend.
 
-Section 7.1 splits the field. Skills must be immediate children of skills/, and
-a case ships one nested deeper that must not be found. Cursor and VS Code load
-only the two legitimate skills and pass; Codex and opencode load all three and
-fail. The two that pass scan one level, the two that fail scan recursively — and
-a requirement that half a small sample gets wrong, in the same direction, is
-worth raising upstream as a question about the requirement.
+Section 7.1 splits the field, and Codex splits down the middle by itself.
+Skills must be immediate children of skills/, and a case ships one nested
+deeper that must not be found. Cursor, VS Code and Codex-via-its-plugin-path
+load only the two legitimate skills and pass. opencode loads all three and
+fails, and so does Codex when the same package is dropped into its skills
+directory instead: that scan is recursive where the plugin path scans one
+level. One client, two answers, decided by how the bytes arrived rather than by
+what they contain — which is worth raising upstream as a question about the
+requirement, not only as bug reports.
 
 Results are contributed as pull requests, and a case nobody ran is recorded as
 ` + "`unmeasured`" + ` rather than inferred. A blank row invites the reader to assume

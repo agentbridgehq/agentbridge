@@ -8,23 +8,39 @@ Free to use, no attribution required, no dependency on AgentBridge. If you build
 an agent client, this is here to help you check it.
 
 
-## Results so far (2026-08-30)
+## Results so far (2026-09-10)
 
 Four clients run: [codex](results/codex.yaml), [opencode](results/opencode.yaml),
 [cursor](results/cursor.yaml), [vscode](results/vscode.yaml).
 
 | Client | pass | fail | unmeasured |
 |---|---|---|---|
+| **Codex 0.153.4** | **17** | **1** | **0** |
 | VS Code 1.135.0 | 5 | 0 | 13 |
 | Cursor 3.18.9 | 5 | 1 | 12 |
-| Codex 0.144.5 | 4 | 1 | 13 |
 | opencode 1.18.3 | 4 | 1 | 13 |
+| Codex 0.144.5, via the skills directory | 4 | 1 | 13 | 
 
-### Only one client accepts a conformant package
+Codex is first by a distance, and it is worth being precise about why, because
+the number flatters us as much as it flatters them. The other three rows are
+mostly `unmeasured` — not because those clients fail, but because there is no
+way to ask them. Codex ships a CLI that will tell you what it loaded
+(`codex plugin add`, `codex debug prompt-input`, `codex mcp list --json`), so
+almost every case is answerable. A client with no read-back is not worse; it is
+quieter. Do not read this table as a ranking of quality.
+
+The single failure is the SSE transport in case 018, which §7.2.1 makes a
+SHOULD. Two Codex measurements before this one expired within a fortnight, both
+in the direction of the client having improved, so treat this row as perishable
+too — that is what the corpus is for.
+
+### Which clients accept a conformant package
 
 **Cursor loaded all 18 cases unmodified** — carrying only the specification's
-`plugin.json`, deliberately without `.cursor-plugin/plugin.json`. It is the only
-client tested that does.
+`plugin.json`, deliberately without `.cursor-plugin/plugin.json`. **Codex now
+does too**, from 0.153.4; it identifies an Agent Plugins package by the
+`$schema` in its `plugin.json`, and a package without one falls back to being
+looked for as a Codex plugin and reported as `missing plugin.json`.
 
 The others each require their own manifest, or read none at all:
 
@@ -55,13 +71,18 @@ The case ships `alpha`, `beta`, and a third skill at `skills/group/deep/` that
 | | 007 |
 |---|---|
 | Cursor, VS Code | **pass** — `alpha` and `beta` only |
-| Codex, opencode | **fail** — all three |
+| Codex, via `codex plugin add` | **pass** — `alpha` and `beta` only |
+| Codex, via `$CODEX_HOME/skills` | **fail** — all three |
+| opencode | **fail** — all three |
 
-The two that pass scan exactly one level; the two that fail scan recursively.
-Neither behaviour looks deliberate with respect to the specification — one
-happens to match it and one happens not to. A requirement that half of a small
-sample gets wrong, in the same direction, is worth raising upstream as a
-question about the requirement rather than only as four bug reports.
+The ones that pass scan exactly one level; the ones that fail scan recursively.
+The interesting row is Codex, which is on both sides: the same package, in the
+same client, loads two skills or three depending on which door it came through.
+That is fairly strong evidence that the recursive scans are not a considered
+reading of §7.1 so much as the natural way to write a directory walk — nobody
+chooses two different answers for one requirement on purpose. Which makes it
+worth raising upstream as a question about the requirement rather than only as
+a set of bug reports.
 
 ### The one manifest failure that could be scored
 

@@ -166,10 +166,11 @@ agentbridge conformance            # run it against this implementation
 | Target | Status |
 |---|---|
 | agentbridge | 18/18 cases pass |
-| VS Code | 5 pass, 0 fail, 13 unmeasured — [results](../conformance/results/vscode.yaml) |
-| Cursor | 5 pass, 1 fail, 12 unmeasured — [results](../conformance/results/cursor.yaml) |
-| Codex | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/codex.yaml) |
-| opencode | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/opencode.yaml) |
+| VS Code (VS Code 1.135.0) | 5 pass, 13 unmeasured — [results](../conformance/results/vscode.yaml) |
+| Cursor (Cursor 3.18.9) | 5 pass, 1 fail, 12 unmeasured — [results](../conformance/results/cursor.yaml) |
+| Codex (codex-cli 0.153.4) | 17 pass, 1 fail — [results](../conformance/results/codex.yaml) |
+| Codex via the skills directory (codex-cli 0.144.5) | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/codex-skills-directory.yaml) |
+| opencode (opencode 1.18.3) | 4 pass, 1 fail, 13 unmeasured — [results](../conformance/results/opencode.yaml) |
 | Claude Code, Gemini CLI | not conformance targets; neither claims to implement the specification |
 
 **Two clients load a conformant package, and the second one arrived while we
@@ -186,12 +187,15 @@ validate it.
 Two Codex findings went stale inside a fortnight, which is the argument for a
 corpus anyone can re-run rather than a table we publish and defend.
 
-Section 7.1 splits the field. Skills must be immediate children of skills/, and
-a case ships one nested deeper that must not be found. Cursor and VS Code load
-only the two legitimate skills and pass; Codex and opencode load all three and
-fail. The two that pass scan one level, the two that fail scan recursively — and
-a requirement that half a small sample gets wrong, in the same direction, is
-worth raising upstream as a question about the requirement.
+Section 7.1 splits the field, and Codex splits down the middle by itself.
+Skills must be immediate children of skills/, and a case ships one nested
+deeper that must not be found. Cursor, VS Code and Codex-via-its-plugin-path
+load only the two legitimate skills and pass. opencode loads all three and
+fails, and so does Codex when the same package is dropped into its skills
+directory instead: that scan is recursive where the plugin path scans one
+level. One client, two answers, decided by how the bytes arrived rather than by
+what they contain — which is worth raising upstream as a question about the
+requirement, not only as bug reports.
 
 Results are contributed as pull requests, and a case nobody ran is recorded as
 `unmeasured` rather than inferred. A blank row invites the reader to assume

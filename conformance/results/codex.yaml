@@ -9,92 +9,138 @@
 #
 # See conformance/PROTOCOL.md for how to install a case into each client.
 
-# RETIRED IN PART, 2026-09-09. The premise of the run below — that Codex will
-# not install an Agent Plugins package at all — no longer holds. On codex-cli
-# 0.153.4 a package carrying only the specification's plugin.json and a skills/
-# directory installs with `codex plugin add`, and `codex debug prompt-input`
-# shows the skill reaching the model. Re-checked on 0.151.0 first, where the
-# old rejection still reproduces, so the change landed between the two.
-#
-# The per-case results below stay as they are: they measure the skill loader,
-# which was reached by copying each case into $CODEX_HOME/skills and is
-# unaffected. What is now wrong is the reason given for taking that route.
-# Re-running the corpus through the plugin path on 0.153.4 is the open work.
-
 target: codex
-version: "codex-cli 0.144.5"          # superseded; see the note above
-platform: "macOS 15 / arm64"         # e.g. macOS 15 / arm64
+version: "codex-cli 0.153.4"
+platform: "macOS 15 / arm64"
 tested_by: "masihmoloodian"
-tested_on: "2026-08-30"        # YYYY-MM-DD
+tested_on: "2026-09-10"
 method: |
-  Codex's plugin installer refuses an Agent Plugins package outright:
-  `codex plugin add` fails with "missing plugin.json" because it requires
-  .codex-plugin/plugin.json, not the specification's plugin.json at the package
-  root. Verified by control: adding .codex-plugin/plugin.json to an otherwise
-  unchanged case makes the same package install. So the plugin path could not
-  be exercised at all, and no case is scored through it.
+  Through Codex's own plugin path, which is the thing the corpus was written to
+  ask about and which was closed the last three times we tried it. On 0.144.5
+  there was no Agent Plugins support at all; on 0.151.0 `codex plugin add`
+  rejected a conformant package with "missing plugin.json"; on 0.153.4 it
+  installs one. The earlier run reached the cases through $CODEX_HOME/skills
+  instead and is kept, superseded, in codex-skills-directory.yaml.
 
-  What was measured instead is the skill loader. Each case's plugin directory
-  was copied unmodified to $CODEX_HOME/skills/<case> with a fresh CODEX_HOME per
-  case, and `codex debug prompt-input` was read — it renders the model-visible
-  skills block with a source locator per skill, so what loaded is unambiguous
-  and no model call is involved.
+  Each case was published as the sole plugin of a local marketplace and
+  installed with `codex plugin add`, in its own CODEX_HOME. The isolation is
+  load-bearing: `codex mcp list` does not namespace server names by plugin, so
+  two cases both declaring "local" in a shared home would overwrite each other
+  and produce a count that looks right.
 
-  That path never consults plugin.json, which is why every manifest-validation
-  case is unmeasured rather than failed.
+  Three things were then read back, none of which needs a model call or an
+  authenticated session:
+
+    - loads:      the exit status of `codex plugin add`.
+    - skills:     `codex debug prompt-input`, which renders the model-visible
+                  skills block with a per-skill source locator, namespaced by
+                  plugin.
+    - mcpServers: `codex mcp list --json`. This is new — on 0.151.0 the command
+                  showed only servers configured in config.toml, and a plugin's
+                  own servers were invisible to it. On 0.153.4 it reports what
+                  Codex resolved from the package, including the injected
+                  environment and the working directory, which is what makes
+                  the MCP half of the corpus answerable at all.
+
+  Where a case expects some servers to survive and others not, the surviving
+  names were compared rather than the count. A count can match while the wrong
+  server survived, and in four of these cases it would have.
+
+  The marketplace keys on a plugin name and Codex checks it against the
+  package's own, so the three cases whose manifests are invalid could not be
+  addressed normally. Each was re-run as a single-field control against a
+  known-good baseline, to establish that the rejection was for the reason the
+  case is about and not an artifact of the harness.
+
+# Controls run to confirm the three rejections, each changing one field of a
+# package that installs cleanly:
+#
+#   {"$schema": ".../1.0.0/...", "name": "acme-tools"}   -> installs
+#   name "acme--tools" (consecutive hyphens)             -> rejected  (§5.5)
+#   name absent                                          -> rejected  (§5.3)
+#   $schema .../2.0.0/...                                -> rejected  (§5.2)
+#   $schema absent, name valid                           -> "missing plugin.json"
+#
+# The last line is the answer to a question this project had open for a month.
+# Codex identifies an Agent Plugins package by its $schema. Without one it
+# looks for .codex-plugin/plugin.json instead and reports it missing — which
+# is the error we spent three versions attributing to the manifest's location.
 
 results:
   - id: 001-minimal-manifest
-    outcome: unmeasured
-    notes: "No components to observe, and the skills directory never reports whether a plugin 'loaded'. Not answerable by this method."
+    outcome: pass
+    notes: "Installs. Contributes nothing, which is what a manifest with only the required fields should do."
   - id: 002-unknown-top-level-field
     outcome: pass
-    notes: "Skill `one` is available. The plugin was not rejected for the unknown field. Whether the field is reported anywhere is not observable from the CLI."
+    notes: "Installs and skill `one` loads. The unknown field is ignored rather than fatal. Whether it is reported anywhere is still not observable from the CLI."
   - id: 003-non-object-extensions
     outcome: pass
-    notes: "Skill `one` is available. Not rejected for the non-object extensions field."
+    notes: "Installs and skill `one` loads. Not rejected for the non-object extensions field."
   - id: 004-missing-required-name
-    outcome: unmeasured
-    notes: "Skill `one` became available, so a component of a manifest-invalid plugin is reachable — but by a path that never reads plugin.json, so this is not evidence about manifest handling. Recorded rather than scored."
+    outcome: pass
+    notes: "Rejected: `missing or invalid plugin.json`. Confirmed by control — the same package with a valid name installs, so the name is what it objected to."
   - id: 005-invalid-name-consecutive-hyphens
-    outcome: unmeasured
-    notes: "The case carries no skills, so the skills directory shows nothing either way."
+    outcome: pass
+    notes: "Rejected. Control isolates it to the name: `acme--tools` is refused and `acme-tools` installs, with nothing else changed. §5.5's grammar is enforced."
   - id: 006-unsupported-spec-version
-    outcome: unmeasured
-    notes: "As 005: no skills to observe."
+    outcome: pass
+    notes: "Rejected. Control isolates it to $schema: 2.0.0 is refused where 1.0.0 installs. A plugin targeting a version Codex does not implement does not load."
   - id: 007-skills-immediate-children-only
-    outcome: fail
-    notes: "Loaded alpha, beta AND deep. The specification requires skills to be immediate children of skills/; skills/group/deep/ must not be found. Both clients scan recursively."
+    outcome: pass
+    notes: >-
+      Loads `alpha` and `beta`, and not the third skill at skills/group/deep/.
+      This is the same client that loads all three through $CODEX_HOME/skills,
+      where the scan is recursive. The plugin path scans one level, as §7.1
+      requires. The route the package arrived by decides which answer you get.
   - id: 008-skill-directory-without-skill-md
     outcome: pass
-    notes: "Exactly `real` is available. The directory without a SKILL.md is ignored rather than treated as a skill."
+    notes: "Loads `real` only. A directory under skills/ with no SKILL.md is skipped rather than treated as an empty skill."
   - id: 009-no-components
-    outcome: unmeasured
-    notes: "Nothing to observe."
+    outcome: pass
+    notes: "Installs and contributes nothing. A plugin with no components is valid and is not mistaken for a broken one."
   - id: 010-mcp-invalid-entry-isolated
-    outcome: unmeasured
-    notes: "The skill loaded, but the assertion is about MCP servers, which this path does not read."
+    outcome: pass
+    notes: "Skill `one` loads and exactly one server survives — `good`. The malformed `bad` is dropped without taking its neighbour with it, which is what §7.2.2 asks for."
   - id: 011-mcp-version-mismatch
-    outcome: unmeasured
-    notes: "As 010: the MCP half is not observable by this method."
+    outcome: pass
+    notes: "Skill `one` loads; no servers. The version mismatch disables MCP and leaves the rest of the plugin working, rather than failing the whole package."
   - id: 012-mcp-command-escapes-root
-    outcome: unmeasured
-    notes: "MCP only; not observable."
+    outcome: pass
+    notes: "The plugin installs and `escape` does not survive. A command of `../bin/server` is refused, so §4.1 containment is enforced on the command path."
   - id: 013-mcp-insecure-url
-    outcome: unmeasured
-    notes: "MCP only; not observable."
+    outcome: pass
+    notes: "`local` survives and `remote` does not. Plain HTTP to a non-loopback host is refused while loopback is allowed — the distinction §7.2.1 draws, not a blanket ban on http."
   - id: 014-mcp-reserved-env
-    outcome: unmeasured
-    notes: "MCP only; not observable."
+    outcome: pass
+    notes: "`fine` survives and `reserved` does not. A server naming a reserved environment variable is invalidated, and only that server."
   - id: 015-mcp-cwd-escapes-root
-    outcome: unmeasured
-    notes: "MCP only; not observable."
+    outcome: pass
+    notes: "The plugin installs and `escape` does not survive. §4.1 containment is enforced on cwd as well as on command, which is the pair that has to hold together."
   - id: 016-extension-namespace-preserved
     outcome: pass
-    notes: "Skill `one` is available; the foreign extension namespace did not prevent loading."
+    notes: "Skill `one` loads. A foreign extension namespace is carried without being validated, as §8.1 requires."
   - id: 017-mcp-empty-servers
-    outcome: unmeasured
-    notes: "MCP only; not observable."
+    outcome: pass
+    notes: "Installs with no servers. An empty mcpServers object is valid and is not read as a malformed file."
   - id: 018-mcp-all-transports
-    outcome: unmeasured
-    notes: "MCP only; not observable."
+    outcome: fail
+    notes: >-
+      Two of three. `local` (stdio) and `http` (streamable-http) are resolved;
+      `legacy` (sse) is absent from `codex mcp list --json` with no
+      disabled_reason and no error at install. §7.2.1 makes all three a SHOULD
+      rather than a MUST, so this is the mildest kind of miss — but a package
+      whose only server is SSE would install successfully and do nothing, with
+      nothing anywhere saying why.
+
+# Two things worth recording that no single case covers, both read off
+# `codex mcp list --json` for a resolved stdio server:
+#
+#   §9.1  PLUGIN_ROOT and PLUGIN_DATA are both injected, as absolute paths, and
+#         PLUGIN_DATA is a separate per-plugin directory rather than an alias
+#         for the root — plugins/data/agent-plugins/<hash> against
+#         plugins/cache/<marketplace>/<name>/<version>.
+#
+#   §7.2.1 cwd is defaulted to the plugin root when the server does not set one.
+#          Codex accepts it and uses it; two of the other clients accept the
+#          field and ignore it, which is why agentbridge wraps their servers in
+#          a launcher.
