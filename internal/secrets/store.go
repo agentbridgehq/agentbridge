@@ -219,16 +219,28 @@ func (c Chain) Set(name, value string) error {
 }
 
 // Delete implements Store.
+//
+// A store that holds the secret and cannot remove it reports why, rather than
+// being skipped in the hope that a later one can. The environment backend is
+// exactly that case — it is read-only, and a secret set through it stays set —
+// so swallowing the error meant `secret rm` printed "Removed" over a
+// credential that was still live and still listed.
+//
+// Removing something no store holds stays quiet and successful, as the
+// interface promises: that is idempotence, not a failure.
 func (c Chain) Delete(name string) error {
+	var held error
 	for _, s := range c {
 		if _, err := s.Get(name); err != nil {
 			continue
 		}
-		if err := s.Delete(name); err == nil {
-			return nil
+		if err := s.Delete(name); err != nil {
+			held = err
+			continue
 		}
+		return nil
 	}
-	return nil
+	return held
 }
 
 // List implements Store.

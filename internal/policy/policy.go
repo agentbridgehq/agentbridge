@@ -58,36 +58,40 @@ const (
 
 // Policy is one policy file.
 type Policy struct {
-	Version int `yaml:"version"`
+	Version int `yaml:"version" json:"version"`
 
+	// The json tags matter as much as the yaml ones. Without them this
+	// marshals as Sources.Allow while the file it describes says
+	// sources.allow, so `agentbridge policy --json` would disagree with the
+	// document it is reporting on and with every other --json in this tool.
 	Sources struct {
 		// Allow is a list of source patterns. An empty list allows any remote;
 		// a non-empty one allows only what matches.
-		Allow []string `yaml:"allow"`
+		Allow []string `yaml:"allow" json:"allow,omitempty"`
 		// Deny is checked first and wins, so a broad allow can carry a
 		// specific exception without being rewritten.
-		Deny  []string    `yaml:"deny"`
-		Local LocalPolicy `yaml:"local"`
-	} `yaml:"sources"`
+		Deny  []string    `yaml:"deny" json:"deny,omitempty"`
+		Local LocalPolicy `yaml:"local" json:"local"`
+	} `yaml:"sources" json:"sources"`
 
 	Capabilities struct {
 		// Deny names capabilities a plugin may not have: exec, network,
 		// filesystem, secrets. These are inferred from the package rather than
 		// declared by it, so this is a ceiling on what a plugin can reach,
 		// checked against evidence rather than against a promise.
-		Deny []string `yaml:"deny"`
-	} `yaml:"capabilities"`
+		Deny []string `yaml:"deny" json:"deny,omitempty"`
+	} `yaml:"capabilities" json:"capabilities"`
 
 	Plugins struct {
 		// Deny names plugins by name, for the specific thing an org has
 		// decided against.
-		Deny []string `yaml:"deny"`
-	} `yaml:"plugins"`
+		Deny []string `yaml:"deny" json:"deny,omitempty"`
+	} `yaml:"plugins" json:"plugins"`
 
 	// Path is where this was read from. Carried so a refusal can name the file
 	// that caused it — a rule the reader cannot locate is a rule they cannot
 	// change.
-	Path string `yaml:"-"`
+	Path string `yaml:"-" json:"path"`
 }
 
 // Subject is what a policy is asked about.
@@ -128,6 +132,15 @@ func Load(path string) (*Policy, error) {
 		return nil, err
 	}
 
+	// A file with no documents in it — empty, or nothing but comments —
+	// decodes as io.EOF, which reaches the user as the bare word "EOF". That
+	// is the state somebody is in the moment they create the file and before
+	// they type anything into it, so it is worth a sentence rather than a
+	// error code.
+	if strings.TrimSpace(stripComments(string(raw))) == "" {
+		return nil, fmt.Errorf("%s: the policy file is empty, so no rule is being enforced; delete it, or give it at least `version: 1`", path)
+	}
+
 	var p Policy
 	dec := yaml.NewDecoder(strings.NewReader(string(raw)))
 	// Unknown fields are an error here, unlike in a plugin manifest. §5.2 asks
@@ -160,9 +173,24 @@ func Load(path string) (*Policy, error) {
 
 // Discover finds every policy that applies, nearest first.
 //
-// A project policy is looked for by walking up from the working directory, the
-// way git finds its root, so it applies to a plugin installed from anywhere
-// inside the repository rather than only from the top of it.
+// The walk goes up from the working directory so a policy applies from
+// anywhere inside a repository rather than only from the top of it — otherwise
+// `cd services/api && agentbridge install …` escapes it.
+//
+// It deliberately does NOT stop at a .git boundary, which is where
+// lockfile.FindProjectRoot stops. The two are asking different questions and
+// the asymmetry is the point. Finding a project means finding *this* project,
+// and beyond a repository boundary you are in someone else's. Enforcing a
+// policy means not missing one, and the two failure modes are not comparable:
+// applying a policy from a directory above the repository is visible — the
+// refusal names the file, and `agentbridge policy` lists every file in force —
+// whereas failing to apply one is silent, and silence in a security control is
+// the failure that matters. A monorepo with a nested repository inside it
+// would otherwise let that subtree slip out from under the org's rules without
+// anyone seeing it happen.
+//
+// The cost is that a stray policy file high in a home directory affects
+// everything beneath it. That is why the listing exists.
 func Discover(workDir, userDir string) ([]*Policy, error) {
 	var out []*Policy
 	seen := map[string]bool{}
@@ -342,6 +370,20 @@ func hasCapability(c ir.Capabilities, name string) bool {
 		return c.Secrets
 	}
 	return false
+}
+
+// stripComments removes whole-line YAML comments, only well enough to tell an
+// empty document from one carrying rules. Nothing downstream parses with this.
+func stripComments(s string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(s, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 func knownCapability(name string) bool {

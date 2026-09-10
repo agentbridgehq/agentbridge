@@ -1,8 +1,10 @@
 package policy
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -287,4 +289,98 @@ func TestAPolicyIsNotCountedTwice(t *testing.T) {
 	if v := Check(found, Subject{Name: "x", Source: "github.com/elsewhere/x"}); len(v) != 1 {
 		t.Errorf("violations = %d, want 1", len(v))
 	}
+}
+
+// TestTheWalkDoesNotStopAtARepositoryBoundary pins a decision that is easy to
+// mistake for an oversight.
+//
+// lockfile.FindProjectRoot stops at a .git directory, on the grounds that
+// beyond it you are in someone else's project. Discovery deliberately does not,
+// because the two failure modes are not comparable: applying a policy from
+// above the repository is visible — the refusal names the file — while failing
+// to apply one is silent, and a monorepo with a nested repository would
+// otherwise slip out from under the org's rules with nobody seeing it.
+func TestTheWalkDoesNotStopAtARepositoryBoundary(t *testing.T) {
+	outer := t.TempDir()
+	write(t, outer, "version: 1\nsources:\n  local: deny\n")
+
+	inner := filepath.Join(outer, "vendored", "other-project")
+	if err := os.MkdirAll(filepath.Join(inner, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	found, err := Discover(inner, "")
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(found) != 1 {
+		t.Fatalf("found %d policies below a .git boundary, want 1", len(found))
+	}
+	if v := Check(found, Subject{Name: "x", Source: "/tmp/x", Local: true}); len(v) == 0 {
+		t.Error("a policy above a repository boundary was found but not enforced")
+	}
+}
+
+// An empty policy file is what exists in the second between creating it and
+// typing into it. Reporting that as "EOF" tells the reader nothing, and the
+// state is worth a sentence because it is the one where somebody believes a
+// rule is in force and none is.
+func TestAnEmptyPolicyExplainsItself(t *testing.T) {
+	for _, tc := range []struct{ name, body string }{
+		{"empty", ""},
+		{"whitespace", "\n\n  \n"},
+		{"comments only", "# rules go here\n# soon\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Load(write(t, t.TempDir(), tc.body))
+			if err == nil {
+				t.Fatal("an empty policy file was accepted as though it enforced something")
+			}
+			if !strings.Contains(err.Error(), "empty") {
+				t.Errorf("the error does not say the file is empty: %v", err)
+			}
+		})
+	}
+}
+
+// The --json form must describe the file using the file's own names. A report
+// that calls it Sources.Allow while the document says sources.allow cannot be
+// used to check the document.
+func TestJSONUsesTheSameNamesAsTheFile(t *testing.T) {
+	p := load(t, `
+version: 1
+sources:
+  allow: ["github.com/acme/*"]
+capabilities:
+  deny: [network]
+`)
+	raw, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"version", "sources", "capabilities", "plugins", "path"} {
+		if _, ok := got[key]; !ok {
+			t.Errorf("missing %q; keys are %v", key, keysOf(got))
+		}
+	}
+	sources, _ := got["sources"].(map[string]any)
+	if _, ok := sources["allow"]; !ok {
+		t.Errorf("sources has no \"allow\"; keys are %v", keysOf(sources))
+	}
+	if _, ok := sources["local"]; !ok {
+		t.Error("sources has no \"local\"; the effective default should be visible")
+	}
+}
+
+func keysOf(m map[string]any) []string {
+	var out []string
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

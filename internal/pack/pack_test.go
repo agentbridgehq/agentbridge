@@ -457,3 +457,177 @@ func writeFile(t *testing.T, dir, name, body string) {
 		t.Fatal(err)
 	}
 }
+
+// TestPackingDoesNotDestroyWhatTheAuthorWrote.
+//
+// None of these paths belong to this tool. Authors have been hand-writing
+// .claude-plugin/plugin.json and .mcp.json since before it existed, and Figma's
+// published Cursor plugin carries displayName, logo and keywords that nothing
+// here generates. The first version of pack replaced the file wholesale, which
+// deleted all of that silently — on a command whose entire promise is to make a
+// package work in *more* places.
+func TestPackingDoesNotDestroyWhatTheAuthorWrote(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, ".cursor-plugin/plugin.json", `{
+	  "name": "example",
+	  "displayName": "Example",
+	  "logo": "./logo.svg",
+	  "skills": "./skills/"
+	}`)
+
+	files, _, err := Build(plugin(), []string{Cursor})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	changes, err := Plan(dir, files)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if err := Apply(dir, changes); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	var got map[string]any
+	raw, err := os.ReadFile(filepath.Join(dir, ".cursor-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"displayName", "logo"} {
+		if _, ok := got[field]; !ok {
+			t.Errorf("packing deleted %q, which it does not generate and did not write", field)
+		}
+	}
+	// What pack does own still wins, or the merge would preserve a stale copy
+	// of the thing plugin.json is the source of truth for.
+	if got["name"] != "example" {
+		t.Errorf("name = %v, want the value derived from plugin.json", got["name"])
+	}
+
+	// And the author can see it happened.
+	var kept []string
+	for _, c := range changes {
+		if c.Path == ".cursor-plugin/plugin.json" {
+			kept = c.Kept
+		}
+	}
+	if len(kept) == 0 {
+		t.Error("nothing reported as kept, so an author cannot tell their fields survived without diffing")
+	}
+}
+
+// TestPackOwnsTheServersItGenerdatesAndNothingElse.
+//
+// The depth of the merge is what separates "your server" from "your stale copy
+// of my server". A server the portable mcp.json declares is regenerated whole,
+// so deleting an env value there removes it here; a server an author added for
+// one client is left alone. Merging all the way down would leave the deleted
+// value behind and the two files would disagree with nothing to show it.
+func TestPackOwnsTheServersItGeneratesAndNothingElse(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, ".mcp.json", `{
+	  "mcpServers": {
+	    "db":   { "command": "stale", "env": { "REMOVED": "yes" } },
+	    "mine": { "command": "only-for-claude-code" }
+	  }
+	}`)
+
+	files, _, err := Build(plugin(), []string{ClaudeCode})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	changes, err := Plan(dir, files)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if err := Apply(dir, changes); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, ".mcp.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		MCPServers map[string]struct {
+			Command string            `json:"command"`
+			Env     map[string]string `json:"env"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := doc.MCPServers["mine"]; !ok {
+		t.Error("a server the author added for one client was deleted")
+	}
+	db, ok := doc.MCPServers["db"]
+	if !ok {
+		t.Fatal("the generated server is missing")
+	}
+	if db.Command == "stale" {
+		t.Error("the generated server was not regenerated")
+	}
+	if _, stale := db.Env["REMOVED"]; stale {
+		t.Error("a value inside a generated server survived; removing it from mcp.json would never take effect")
+	}
+}
+
+// Selecting one client must not change what packing preserves. Both clients
+// are pointed at the same .mcp.json, and if they disagreed about how much of it
+// pack owns then `pack` and `pack --client=cursor` would treat an author's
+// server differently.
+func TestOwnershipDoesNotDependOnWhichClientsWereSelected(t *testing.T) {
+	both, _, err := Build(plugin(), nil)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	cursorOnly, _, err := Build(plugin(), []string{Cursor})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	depth := func(files []File, path string) int {
+		for _, f := range files {
+			if f.Path == path {
+				return f.MergeDepth
+			}
+		}
+		t.Fatalf("%s was not produced", path)
+		return 0
+	}
+	if a, b := depth(both, ".mcp.json"), depth(cursorOnly, ".mcp.json"); a != b {
+		t.Errorf("merge depth for .mcp.json is %d with every client and %d with Cursor alone", a, b)
+	}
+	for _, f := range both {
+		if f.MergeDepth == 0 {
+			t.Errorf("%s has no merge depth, so an existing file would be replaced wholesale", f.Path)
+		}
+	}
+}
+
+// A file that exists and cannot be parsed is the one case where merging is
+// impossible. Overwriting it is the option that loses work without saying so,
+// so it is refused instead.
+func TestAnUnparseableExistingFileIsRefusedNotClobbered(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, ".codex-plugin/plugin.json", "this is not json {{{")
+
+	files, _, err := Build(plugin(), []string{Codex})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if _, err := Plan(dir, files); err == nil {
+		t.Fatal("an unparseable existing file was silently replaced")
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, ".codex-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "this is not json {{{" {
+		t.Error("the file was modified despite the refusal")
+	}
+}

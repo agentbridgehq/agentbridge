@@ -152,11 +152,21 @@ func secretRemove(args []string) error {
 		return fmt.Errorf("secret rm takes exactly one name")
 	}
 
+	name := positional[0]
 	store := secrets.Open()
-	if err := store.Delete(positional[0]); err != nil {
+
+	// Checked before removing, because Delete is deliberately idempotent and
+	// cannot tell the difference between "gone now" and "was never here". For
+	// a credential that distinction is the whole message: somebody who
+	// mistypes a name and is told "Removed" believes a secret is gone when it
+	// is still in the keychain.
+	if _, err := store.Get(name); err != nil {
+		return fmt.Errorf("no secret named %q is stored, so nothing was removed; `agentbridge secret list` shows what is", name)
+	}
+	if err := store.Delete(name); err != nil {
 		return err
 	}
-	fmt.Printf("Removed %s.\n", positional[0])
+	fmt.Printf("Removed %s.\n", name)
 	return nil
 }
 

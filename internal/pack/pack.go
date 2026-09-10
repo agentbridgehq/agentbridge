@@ -67,6 +67,26 @@ type File struct {
 	Content []byte `json:"-"`
 	// Why records what this file buys, for the human reading the output.
 	Why string `json:"why"`
+	// Kept names what was already in the file and is none of pack's business.
+	// Reported rather than merely preserved: an author should be able to see
+	// that their logo survived without diffing.
+	Kept []string `json:"kept,omitempty"`
+	// MergeDepth is how many levels of keys pack merges before a generated
+	// value replaces what is there wholesale, and it encodes what this tool
+	// owns in each file.
+	//
+	// A vendor manifest is depth 1: the top-level keys are fields, pack owns
+	// the ones it derives from plugin.json, and displayName or logo beside them
+	// is the author's. .mcp.json is depth 2, because the keys under mcpServers
+	// are server *names*: a server the portable mcp.json declares is pack's and
+	// is replaced entire, while one an author added for a single client is
+	// theirs and is left alone.
+	//
+	// Depth matters in the direction of removal. Merging all the way down would
+	// preserve an env value inside a server pack regenerates, so deleting it
+	// from mcp.json would leave it behind and the two files would disagree
+	// with nothing to show it.
+	MergeDepth int `json:"-"`
 }
 
 // State is what applying a File would do.
@@ -194,6 +214,14 @@ func merge(files []File) ([]File, error) {
 			return nil, fmt.Errorf("%s and %s both want %s with different contents",
 				out[i].Client, f.Client, f.Path)
 		}
+		// Same bytes but a different idea of what pack owns in them would mean
+		// the merge behaved differently depending on which clients were
+		// selected — so `pack` and `pack --client=cursor` could disagree about
+		// whether an author's server survived.
+		if out[i].MergeDepth != f.MergeDepth {
+			return nil, fmt.Errorf("%s and %s both want %s but disagree about how much of it is generated (%d vs %d)",
+				out[i].Client, f.Client, f.Path, out[i].MergeDepth, f.MergeDepth)
+		}
 		out[i].Client += ", " + f.Client
 	}
 	return out, nil
@@ -246,10 +274,11 @@ func claudeCodeFiles(p *ir.Plugin) ([]File, []Gap, error) {
 		return nil, nil, fmt.Errorf("claude-code manifest: %w", err)
 	}
 	files := []File{{
-		Client:  ClaudeCode,
-		Path:    ".claude-plugin/plugin.json",
-		Content: manifest,
-		Why:     "Claude Code looks for its own manifest here and ignores the package without it",
+		Client:     ClaudeCode,
+		Path:       ".claude-plugin/plugin.json",
+		Content:    manifest,
+		MergeDepth: 1,
+		Why:        "Claude Code looks for its own manifest here and ignores the package without it",
 	}}
 
 	var gaps []Gap
@@ -259,10 +288,11 @@ func claudeCodeFiles(p *ir.Plugin) ([]File, []Gap, error) {
 			return nil, nil, fmt.Errorf("claude-code mcp: %w", err)
 		}
 		files = append(files, File{
-			Client:  ClaudeCode,
-			Path:    ".mcp.json",
-			Content: mcp,
-			Why:     "the servers in ${CLAUDE_PLUGIN_ROOT} spelling, which Claude Code and Cursor expand and neither reads as ${PLUGIN_ROOT}",
+			Client:     ClaudeCode,
+			Path:       ".mcp.json",
+			Content:    mcp,
+			MergeDepth: 2,
+			Why:        "the servers in ${CLAUDE_PLUGIN_ROOT} spelling, which Claude Code and Cursor expand and neither reads as ${PLUGIN_ROOT}",
 		})
 		if carried < len(p.MCPServers) {
 			gaps = append(gaps, Gap{
@@ -303,10 +333,11 @@ func cursorFiles(p *ir.Plugin) ([]File, []Gap, error) {
 		return nil, nil, fmt.Errorf("cursor manifest: %w", err)
 	}
 	files := []File{{
-		Client:  Cursor,
-		Path:    ".cursor-plugin/plugin.json",
-		Content: manifest,
-		Why:     "names the package's skills and servers explicitly rather than by convention",
+		Client:     Cursor,
+		Path:       ".cursor-plugin/plugin.json",
+		Content:    manifest,
+		MergeDepth: 1,
+		Why:        "names the package's skills and servers explicitly rather than by convention",
 	}}
 
 	// The translated file is Claude Code's, byte for byte. Emitting it under
@@ -318,10 +349,11 @@ func cursorFiles(p *ir.Plugin) ([]File, []Gap, error) {
 			return nil, nil, fmt.Errorf("cursor mcp: %w", err)
 		}
 		files = append(files, File{
-			Client:  Cursor,
-			Path:    ".mcp.json",
-			Content: mcp,
-			Why:     "the servers in ${CLAUDE_PLUGIN_ROOT} spelling, which Claude Code and Cursor expand and neither reads as ${PLUGIN_ROOT}",
+			Client:     Cursor,
+			Path:       ".mcp.json",
+			Content:    mcp,
+			MergeDepth: 2,
+			Why:        "the servers in ${CLAUDE_PLUGIN_ROOT} spelling, which Claude Code and Cursor expand and neither reads as ${PLUGIN_ROOT}",
 		})
 	}
 
@@ -401,10 +433,11 @@ func codexFiles(p *ir.Plugin) ([]File, []Gap, error) {
 	}
 
 	files := []File{{
-		Client:  Codex,
-		Path:    ".codex-plugin/plugin.json",
-		Content: append(raw, '\n'),
-		Why:     "required by Codex up to 0.151; ignored by 0.153+, which takes the package as it is",
+		Client:     Codex,
+		Path:       ".codex-plugin/plugin.json",
+		Content:    append(raw, '\n'),
+		MergeDepth: 1,
+		Why:        "required by Codex up to 0.151; ignored by 0.153+, which takes the package as it is",
 	}}
 	return files, nil, nil
 }
@@ -442,6 +475,14 @@ func usesPlaceholders(servers []ir.MCPServer) bool {
 // Separating this from Apply is what lets --dry-run and --check share every
 // line of logic with a real run, so the thing that reports is the thing that
 // writes.
+//
+// Where a file already exists, what is written is the generated content merged
+// *onto* it rather than in place of it. None of these paths belong to this
+// tool: authors have been hand-writing .claude-plugin/plugin.json and .mcp.json
+// since before it existed, and a published Cursor plugin carries displayName,
+// logo and keywords that nothing here generates. Replacing the file wholesale
+// deletes all of that, silently, on a command whose entire promise is to make a
+// package work in more places.
 func Plan(root string, files []File) ([]Change, error) {
 	r, err := safepath.NewRoot(root)
 	if err != nil {
@@ -458,11 +499,24 @@ func Plan(root string, files []File) ([]Change, error) {
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
 			changes = append(changes, Change{File: f, State: Created})
+			continue
 		case err != nil:
 			return nil, err
-		case bytes.Equal(existing, f.Content):
+		}
+
+		merged, kept, err := mergeOnto(existing, f.Content, f.MergeDepth)
+		if err != nil {
+			// Not fatal, and not silently overwritten either. A file we cannot
+			// parse is one we cannot merge into, and clobbering it is the one
+			// option that loses work without saying so.
+			return nil, fmt.Errorf("%s exists and could not be read as JSON, so it cannot be updated without discarding it: %w", f.Path, err)
+		}
+		f.Content = merged
+		f.Kept = kept
+
+		if bytes.Equal(existing, merged) {
 			changes = append(changes, Change{File: f, State: Unchanged})
-		default:
+		} else {
 			changes = append(changes, Change{File: f, State: Updated})
 		}
 	}
@@ -499,6 +553,82 @@ func Apply(root string, changes []Change) error {
 		}
 	}
 	return nil
+}
+
+// mergeOnto layers generated content over what is already in the file.
+//
+// A deep merge of objects, which is exactly right for both shapes here. In a
+// vendor manifest the top-level keys are fields, so pack's derived identity
+// wins and displayName or logo survives beside it. In .mcp.json the keys under
+// mcpServers are server names, so a server declared in the portable mcp.json is
+// regenerated while one an author added for a single client is left alone.
+//
+// Generated values win at every leaf, because they are derived from plugin.json
+// and that is the source of truth; the point of the merge is to keep what pack
+// has no opinion about, not to defer to a stale copy of what it does.
+func mergeOnto(existing, generated []byte, depth int) ([]byte, []string, error) {
+	var before, after map[string]any
+	if err := json.Unmarshal(existing, &before); err != nil {
+		return nil, nil, err
+	}
+	if err := json.Unmarshal(generated, &after); err != nil {
+		return nil, nil, err
+	}
+
+	kept := keptKeys(before, after, "", depth)
+	sort.Strings(kept)
+
+	out, err := json.MarshalIndent(mergeMaps(before, after, depth), "", "  ")
+	if err != nil {
+		return nil, nil, err
+	}
+	return append(out, '\n'), kept, nil
+}
+
+// keptKeys names what survived, descending into objects the generated content
+// also has.
+//
+// One level of nesting is where the interesting case lives: reporting that
+// mcpServers was kept says nothing, because it is generated. Reporting
+// mcpServers.cc-only says that a server an author added for one client is
+// still there, which is the fact worth seeing.
+func keptKeys(before, after map[string]any, prefix string, depth int) []string {
+	var kept []string
+	for k, v := range before {
+		gen, generated := after[k]
+		if !generated {
+			kept = append(kept, prefix+k)
+			continue
+		}
+		if depth <= 1 {
+			continue
+		}
+		nestedBefore, okBefore := v.(map[string]any)
+		nestedAfter, okAfter := gen.(map[string]any)
+		if okBefore && okAfter {
+			kept = append(kept, keptKeys(nestedBefore, nestedAfter, prefix+k+".", depth-1)...)
+		}
+	}
+	return kept
+}
+
+func mergeMaps(before, after map[string]any, depth int) map[string]any {
+	out := make(map[string]any, len(before)+len(after))
+	for k, v := range before {
+		out[k] = v
+	}
+	for k, v := range after {
+		if depth > 1 {
+			if nested, ok := v.(map[string]any); ok {
+				if existing, ok := out[k].(map[string]any); ok {
+					out[k] = mergeMaps(existing, nested, depth-1)
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func setIfNotEmpty(m map[string]any, k, v string) {

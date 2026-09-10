@@ -209,6 +209,27 @@ changes nothing and it will not appear in a diff unless something real moved.
 It refuses to run on a package that does not validate, because copying a
 mistake into four more files only makes it look sanctioned.
 
+**It will not delete what you wrote.** None of these files belong to
+`agentbridge` — people have been hand-writing `.claude-plugin/plugin.json` and
+`.mcp.json` for far longer than this tool has existed, and a published Cursor
+plugin carries `displayName`, `logo` and `keywords` that nothing here
+generates. So the generated content is merged onto what is already there, and
+the output names what it kept:
+
+```
++ .cursor-plugin/plugin.json  updated   names the package's skills and servers
+                                        kept: displayName, keywords, logo
+```
+
+In `.mcp.json` the same rule applies one level deeper, because the keys there
+are server names. A server your `mcp.json` declares is regenerated whole — so
+deleting an environment variable there removes it here — while a server you
+added by hand for one client is yours and is left alone.
+
+If a file exists and is not valid JSON, packing stops rather than replacing it.
+That is the one case where merging is impossible, and overwriting is the option
+that loses work without telling you.
+
 In CI, `--check` fails the build when a manifest is missing or someone edited
 one by hand:
 

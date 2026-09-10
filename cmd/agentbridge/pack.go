@@ -119,6 +119,12 @@ func printPack(r pack.Result, dryRun, check bool) {
 				mark = "+"
 			}
 			fmt.Printf("    %s %-32s %-9s %s\n", mark, c.Path, c.State, c.Why)
+			// Naming what survived is the point of merging rather than
+			// replacing. An author whose logo is still there should be able to
+			// see that without diffing the file.
+			if len(c.Kept) > 0 {
+				fmt.Printf("    %s %-32s %-9s kept: %s\n", " ", "", "", strings.Join(c.Kept, ", "))
+			}
 		}
 		fmt.Println()
 	}
